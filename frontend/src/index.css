@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue",
+    sans-serif;
+  --font-display: "Inter Display", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+
+  --color-bg-base: oklch(0.18 0.012 264);
+  --color-bg-elev: oklch(0.22 0.014 264);
+  --color-bg-card: oklch(0.25 0.012 264);
+  --color-border-subtle: oklch(0.32 0.012 264);
+  --color-text-primary: oklch(0.98 0.005 264);
+  --color-text-muted: oklch(0.72 0.015 264);
+  --color-accent: oklch(0.74 0.18 220);
+  --color-accent-hover: oklch(0.80 0.17 220);
+  --color-success: oklch(0.78 0.16 155);
+  --color-danger: oklch(0.72 0.20 25);
+
+  --radius-card: 0.75rem;
+  --radius-button: 0.5rem;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-bg-base);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-subtle);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}

@@ -1,0 +1,25 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    schema: "migrations"
+    queries: "queries"
+    gen:
+      go:
+        package: "queries"
+        out: "internal/db/queries"
+        sql_package: "database/sql"
+        emit_interface: true
+        emit_json_tags: true
+        emit_prepared_queries: false
+        emit_empty_slices: true
+        emit_exact_table_names: false
+        overrides:
+          # SQLite REAL maps to float64 by default; explicit for clarity.
+          - db_type: "REAL"
+            go_type: "float64"
+            nullable: false
+          - db_type: "REAL"
+            go_type:
+              type: "float64"
+              pointer: true
+            nullable: true

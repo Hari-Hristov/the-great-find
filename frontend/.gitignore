@@ -1,0 +1,9 @@
+node_modules
+.pnpm-store
+dist
+dist-ssr
+*.local
+.vscode
+.idea
+npm-debug.log*
+pnpm-debug.log*

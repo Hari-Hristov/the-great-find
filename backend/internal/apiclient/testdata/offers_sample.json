@@ -1,0 +1,91 @@
+{
+  "data": [
+    {
+      "id": 1234567,
+      "url": "https://www.olx.bg/item/iphone-15-pro-256gb-CID5-ID12345.html",
+      "title": "iPhone 15 Pro 256GB",
+      "description": "Mint condition, full box.",
+      "created_time": "2026-06-09T14:32:00+03:00",
+      "business": false,
+      "user": {"name": "Иван П."},
+      "location": {
+        "city":   {"name": "София"},
+        "region": {"name": "Област София-град"}
+      },
+      "photos": [
+        {"link": "https://apollo.olx.bg/v1/files/abc-BG/image"},
+        {"link": "https://apollo.olx.bg/v1/files/def-BG/image"}
+      ],
+      "params": [
+        {
+          "key": "price",
+          "value": {
+            "value": 1100.00,
+            "currency": "EUR",
+            "converted_value": 2151.41,
+            "converted_currency": "BGN",
+            "negotiable": false,
+            "label": "1100 €"
+          }
+        },
+        {
+          "key": "state",
+          "value": {"key": "used", "label": "Употребяван"}
+        }
+      ]
+    },
+    {
+      "id": 7654321,
+      "url": "https://www.olx.bg/item/garage-sale-CID42-ID77777.html",
+      "title": "Garage sale — assorted",
+      "description": "",
+      "created_time": "2026-06-08T09:15:00+03:00",
+      "business": true,
+      "user": {"name": "Магазин ABC"},
+      "location": {
+        "city":   {"name": "Пловдив"},
+        "region": {"name": "Област Пловдив"}
+      },
+      "photos": [],
+      "params": [
+        {
+          "key": "price",
+          "value": {
+            "value": 50,
+            "currency": "BGN",
+            "converted_value": 25.56,
+            "converted_currency": "EUR",
+            "negotiable": true,
+            "label": "50 лв."
+          }
+        }
+      ]
+    },
+    {
+      "id": 9999999,
+      "url": "",
+      "title": "Junk listing missing url",
+      "params": []
+    },
+    {
+      "id": 8888888,
+      "url": "https://www.olx.bg/item/no-price-CID7-ID8888.html",
+      "title": "Negotiable, no price",
+      "created_time": "2026-06-10T10:00:00+03:00",
+      "business": false,
+      "user": {"name": "Aноним"},
+      "location": {"city": {"name": "Варна"}},
+      "photos": [{"link": "https://apollo.olx.bg/v1/files/xyz-BG/image"}],
+      "params": []
+    }
+  ],
+  "links": {
+    "next": {
+      "href": "https://www.olx.bg/api/v1/offers/?offset=40&limit=40&sort_by=created_at%3Adesc"
+    }
+  },
+  "metadata": {
+    "total_elements": 137,
+    "visible_total_count": 137
+  }
+}
