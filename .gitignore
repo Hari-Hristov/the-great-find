@@ -1,32 +1,50 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
+# Build artifacts
+dist/
+backend/dist/
+frontend/dist/
+backend/bin/
+backend/the-great-find
+backend/the-great-find.exe
 *.exe
-*.exe~
-*.dll
-*.so
-*.dylib
 
-# Test binary, built with `go test -c`
+# Go
+backend/vendor/
 *.test
-
-# Code coverage profiles and other test artifacts
 *.out
 coverage.*
-*.coverprofile
-profile.cov
+tmp/
+__debug_bin
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Node / Vite
+node_modules/
+frontend/.vite/
+frontend/openapi.json
 
-# Go workspace file
-go.work
-go.work.sum
+# Generated code (regenerated via scripts/gen-types.sh)
+# Commit it so PRs catch drift; uncomment to ignore instead:
+# frontend/src/api/generated.ts
 
-# env file
+# Environment / secrets
 .env
+.env.*
+*.local
 
-# Editor/IDE
-# .idea/
-# .vscode/
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local runtime data (would clobber a real install if run from repo dir)
+the-great-find.lock
+config.toml
+parser-config-cache.json
+logs/

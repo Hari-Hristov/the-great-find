@@ -1,0 +1,103 @@
+{
+  "$schema_version": 3,
+  "platform": "olx",
+  "country": "BG",
+  "updated_at": "2026-06-10",
+  "notes": "Schema v3 adds an optional `api` block describing olx.bg's internal JSON endpoint at /api/v1/offers/. When present, the apiclient package replaces the HTML scraper as the default ingestion path. Schema v2 grid/detail blocks remain — fallback path if the API block is removed at runtime. Currency: olx.bg's API returns price.value in the offer's listed currency (BGN or EUR depending on seller) plus a converted_value; the mapper writes the raw (amount, currency) pair like the HTML path, and the API edge normalizes to EUR via internal/money.",
+  "base_url": "https://www.olx.bg",
+  "search": {
+    "path_segments": {
+      "category": { "kind": "raw_path",     "default": "ads" },
+      "location": { "kind": "raw_path",     "default": "" },
+      "keyword":  { "kind": "q_prefix",     "default": "" }
+    },
+    "segment_order": ["category", "location", "keyword"],
+    "query_params": {
+      "price_min":   "search[filter_float_price:from]",
+      "price_max":   "search[filter_float_price:to]",
+      "condition":   "search[filter_enum_state][0]",
+      "seller_type": "search[private_business]",
+      "sort":        "search[order]",
+      "currency":    "currency",
+      "page":        "page"
+    },
+    "query_param_defaults": {
+      "currency": "EUR",
+      "sort":     "created_at:desc"
+    },
+    "query_param_enums": {
+      "sort":        ["created_at:desc", "filter_float_price:asc", "filter_float_price:desc", "relevance:desc"],
+      "condition":   ["new", "used"],
+      "seller_type": ["private", "business"],
+      "currency":    ["EUR", "BGN"]
+    }
+  },
+  "grid": {
+    "card_selector": "div[data-cy='l-card']",
+    "fields": {
+      "external_id": { "selector": "div[data-cy='l-card']", "attr": "id" },
+      "url": { "selector": "a", "attr": "href", "absolute": true },
+      "title": { "selector": "h4, h6", "attr": "text" },
+      "price": { "selector": "p[data-testid='ad-price']", "attr": "text" },
+      "location_posted": { "selector": "p[data-testid='location-date']", "attr": "text" },
+      "primary_image_url": { "selector": "img", "attr": "src" },
+      "promoted_top": { "selector": "[data-testid='adCard-featured']", "attr": "exists" }
+    },
+    "pagination": {
+      "next_selector": "a[data-testid='pagination-forward']",
+      "max_pages": 20
+    }
+  },
+  "detail": {
+    "fields": {
+      "description": { "selector": "div[data-cy='ad_description'] div", "attr": "text" },
+      "posted_at": { "selector": "[data-cy='ad-posted-at']", "attr": "text" },
+      "seller_name": { "selector": "h4[data-testid='user-profile-user-name']", "attr": "text" },
+      "seller_type": { "selector": "[data-testid='user-profile-user-type']", "attr": "text" },
+      "params_block": { "selector": "ul[data-testid='ad-parameters-list'] li", "attr": "list" },
+      "photos": { "selector": "div[data-cy='ad-photo'] img", "attr": "src-list" }
+    }
+  },
+  "robots": {
+    "respect_robots_txt": true,
+    "user_agent": "the-great-find/1.0 (+personal use; contact: see README)",
+    "min_request_spacing_ms": 1500,
+    "jitter_ms": 750,
+    "max_in_flight_per_host": 1
+  },
+  "api": {
+    "list_path": "/api/v1/offers/",
+    "query_params": {
+      "keyword":   "query",
+      "price_min": "search[filter_float_price:from]",
+      "price_max": "search[filter_float_price:to]",
+      "sort":      "sort_by",
+      "offset":    "offset",
+      "limit":     "limit"
+    },
+    "query_param_defaults": {
+      "sort":  "created_at:desc",
+      "limit": "40"
+    },
+    "pagination": {
+      "next_link_path": "links.next.href",
+      "max_pages": 25
+    },
+    "response": {
+      "listings_path": "data",
+      "fields": {
+        "external_id":     "id",
+        "url":             "url",
+        "title":           "title",
+        "description":     "description",
+        "primary_image":   "photos.0.link",
+        "city":            "location.city.name",
+        "region":          "location.region.name",
+        "seller_name":     "user.name",
+        "is_business":     "business",
+        "created_time":    "created_time"
+      },
+      "price_param_key": "price"
+    }
+  }
+}
