@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/harihristov/the-great-find/backend/internal/parser"
-	"github.com/harihristov/the-great-find/backend/internal/politehttp"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/politehttp"
 )
 
 // newTestStore returns a parser.Store seeded from the embedded olx-bg config

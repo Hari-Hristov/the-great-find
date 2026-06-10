@@ -6,7 +6,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/harihristov/the-great-find/backend/internal/money"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/money"
 )
 
 func enrichEUR(rows []ListingRow) {
@@ -37,6 +37,7 @@ func registerListings(api huma.API, q Queries) {
 	}) (*struct {
 		Body struct {
 			Items []ListingRow `json:"items"`
+			Total int          `json:"total"`
 		}
 	}, error) {
 		f := ListingFilter{
@@ -68,13 +69,19 @@ func registerListings(api huma.API, q Queries) {
 		if err != nil {
 			return nil, err
 		}
+		total, err := q.CountListings(ctx, f)
+		if err != nil {
+			return nil, err
+		}
 		enrichEUR(rows)
 		out := &struct {
 			Body struct {
 				Items []ListingRow `json:"items"`
+				Total int          `json:"total"`
 			}
 		}{}
 		out.Body.Items = rows
+		out.Body.Total = total
 		return out, nil
 	})
 

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/harihristov/the-great-find/backend/internal/api"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/api"
 )
 
 // Compile-time assertion that Store satisfies api.Queries (which embeds scheduler.Queries).
@@ -239,13 +239,16 @@ const listingCols = `id, platform, country, external_id, url, title,
 	posted_at, scraped_first_at, scraped_last_at, status,
 	primary_image_url, promoted_top`
 
-func (s *Store) ListListings(ctx context.Context, f api.ListingFilter) ([]api.ListingRow, error) {
-	var (
-		clauses []string
-		args    []any
-	)
+// listingFilterClauses builds the WHERE-clause fragments + args for a
+// ListingFilter. Shared between ListListings and CountListings so the count
+// always matches the rows the list query would return for the same filter.
+//
+// The posted_at filter coalesces with scraped_first_at — listings with a NULL
+// posted_at (some apiclient paths leave it unset) would otherwise silently
+// drop out of any "last N days" window.
+func listingFilterClauses(f api.ListingFilter) (clauses []string, args []any) {
 	if f.SearchID != nil {
-		clauses = append(clauses, `id IN (SELECT listing_id FROM alerts_sent WHERE search_id = ?)`)
+		clauses = append(clauses, `id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)`)
 		args = append(args, *f.SearchID)
 	}
 	if f.Status != "" {
@@ -253,10 +256,9 @@ func (s *Store) ListListings(ctx context.Context, f api.ListingFilter) ([]api.Li
 		args = append(args, f.Status)
 	}
 	if f.PostedAfter != nil {
-		clauses = append(clauses, `datetime(posted_at) >= datetime(?)`)
+		clauses = append(clauses, `datetime(COALESCE(posted_at, scraped_first_at)) >= datetime(?)`)
 		args = append(args, f.PostedAfter.UTC().Format(time.RFC3339))
 	}
-	// EUR filters apply to BGN at the canonical peg too — we can pre-translate.
 	if f.PriceEURMin != nil {
 		clauses = append(clauses,
 			`((price_currency IN ('EUR','eur','€') AND price_amount >= ?) OR
@@ -269,7 +271,11 @@ func (s *Store) ListListings(ctx context.Context, f api.ListingFilter) ([]api.Li
 			   (price_currency IN ('BGN','bgn') AND price_amount <= ? * 1.95583))`)
 		args = append(args, *f.PriceEURMax, *f.PriceEURMax)
 	}
+	return clauses, args
+}
 
+func (s *Store) ListListings(ctx context.Context, f api.ListingFilter) ([]api.ListingRow, error) {
+	clauses, args := listingFilterClauses(f)
 	where := ""
 	if len(clauses) > 0 {
 		where = "WHERE " + strings.Join(clauses, " AND ")
@@ -278,7 +284,7 @@ func (s *Store) ListListings(ctx context.Context, f api.ListingFilter) ([]api.Li
 	if limit <= 0 {
 		limit = 100
 	}
-	q := fmt.Sprintf(`SELECT %s FROM listings %s ORDER BY scraped_last_at DESC LIMIT ? OFFSET ?`,
+	q := fmt.Sprintf(`SELECT %s FROM listings %s ORDER BY scraped_first_at DESC LIMIT ? OFFSET ?`,
 		listingCols, where)
 	args = append(args, limit, f.Offset)
 
@@ -297,6 +303,20 @@ func (s *Store) ListListings(ctx context.Context, f api.ListingFilter) ([]api.Li
 		out = append(out, r)
 	}
 	return out, rows.Err()
+}
+
+func (s *Store) CountListings(ctx context.Context, f api.ListingFilter) (int, error) {
+	clauses, args := listingFilterClauses(f)
+	where := ""
+	if len(clauses) > 0 {
+		where = "WHERE " + strings.Join(clauses, " AND ")
+	}
+	q := fmt.Sprintf(`SELECT COUNT(*) FROM listings %s`, where)
+	var n int
+	if err := s.pools.Reader.QueryRowContext(ctx, q, args...).Scan(&n); err != nil {
+		return 0, fmt.Errorf("count listings: %w", err)
+	}
+	return n, nil
 }
 
 func (s *Store) GetListing(ctx context.Context, id int64) (*api.ListingRow, error) {
@@ -441,32 +461,67 @@ func (s *Store) ListRecentAlerts(ctx context.Context, limit int) ([]api.AlertRow
 	return out, rows.Err()
 }
 
-func (s *Store) AnalyticsForSearch(ctx context.Context, searchID int64, sinceDays int) (api.AnalyticsRow, error) {
-	if sinceDays <= 0 {
-		sinceDays = 30
+func (s *Store) AnalyticsForSearch(ctx context.Context, f api.AnalyticsFilter) (api.AnalyticsRow, error) {
+	if f.WindowDays <= 0 {
+		f.WindowDays = 30
 	}
-	out := api.AnalyticsRow{SearchID: searchID, WindowDays: sinceDays, TrendEUR: []api.TrendPoint{}}
+	out := api.AnalyticsRow{SearchID: f.SearchID, WindowDays: f.WindowDays, TrendEUR: []api.TrendPoint{}}
 
-	// All observations for listings touched by this search in the window,
-	// translated to EUR via the fixed peg.
-	const obsQ = `
+	// Build price clauses for listings table (same EUR conversion logic as listingFilterClauses).
+	var priceClauses []string
+	var priceArgs []any
+	if f.PriceEURMin != nil {
+		priceClauses = append(priceClauses,
+			`((l.price_currency IN ('EUR','eur','€') AND l.price_amount >= ?) OR
+			   (l.price_currency IN ('BGN','bgn') AND l.price_amount >= ? * 1.95583))`)
+		priceArgs = append(priceArgs, *f.PriceEURMin, *f.PriceEURMin)
+	}
+	if f.PriceEURMax != nil {
+		priceClauses = append(priceClauses,
+			`((l.price_currency IN ('EUR','eur','€') AND l.price_amount <= ?) OR
+			   (l.price_currency IN ('BGN','bgn') AND l.price_amount <= ? * 1.95583))`)
+		priceArgs = append(priceArgs, *f.PriceEURMax, *f.PriceEURMax)
+	}
+	priceWhere := ""
+	if len(priceClauses) > 0 {
+		priceWhere = " AND " + strings.Join(priceClauses, " AND ")
+	}
+
+	// Count distinct matching listings (not observations).
+	countQ := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM listings l
+		WHERE l.id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)%s`,
+		priceWhere)
+	countArgs := append([]any{f.SearchID}, priceArgs...)
+	var listingCount int
+	if err := s.pools.Reader.QueryRowContext(ctx, countQ, countArgs...).Scan(&listingCount); err != nil {
+		return out, fmt.Errorf("analytics count: %w", err)
+	}
+	out.ListingCount = listingCount
+
+	// Min/avg/max: latest price observation per matching listing.
+	statsQ := fmt.Sprintf(`
 		SELECT o.price_amount, o.price_currency
 		FROM price_observations o
-		WHERE o.listing_id IN (SELECT listing_id FROM alerts_sent WHERE search_id = ?)
-		  AND datetime(o.observed_at) >= datetime('now', printf('-%d days', ?))
-		  AND o.price_amount IS NOT NULL`
-	rows, err := s.pools.Reader.QueryContext(ctx, obsQ, searchID, sinceDays)
+		JOIN listings l ON l.id = o.listing_id
+		WHERE l.id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)
+		  AND o.observed_at = (SELECT MAX(o2.observed_at) FROM price_observations o2 WHERE o2.listing_id = l.id)
+		  AND o.price_amount IS NOT NULL%s`,
+		priceWhere)
+	statsArgs := append([]any{f.SearchID}, priceArgs...)
+	rows, err := s.pools.Reader.QueryContext(ctx, statsQ, statsArgs...)
 	if err != nil {
-		return out, fmt.Errorf("analytics observations: %w", err)
+		return out, fmt.Errorf("analytics stats: %w", err)
 	}
 	defer rows.Close()
 
 	var (
-		count   int
 		sum     float64
 		minV    float64
 		maxV    float64
 		haveMin bool
+		obsCount int
 	)
 	for rows.Next() {
 		var amount float64
@@ -478,7 +533,7 @@ func (s *Store) AnalyticsForSearch(ctx context.Context, searchID int64, sinceDay
 		if currency.Valid && (currency.String == "BGN" || currency.String == "bgn") {
 			eur = amount / 1.95583
 		}
-		count++
+		obsCount++
 		sum += eur
 		if !haveMin || eur < minV {
 			minV = eur
@@ -491,10 +546,8 @@ func (s *Store) AnalyticsForSearch(ctx context.Context, searchID int64, sinceDay
 	if err := rows.Err(); err != nil {
 		return out, err
 	}
-
-	out.ListingCount = count
-	if count > 0 {
-		avg := sum / float64(count)
+	if obsCount > 0 {
+		avg := sum / float64(obsCount)
 		out.AvgEUR = &avg
 		mn := minV
 		out.MinEUR = &mn
@@ -502,8 +555,8 @@ func (s *Store) AnalyticsForSearch(ctx context.Context, searchID int64, sinceDay
 		out.MaxEUR = &mx
 	}
 
-	// Daily trend: average EUR per day in the window.
-	const trendQ = `
+	// Daily trend: average EUR per day in the window, respecting price filter.
+	trendQ := fmt.Sprintf(`
 		SELECT substr(o.observed_at, 1, 10) AS day,
 		       AVG(CASE
 		             WHEN o.price_currency IN ('BGN','bgn') THEN o.price_amount / 1.95583
@@ -511,12 +564,14 @@ func (s *Store) AnalyticsForSearch(ctx context.Context, searchID int64, sinceDay
 		           END) AS avg_eur,
 		       COUNT(*) AS n
 		FROM price_observations o
-		WHERE o.listing_id IN (SELECT listing_id FROM alerts_sent WHERE search_id = ?)
-		  AND datetime(o.observed_at) >= datetime('now', printf('-%d days', ?))
-		  AND o.price_amount IS NOT NULL
+		JOIN listings l ON l.id = o.listing_id
+		WHERE l.id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)
+		  AND datetime(o.observed_at) >= datetime('now', printf('-%%d days', %d))
+		  AND o.price_amount IS NOT NULL%s
 		GROUP BY day
-		ORDER BY day`
-	tRows, err := s.pools.Reader.QueryContext(ctx, trendQ, searchID, sinceDays)
+		ORDER BY day`, f.WindowDays, priceWhere)
+	trendArgs := append([]any{f.SearchID}, priceArgs...)
+	tRows, err := s.pools.Reader.QueryContext(ctx, trendQ, trendArgs...)
 	if err != nil {
 		return out, fmt.Errorf("analytics trend: %w", err)
 	}

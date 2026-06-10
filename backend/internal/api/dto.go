@@ -99,6 +99,13 @@ type AlertRow struct {
 	ListingURL   string    `json:"listing_url,omitempty"`
 }
 
+type AnalyticsFilter struct {
+	SearchID    int64
+	WindowDays  int
+	PriceEURMin *float64
+	PriceEURMax *float64
+}
+
 type AnalyticsRow struct {
 	SearchID     int64    `json:"search_id"`
 	WindowDays   int      `json:"window_days"`

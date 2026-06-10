@@ -8,7 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/harihristov/the-great-find/backend/internal/scheduler"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/scheduler"
 )
 
 // SavedSearchInput is the payload for create/update.

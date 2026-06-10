@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/harihristov/the-great-find/backend/internal/db"
-	"github.com/harihristov/the-great-find/backend/internal/scheduler"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/db"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/scheduler"
 )
 
 // Store wraps a Pools and exposes the scheduler.Queries surface.
@@ -228,6 +228,15 @@ func (s *Store) InsertAlertSent(ctx context.Context, in scheduler.InsertAlertSen
 	_, err := s.pools.Writer.ExecContext(ctx, q, in.SearchID, in.ListingID, in.CriteriaHash, in.CriteriaJSON)
 	if err != nil {
 		return fmt.Errorf("insert alert: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) RecordSearchListing(ctx context.Context, searchID, listingID int64) error {
+	const q = `INSERT OR IGNORE INTO search_listings (search_id, listing_id) VALUES (?, ?)`
+	_, err := s.pools.Writer.ExecContext(ctx, q, searchID, listingID)
+	if err != nil {
+		return fmt.Errorf("record search listing: %w", err)
 	}
 	return nil
 }

@@ -121,15 +121,16 @@ function buildQuery(params: Record<string, string | number | undefined>): string
   return s.length > 0 ? `?${s}` : "";
 }
 
-export function useListings(params: ListListingsParams) {
+export function useListings(params: ListListingsParams, opts?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.listings(params),
     queryFn: async () => {
-      const r = await apiFetch<{ items: Listing[] }>(
+      const r = await apiFetch<{ items: Listing[]; total: number }>(
         `/listings${buildQuery(params as Record<string, string | number | undefined>)}`,
       );
-      return r.items ?? [];
+      return { items: r.items ?? [], total: r.total ?? 0 };
     },
+    enabled: opts?.enabled ?? true,
   });
 }
 
@@ -158,16 +159,24 @@ export function useListing(id: number) {
 export function useAlerts(limit = 100) {
   return useQuery({
     queryKey: qk.alerts(limit),
-    queryFn: () => apiFetch<Alert[]>(`/alerts${buildQuery({ limit })}`),
+    queryFn: async () => {
+      const r = await apiFetch<{ items: Alert[] }>(`/alerts${buildQuery({ limit })}`);
+      return r.items ?? [];
+    },
   });
 }
 
-export function useAnalytics(searchId: number, windowDays = 30) {
+export function useAnalytics(
+  searchId: number,
+  windowDays = 30,
+  priceEurMin?: number,
+  priceEurMax?: number,
+) {
   return useQuery({
-    queryKey: qk.analytics(searchId, windowDays),
+    queryKey: [...qk.analytics(searchId, windowDays), priceEurMin, priceEurMax],
     queryFn: () =>
       apiFetch<Analytics>(
-        `/analytics/searches/${searchId}${buildQuery({ window_days: windowDays })}`,
+        `/analytics/searches/${searchId}${buildQuery({ window_days: windowDays, price_eur_min: priceEurMin, price_eur_max: priceEurMax })}`,
       ),
     enabled: Number.isFinite(searchId) && searchId > 0,
   });

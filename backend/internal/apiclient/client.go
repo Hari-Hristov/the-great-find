@@ -29,9 +29,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/harihristov/the-great-find/backend/internal/parser"
-	"github.com/harihristov/the-great-find/backend/internal/politehttp"
-	"github.com/harihristov/the-great-find/backend/internal/scraper"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/politehttp"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/scraper"
 )
 
 // Client wraps net/http with politeness and the parser config the API speaks against.

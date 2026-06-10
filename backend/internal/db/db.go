@@ -23,7 +23,7 @@ import (
 	"github.com/pressly/goose/v3"
 	_ "modernc.org/sqlite"
 
-	"github.com/harihristov/the-great-find/backend/migrations"
+	"github.com/Hari-Hristov/the-great-find/backend/migrations"
 )
 
 // Pools holds the read and write database handles. Always close both on shutdown.

@@ -38,7 +38,7 @@ Single native binary per OS — Windows, macOS Intel, macOS Apple Silicon, Linux
 
 ```bash
 # 1. Clone
-git clone https://github.com/harihristov/the-great-find.git
+git clone https://github.com/Hari-Hristov/the-great-find.git
 cd the-great-find
 
 # 2. Create and migrate the dev database

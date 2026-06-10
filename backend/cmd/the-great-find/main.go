@@ -12,16 +12,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/harihristov/the-great-find/backend/internal/api"
-	"github.com/harihristov/the-great-find/backend/internal/apiclient"
-	"github.com/harihristov/the-great-find/backend/internal/db"
-	"github.com/harihristov/the-great-find/backend/internal/db/store"
-	"github.com/harihristov/the-great-find/backend/internal/events"
-	"github.com/harihristov/the-great-find/backend/internal/parser"
-	"github.com/harihristov/the-great-find/backend/internal/paths"
-	"github.com/harihristov/the-great-find/backend/internal/politehttp"
-	"github.com/harihristov/the-great-find/backend/internal/scheduler"
-	"github.com/harihristov/the-great-find/backend/internal/scraper"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/api"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/apiclient"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/db"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/db/store"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/events"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/paths"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/politehttp"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/scheduler"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/scraper"
 )
 
 func main() {
@@ -63,6 +63,18 @@ func run() error {
 		return fmt.Errorf("migrate: %w", err)
 	}
 	slog.Info("db: migrations up-to-date")
+
+	// Startup retention sweep — same predicate as the AFTER INSERT trigger from
+	// migration 0002. Covers the case where the app sat idle for >90 days with
+	// no new inserts to fire the trigger.
+	if res, err := pools.Writer.ExecContext(ctx,
+		`DELETE FROM listings
+		 WHERE datetime(COALESCE(posted_at, scraped_first_at))
+		       < datetime('now', '-90 days')`); err != nil {
+		slog.Warn("startup retention sweep failed", "err", err)
+	} else if n, _ := res.RowsAffected(); n > 0 {
+		slog.Info("startup retention sweep: pruned listings", "count", n)
+	}
 
 	parserCfg, err := parser.EmbeddedOLXBG()
 	if err != nil {

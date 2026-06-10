@@ -3,9 +3,11 @@ package scheduler
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
-	"github.com/harihristov/the-great-find/backend/internal/apiclient"
-	"github.com/harihristov/the-great-find/backend/internal/scraper"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/apiclient"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/money"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/scraper"
 )
 
 // expandQueryParams produces one query_params JSON per keyword variant the
@@ -118,4 +120,60 @@ func dedupeListingsByExternalID(in []scraper.Listing) []scraper.Listing {
 		out = append(out, l)
 	}
 	return out
+}
+
+// priceFilter holds the optional EUR price range decoded from a saved search's
+// query_params. A nil bound means unbounded on that side.
+type priceFilter struct {
+	minEUR *float64
+	maxEUR *float64
+}
+
+// parsePriceFilter decodes price_min and price_max from query_params JSON.
+// Both are stored as EUR strings in the saved search ("200", "500", etc.).
+// Malformed or absent values are silently ignored — a bad filter is treated
+// as unbounded rather than blocking all alerts.
+func parsePriceFilter(raw []byte) priceFilter {
+	if len(raw) == 0 {
+		return priceFilter{}
+	}
+	var params map[string]string
+	if err := json.Unmarshal(raw, &params); err != nil {
+		return priceFilter{}
+	}
+	pf := priceFilter{}
+	if s := params["price_min"]; s != "" {
+		if v, err := strconv.ParseFloat(s, 64); err == nil && v > 0 {
+			pf.minEUR = &v
+		}
+	}
+	if s := params["price_max"]; s != "" {
+		if v, err := strconv.ParseFloat(s, 64); err == nil && v > 0 {
+			pf.maxEUR = &v
+		}
+	}
+	return pf
+}
+
+// contains reports whether a listing price falls within the filter bounds.
+// Listings with no price, or whose currency can't be converted, are always
+// included so a bad price field doesn't silently suppress alerts.
+func (pf priceFilter) contains(amount *float64, currency string) bool {
+	if pf.minEUR == nil && pf.maxEUR == nil {
+		return true
+	}
+	if amount == nil {
+		return true
+	}
+	eur, ok := money.ToEUR(*amount, currency)
+	if !ok {
+		return true
+	}
+	if pf.minEUR != nil && eur < *pf.minEUR {
+		return false
+	}
+	if pf.maxEUR != nil && eur > *pf.maxEUR {
+		return false
+	}
+	return true
 }

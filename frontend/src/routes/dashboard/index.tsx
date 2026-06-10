@@ -1,7 +1,9 @@
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
 import { useAlerts, useListings, useSearches } from "@/api/hooks/queries";
 import { formatEUR, relativeTime } from "@/lib/utils";
 
@@ -9,19 +11,41 @@ export const Route = createFileRoute("/dashboard/")({
   component: OverviewPage,
 });
 
+const RECENT_PAGE_SIZE = 8;
+const RECENT_WINDOW_DAYS = 60;
+
 function OverviewPage() {
   const searches = useSearches();
   const alerts = useAlerts(50);
-  const recent = useListings({ status: "active", limit: 8 });
+
+  const [recentPage, setRecentPage] = useState(1);
+  // Memoize so the date string is stable across renders — otherwise the query
+  // key churns every frame and React Query loops forever.
+  const postedAfter = useMemo(
+    () => new Date(Date.now() - RECENT_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+    [],
+  );
+  const recent = useListings({
+    status: "active",
+    limit: RECENT_PAGE_SIZE,
+    offset: (recentPage - 1) * RECENT_PAGE_SIZE,
+    posted_after: postedAfter,
+  });
+
+  const recentItems = [...(recent.data?.items ?? [])].sort(
+    (a, b) => new Date(b.scraped_first_at).getTime() - new Date(a.scraped_first_at).getTime(),
+  );
+  const recentTotal = recent.data?.total ?? 0;
+  const recentTotalPages = Math.max(1, Math.ceil(recentTotal / RECENT_PAGE_SIZE));
 
   const activeCount = searches.data?.filter((s) => s.active).length ?? 0;
   const totalSearches = searches.data?.length ?? 0;
   const alertCount = alerts.data?.length ?? 0;
 
-  const minPrice = recent.data?.reduce<number | null>((acc, l) => {
+  const minPrice = recentItems.reduce<number | null>((acc, l) => {
     if (l.price_eur === undefined) return acc;
     return acc === null ? l.price_eur : Math.min(acc, l.price_eur);
-  }, null) ?? null;
+  }, null);
 
   return (
     <>
@@ -31,7 +55,7 @@ function OverviewPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Saved searches" value={`${activeCount}/${totalSearches}`} hint="active / total" />
           <StatCard label="Recent alerts" value={alertCount.toString()} hint="last 50" />
-          <StatCard label="New listings" value={(recent.data?.length ?? 0).toString()} hint="active, latest" />
+          <StatCard label="New listings" value={recentTotal.toString()} hint={`last ${RECENT_WINDOW_DAYS}d`} />
           <StatCard label="Cheapest active" value={formatEUR(minPrice)} hint="among recent" />
         </div>
 
@@ -74,36 +98,46 @@ function OverviewPage() {
           <Card>
             <CardHeader>
               <CardTitle>Recent listings</CardTitle>
-              <CardDescription>Most recently scraped active listings</CardDescription>
+              <CardDescription>
+                Active listings posted in the last {RECENT_WINDOW_DAYS} days
+                {recentTotal > 0 ? ` · ${recentTotal} total` : null}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {recent.isLoading ? (
                 <Empty>Loading…</Empty>
-              ) : (recent.data?.length ?? 0) === 0 ? (
+              ) : recentItems.length === 0 ? (
                 <Empty>Nothing scraped yet — add a search to start.</Empty>
               ) : (
-                <ul className="divide-y divide-[var(--color-border-subtle)]">
-                  {recent.data!.map((l) => (
-                    <li key={l.id} className="flex items-center justify-between py-2">
-                      <div className="min-w-0 flex-1 pr-4">
-                        <a
-                          href={l.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block truncate text-sm hover:text-[var(--color-accent)]"
-                        >
-                          {l.title}
-                        </a>
-                        <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                          {l.location_city ?? "—"} · {relativeTime(l.posted_at)}
+                <>
+                  <ul className="divide-y divide-[var(--color-border-subtle)]">
+                    {recentItems.map((l) => (
+                      <li key={l.id} className="flex items-center justify-between py-2">
+                        <div className="min-w-0 flex-1 pr-4">
+                          <a
+                            href={l.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block truncate text-sm hover:text-[var(--color-accent)]"
+                          >
+                            {l.title}
+                          </a>
+                          <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                            {l.location_city ?? "—"} · found {relativeTime(l.scraped_first_at)}
+                          </div>
                         </div>
-                      </div>
-                      <span className="font-mono text-sm tabular-nums">
-                        {formatEUR(l.price_eur)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                        <span className="font-mono text-sm tabular-nums">
+                          {formatEUR(l.price_eur)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Pagination
+                    page={recentPage}
+                    totalPages={recentTotalPages}
+                    onPageChange={setRecentPage}
+                  />
+                </>
               )}
             </CardContent>
           </Card>

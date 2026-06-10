@@ -44,14 +44,27 @@ func registerAnalytics(api huma.API, q Queries) {
 		Path:        "/analytics/searches/{id}",
 		Summary:     "Per-search analytics: min/avg/count plus a daily EUR trend",
 	}, func(ctx context.Context, in *struct {
-		ID         int64 `path:"id"`
-		WindowDays int   `query:"window_days" required:"false" minimum:"1" maximum:"365" default:"30"`
+		ID          int64    `path:"id"`
+		WindowDays  int      `query:"window_days" required:"false" minimum:"1" maximum:"365" default:"30"`
+		PriceEURMin float64  `query:"price_eur_min" required:"false"`
+		PriceEURMax float64  `query:"price_eur_max" required:"false"`
 	}) (*struct{ Body AnalyticsRow }, error) {
-		days := in.WindowDays
-		if days == 0 {
-			days = 30
+		f := AnalyticsFilter{
+			SearchID:   in.ID,
+			WindowDays: in.WindowDays,
 		}
-		row, err := q.AnalyticsForSearch(ctx, in.ID, days)
+		if f.WindowDays == 0 {
+			f.WindowDays = 30
+		}
+		if in.PriceEURMin > 0 {
+			v := in.PriceEURMin
+			f.PriceEURMin = &v
+		}
+		if in.PriceEURMax > 0 {
+			v := in.PriceEURMax
+			f.PriceEURMax = &v
+		}
+		row, err := q.AnalyticsForSearch(ctx, f)
 		if err != nil {
 			return nil, err
 		}

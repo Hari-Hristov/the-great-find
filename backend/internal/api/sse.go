@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/harihristov/the-great-find/backend/internal/events"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/events"
 )
 
 // NewSSE returns an http.Handler that streams events.Bus events to the client.

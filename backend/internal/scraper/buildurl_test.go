@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/harihristov/the-great-find/backend/internal/parser"
-	"github.com/harihristov/the-great-find/backend/internal/scraper"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/scraper"
 )
 
 // These tests previously lived next to scheduler.buildSearchURL. The function

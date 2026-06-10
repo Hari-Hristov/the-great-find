@@ -27,10 +27,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/harihristov/the-great-find/backend/internal/alerts"
-	"github.com/harihristov/the-great-find/backend/internal/events"
-	"github.com/harihristov/the-great-find/backend/internal/parser"
-	"github.com/harihristov/the-great-find/backend/internal/scraper"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/alerts"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/events"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/scraper"
 )
 
 // SavedSearch is the slice of saved_searches columns the scheduler cares about.
@@ -66,6 +66,7 @@ type Queries interface {
 
 	GetListingByExternalID(ctx context.Context, platform, country, externalID string) (*StoredListing, error)
 	UpsertListing(ctx context.Context, in UpsertListingInput) (StoredListing, error)
+	RecordSearchListing(ctx context.Context, searchID, listingID int64) error
 	InsertPriceObservation(ctx context.Context, listingID int64, eventType string, amount *float64, currency string) error
 	ListObservationsForListing(ctx context.Context, listingID int64, limit int32) ([]PriceObservation, error)
 
@@ -363,11 +364,13 @@ func (r *runner) poll(ctx context.Context) error {
 		spec = alerts.Spec{}
 	}
 
+	pf := parsePriceFilter(r.search.QueryParams)
+
 	for _, l := range listings {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if err := r.processListing(ctx, l, cfg, spec); err != nil {
+		if err := r.processListing(ctx, l, cfg, spec, pf); err != nil {
 			r.parent.logger.Warn("listing process failed",
 				"search_id", r.search.ID, "external_id", l.ExternalID, "err", err)
 		}
@@ -384,7 +387,7 @@ func (r *runner) poll(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) processListing(ctx context.Context, l scraper.Listing, cfg *parser.Config, spec alerts.Spec) error {
+func (r *runner) processListing(ctx context.Context, l scraper.Listing, cfg *parser.Config, spec alerts.Spec, pf priceFilter) error {
 	q := r.parent.queries
 
 	// Recency filter — drop listings older than maxListingAge before we touch the DB.
@@ -407,6 +410,15 @@ func (r *runner) processListing(ctx context.Context, l scraper.Listing, cfg *par
 	}
 	isNew := existing == nil
 
+	// Snapshot the pre-upsert price so the price-change check below compares
+	// old vs new rather than new vs new (UpsertListing updates the row in place).
+	var oldAmount *float64
+	var oldCurrency string
+	if existing != nil {
+		oldAmount = existing.PriceAmount
+		oldCurrency = existing.PriceCurrency
+	}
+
 	stored, err := q.UpsertListing(ctx, UpsertListingInput{
 		Platform:        cfg.Platform,
 		Country:         cfg.Country,
@@ -426,12 +438,19 @@ func (r *runner) processListing(ctx context.Context, l scraper.Listing, cfg *par
 		return fmt.Errorf("upsert: %w", err)
 	}
 
-	eventType := "updated"
-	if isNew {
-		eventType = "created"
+	if err := q.RecordSearchListing(ctx, r.search.ID, stored.ID); err != nil {
+		return fmt.Errorf("record search listing: %w", err)
 	}
-	if err := q.InsertPriceObservation(ctx, stored.ID, eventType, l.PriceAmount, l.PriceCurrency); err != nil {
-		return fmt.Errorf("price observation: %w", err)
+
+	priceChanged := isNew || priceAmountChanged(oldAmount, l.PriceAmount) || oldCurrency != l.PriceCurrency
+	if priceChanged {
+		eventType := "updated"
+		if isNew {
+			eventType = "created"
+		}
+		if err := q.InsertPriceObservation(ctx, stored.ID, eventType, l.PriceAmount, l.PriceCurrency); err != nil {
+			return fmt.Errorf("price observation: %w", err)
+		}
 	}
 
 	if isNew {
@@ -463,6 +482,9 @@ func (r *runner) processListing(ctx context.Context, l scraper.Listing, cfg *par
 		PriceCurrency: l.PriceCurrency,
 		IsNew:         isNew,
 	}, priceHistory)
+	if !pf.contains(l.PriceAmount, l.PriceCurrency) {
+		matches = nil
+	}
 
 	for _, m := range matches {
 		if err := q.InsertAlertSent(ctx, InsertAlertSentInput{
@@ -512,4 +534,17 @@ func (r *runner) fetchAllVariants(ctx context.Context) ([]scraper.Listing, error
 		combined = append(combined, got...)
 	}
 	return dedupeListingsByExternalID(combined), nil
+}
+
+// priceAmountChanged reports whether the incoming price amount differs from the
+// stored one. Both nil means no change; one nil means changed; two non-nil
+// values are compared numerically.
+func priceAmountChanged(stored, incoming *float64) bool {
+	if stored == nil && incoming == nil {
+		return false
+	}
+	if stored == nil || incoming == nil {
+		return true
+	}
+	return *stored != *incoming
 }
