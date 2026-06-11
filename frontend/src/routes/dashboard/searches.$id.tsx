@@ -1,5 +1,5 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
-import { Pencil, Plus, RefreshCw, X } from "lucide-react";
+import { EyeOff, Pencil, Plus, RefreshCw, X } from "lucide-react";
 import { useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input, Label, Select } from "@/components/ui/input";
 import { TrendChart, type TrendDatum } from "@/components/charts/TrendChart";
-import { useAlerts, useAnalytics, useListings, usePollSearch, useSearch, useUpdateSearch } from "@/api/hooks/queries";
+import { useAnalytics, useHideListing, useListings, usePollSearch, useSearch, useUpdateSearch } from "@/api/hooks/queries";
 import { formatEUR, relativeTime } from "@/lib/utils";
 import type { SavedSearch } from "@/api/types";
 
@@ -279,16 +279,15 @@ function SearchDetailPage() {
   const analytics = useAnalytics(id, 30, priceMin, priceMax);
   const listings = useListings({
     search_id: id,
+    status: "active",
     limit: 200,
     price_eur_min: priceMin,
     price_eur_max: priceMax,
   }, { enabled: !!search.data });
 
   const poll = usePollSearch();
+  const hide = useHideListing();
   const [editing, setEditing] = useState(false);
-
-  const alerts = useAlerts(200);
-  const searchAlerts = (alerts.data ?? []).filter((a) => a.search_id === id);
 
   const trend: TrendDatum[] = (analytics.data?.trend_eur ?? []).map((p) => ({
     date: p.day,
@@ -362,51 +361,6 @@ function SearchDetailPage() {
 
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle>Alerts</CardTitle>
-            <CardDescription>{searchAlerts.length} fired</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {searchAlerts.length === 0 ? (
-              <div className="py-8 text-center text-sm text-[var(--color-text-muted)]">
-                No alerts fired yet.
-              </div>
-            ) : (
-              <ul className="divide-y divide-[var(--color-border-subtle)]">
-                {searchAlerts.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between py-3">
-                    <div className="min-w-0 flex-1 pr-4">
-                      <a
-                        href={a.listing_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block truncate text-sm hover:text-[var(--color-accent)]"
-                      >
-                        {a.listing_title ?? a.listing_url ?? `Listing #${a.listing_id}`}
-                      </a>
-                      <div className="mt-1 text-xs text-[var(--color-text-muted)]">
-                        {relativeTime(a.sent_at)}
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="shrink-0 font-mono text-xs">
-                      {(() => {
-                        try {
-                          const c = JSON.parse(a.criteria) as { kind?: string; price_eur?: number };
-                          if (c.kind === "price_below" && c.price_eur != null) {
-                            return `≤ ${formatEUR(c.price_eur)}`;
-                          }
-                        } catch { /* ignore */ }
-                        return a.criteria;
-                      })()}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="mt-6">
-          <CardHeader>
             <CardTitle>Listings</CardTitle>
             <CardDescription>
               {listings.data?.total ?? 0} matched
@@ -434,9 +388,21 @@ function SearchDetailPage() {
                       <span>posted {relativeTime(l.posted_at)}</span>
                     </div>
                   </div>
-                  <span className="font-mono text-sm tabular-nums">
-                    {formatEUR(l.price_eur)}
-                  </span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="font-mono text-sm tabular-nums">
+                      {formatEUR(l.price_eur)}
+                    </span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label="Hide listing"
+                      disabled={hide.isPending}
+                      onClick={() => hide.mutate(l.id)}
+                      className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
+                    >
+                      <EyeOff className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>

@@ -143,6 +143,19 @@ type APIConfig struct {
 	// behaviour so saved searches stay portable across paths.
 	QueryParamDefaults map[string]string `json:"query_param_defaults,omitempty"`
 
+	// CategoryIDMap translates a human-readable olx.bg category slug (the path
+	// after the domain, e.g. "elektronika/kompyutri/nastolni-kompyutri") to the
+	// numeric category_id the internal JSON API requires. The HTML scraper uses
+	// the slug directly as a raw path segment, but the API ignores slugs and only
+	// accepts numeric IDs. Reverse-engineered by probing /api/v1/offers/ and
+	// reading category.id from returned listing objects.
+	//
+	// BuildURL checks this map when a saved search has a "category" key: if a
+	// match is found the numeric ID is emitted as category_id; if not, the slug
+	// is forwarded as-is (a soft fallback — the API will likely ignore it, but
+	// avoids a hard failure while the map is being populated).
+	CategoryIDMap map[string]string `json:"category_id_map,omitempty"`
+
 	Pagination APIPagination   `json:"pagination"`
 	Response   APIResponseSpec `json:"response"`
 }

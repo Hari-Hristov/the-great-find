@@ -68,6 +68,12 @@ func NewClient(cfg *parser.Store, hc *http.Client, hg *politehttp.HostGate) (*Cl
 // Mirrors scheduler.buildSearchURL but writes everything as a query string —
 // the API doesn't use path segments. Unknown aliases are dropped silently
 // (allow-list per APIConfig.QueryParams).
+//
+// Special handling: if params contains a "category" key (the HTML-path slug,
+// e.g. "elektronika/kompyutri/nastolni-kompyutri"), it is resolved to a numeric
+// category_id via APIConfig.CategoryIDMap and emitted as the "category_id"
+// alias. If no mapping exists the slug is forwarded as-is under "category_id"
+// as a best-effort fallback.
 func (c *Client) BuildURL(queryParamsJSON []byte) (string, error) {
 	cfg := c.cfg.Get()
 	if cfg == nil || cfg.API == nil {
@@ -79,6 +85,16 @@ func (c *Client) BuildURL(queryParamsJSON []byte) (string, error) {
 	if len(queryParamsJSON) > 0 {
 		if err := json.Unmarshal(queryParamsJSON, &params); err != nil {
 			return "", fmt.Errorf("decode query_params: %w", err)
+		}
+	}
+
+	// Resolve category slug → numeric category_id before applying defaults/allow-list.
+	if slug, ok := params["category"]; ok && slug != "" {
+		delete(params, "category")
+		if id, mapped := api.CategoryIDMap[slug]; mapped {
+			params["category_id"] = id
+		} else {
+			params["category_id"] = slug
 		}
 	}
 

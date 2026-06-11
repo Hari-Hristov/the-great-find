@@ -331,6 +331,22 @@ func (s *Store) GetListing(ctx context.Context, id int64) (*api.ListingRow, erro
 	return &row, nil
 }
 
+func (s *Store) UpdateListingStatus(ctx context.Context, id int64, status string) error {
+	res, err := s.pools.Writer.ExecContext(ctx,
+		`UPDATE listings SET status = ? WHERE id = ?`, status, id)
+	if err != nil {
+		return fmt.Errorf("update listing status: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return api.ErrNotFound
+	}
+	return nil
+}
+
 func (s *Store) ListListingPhotos(ctx context.Context, listingID int64) ([]api.Photo, error) {
 	const q = `SELECT url, thumb_url, position FROM listing_photos WHERE listing_id = ? ORDER BY position`
 	rows, err := s.pools.Reader.QueryContext(ctx, q, listingID)
@@ -424,8 +440,8 @@ func (s *Store) ListRecentAlerts(ctx context.Context, limit int) ([]api.AlertRow
 		limit = 100
 	}
 	const q = `
-		SELECT a.id, a.search_id, a.listing_id, a.criteria_hash, a.criteria, a.sent_at,
-		       l.title, l.url
+		SELECT a.id, a.search_id, a.listing_id, a.criteria_hash, a.criteria, a.sent_at, a.flagged,
+		       l.title, l.url, l.status
 		FROM alerts_sent a
 		LEFT JOIN listings l ON l.id = a.listing_id
 		ORDER BY a.sent_at DESC
@@ -439,26 +455,48 @@ func (s *Store) ListRecentAlerts(ctx context.Context, limit int) ([]api.AlertRow
 	out := []api.AlertRow{}
 	for rows.Next() {
 		var (
-			r            api.AlertRow
-			sentAt       string
-			title, url   sql.NullString
+			r               api.AlertRow
+			sentAt          string
+			flagged         int
+			title, url      sql.NullString
+			listingStatus   sql.NullString
 		)
 		if err := rows.Scan(&r.ID, &r.SearchID, &r.ListingID,
-			&r.CriteriaHash, &r.Criteria, &sentAt, &title, &url); err != nil {
+			&r.CriteriaHash, &r.Criteria, &sentAt, &flagged, &title, &url, &listingStatus); err != nil {
 			return nil, err
 		}
 		if t, err := parseTS(sentAt); err == nil {
 			r.SentAt = t
 		}
+		r.Flagged = flagged != 0
 		if title.Valid {
 			r.ListingTitle = title.String
 		}
 		if url.Valid {
 			r.ListingURL = url.String
 		}
+		if listingStatus.Valid {
+			r.ListingStatus = listingStatus.String
+		}
 		out = append(out, r)
 	}
 	return out, rows.Err()
+}
+
+func (s *Store) FlagAlert(ctx context.Context, id int64) error {
+	res, err := s.pools.Writer.ExecContext(ctx,
+		`UPDATE alerts_sent SET flagged = 1 WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("flag alert: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return api.ErrNotFound
+	}
+	return nil
 }
 
 func (s *Store) AnalyticsForSearch(ctx context.Context, f api.AnalyticsFilter) (api.AnalyticsRow, error) {

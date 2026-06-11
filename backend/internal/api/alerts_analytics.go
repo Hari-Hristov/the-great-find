@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 
 	"github.com/danielgtaylor/huma/v2"
 )
@@ -34,6 +35,29 @@ func registerAlerts(api huma.API, q Queries) {
 		}{}
 		out.Body.Items = rows
 		return out, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "flag-alert",
+		Method:      "PATCH",
+		Path:        "/alerts/{id}",
+		Summary:     "Flag an alert for follow-up",
+	}, func(ctx context.Context, in *struct {
+		ID   int64 `path:"id"`
+		Body struct {
+			Flagged bool `json:"flagged"`
+		}
+	}) (*struct{}, error) {
+		if !in.Body.Flagged {
+			return &struct{}{}, nil
+		}
+		if err := q.FlagAlert(ctx, in.ID); err != nil {
+			if errors.Is(err, ErrNotFound) {
+				return nil, huma.Error404NotFound("alert not found")
+			}
+			return nil, err
+		}
+		return &struct{}{}, nil
 	})
 }
 

@@ -208,6 +208,39 @@ func TestClient_FetchAll_WalksPaginationAndStopsAtMaxPages(t *testing.T) {
 	}
 }
 
+func TestClient_BuildURL_CategorySlugResolvedToID(t *testing.T) {
+	store := newTestStore(t, "https://example.test")
+	c, _ := NewClient(store, http.DefaultClient, politehttp.NewHostGate())
+
+	got, err := c.BuildURL([]byte(`{"keyword":"mac mini","category":"elektronika/kompyutri/nastolni-kompyutri"}`))
+	if err != nil {
+		t.Fatalf("BuildURL: %v", err)
+	}
+	u, _ := url.Parse(got)
+	q := u.Query()
+	if q.Get("category_id") != "872" {
+		t.Errorf("category_id = %q, want 872", q.Get("category_id"))
+	}
+	if q.Get("category") != "" {
+		t.Errorf("raw 'category' key leaked into URL: %q", q.Get("category"))
+	}
+}
+
+func TestClient_BuildURL_UnknownCategorySlugForwardedAsID(t *testing.T) {
+	store := newTestStore(t, "https://example.test")
+	c, _ := NewClient(store, http.DefaultClient, politehttp.NewHostGate())
+
+	got, err := c.BuildURL([]byte(`{"keyword":"chair","category":"mebeli/stolove"}`))
+	if err != nil {
+		t.Fatalf("BuildURL: %v", err)
+	}
+	u, _ := url.Parse(got)
+	q := u.Query()
+	if q.Get("category_id") != "mebeli/stolove" {
+		t.Errorf("category_id = %q, want mebeli/stolove (slug forwarded)", q.Get("category_id"))
+	}
+}
+
 func TestNewClient_RejectsConfigWithoutAPI(t *testing.T) {
 	cfg, _ := parser.EmbeddedOLXBG()
 	cfg.API = nil

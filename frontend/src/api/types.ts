@@ -78,8 +78,10 @@ export interface Alert {
   criteria_hash: string;
   criteria: string;
   sent_at: string;
+  flagged: boolean;
   listing_title?: string;
   listing_url?: string;
+  listing_status?: string;
 }
 
 export interface TrendPoint {

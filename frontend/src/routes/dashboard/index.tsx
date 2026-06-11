@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,31 +11,22 @@ export const Route = createFileRoute("/dashboard/")({
   component: OverviewPage,
 });
 
-const RECENT_PAGE_SIZE = 8;
-const RECENT_WINDOW_DAYS = 60;
+const RECENT_PAGE_SIZE = 10;
+const RECENT_TOTAL_CAP = 100;
 
 function OverviewPage() {
   const searches = useSearches();
   const alerts = useAlerts(50);
 
   const [recentPage, setRecentPage] = useState(1);
-  // Memoize so the date string is stable across renders — otherwise the query
-  // key churns every frame and React Query loops forever.
-  const postedAfter = useMemo(
-    () => new Date(Date.now() - RECENT_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString(),
-    [],
-  );
   const recent = useListings({
     status: "active",
     limit: RECENT_PAGE_SIZE,
     offset: (recentPage - 1) * RECENT_PAGE_SIZE,
-    posted_after: postedAfter,
   });
 
-  const recentItems = [...(recent.data?.items ?? [])].sort(
-    (a, b) => new Date(b.scraped_first_at).getTime() - new Date(a.scraped_first_at).getTime(),
-  );
-  const recentTotal = recent.data?.total ?? 0;
+  const recentItems = recent.data?.items ?? [];
+  const recentTotal = Math.min(recent.data?.total ?? 0, RECENT_TOTAL_CAP);
   const recentTotalPages = Math.max(1, Math.ceil(recentTotal / RECENT_PAGE_SIZE));
 
   const activeCount = searches.data?.filter((s) => s.active).length ?? 0;
@@ -55,7 +46,7 @@ function OverviewPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Saved searches" value={`${activeCount}/${totalSearches}`} hint="active / total" />
           <StatCard label="Recent alerts" value={alertCount.toString()} hint="last 50" />
-          <StatCard label="New listings" value={recentTotal.toString()} hint={`last ${RECENT_WINDOW_DAYS}d`} />
+          <StatCard label="New listings" value={recentTotal.toString()} hint="most recent 100" />
           <StatCard label="Cheapest active" value={formatEUR(minPrice)} hint="among recent" />
         </div>
 
@@ -99,7 +90,7 @@ function OverviewPage() {
             <CardHeader>
               <CardTitle>Recent listings</CardTitle>
               <CardDescription>
-                Active listings posted in the last {RECENT_WINDOW_DAYS} days
+                Most recent {RECENT_TOTAL_CAP} active listings
                 {recentTotal > 0 ? ` · ${recentTotal} total` : null}
               </CardDescription>
             </CardHeader>

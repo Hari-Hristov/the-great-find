@@ -49,6 +49,7 @@ type StoredListing struct {
 	ID            int64
 	PriceAmount   *float64
 	PriceCurrency string
+	Status        string
 }
 
 // PriceObservation is what the scheduler writes per listing per poll, and
@@ -408,6 +409,13 @@ func (r *runner) processListing(ctx context.Context, l scraper.Listing, cfg *par
 	if err != nil {
 		return fmt.Errorf("lookup existing: %w", err)
 	}
+
+	// Skip hidden listings entirely — no upsert, no alert evaluation.
+	// The user deliberately flagged this listing; the scheduler should not touch it.
+	if existing != nil && existing.Status == "hidden" {
+		return nil
+	}
+
 	isNew := existing == nil
 
 	// Snapshot the pre-upsert price so the price-change check below compares

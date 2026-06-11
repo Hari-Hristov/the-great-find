@@ -146,7 +146,7 @@ function NewSearchPage() {
                 <Label>Category slug (optional)</Label>
                 <Input value={category} onChange={(e) => setCategory(e.target.value)} />
                 <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                  Path from olx.bg URL after the domain. Multi-segment ok.
+                  Path from olx.bg URL after the domain. Multi-segment ok (e.g. <code>elektronika/kompyutri/nastolni-kompyutri</code>). Known slugs are auto-resolved to the numeric API category ID.
                 </p>
               </div>
               <div>

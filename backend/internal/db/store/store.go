@@ -82,14 +82,14 @@ func (s *Store) UpdateSavedSearchPolledAt(ctx context.Context, id int64, ts time
 
 func (s *Store) GetListingByExternalID(ctx context.Context, platform, country, externalID string) (*scheduler.StoredListing, error) {
 	const q = `
-		SELECT id, price_amount, price_currency
+		SELECT id, price_amount, price_currency, status
 		FROM listings
 		WHERE platform = ? AND country = ? AND external_id = ?`
 	var l scheduler.StoredListing
 	var amount sql.NullFloat64
 	var currency sql.NullString
 	err := s.pools.Reader.QueryRowContext(ctx, q, platform, country, externalID).
-		Scan(&l.ID, &amount, &currency)
+		Scan(&l.ID, &amount, &currency, &l.Status)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}

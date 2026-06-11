@@ -52,7 +52,13 @@ export function useCreateSearch() {
   return useMutation({
     mutationFn: (input: CreateSavedSearchInput) =>
       apiFetch<SavedSearch>("/searches", { method: "POST", json: input }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.searches }),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: qk.searches });
+      apiFetch<void>(`/searches/${created.id}/poll`, { method: "POST" }).then(() => {
+        qc.invalidateQueries({ queryKey: ["listings"] });
+        qc.invalidateQueries({ queryKey: ["alerts"] });
+      }).catch(() => {});
+    },
   });
 }
 
@@ -121,6 +127,41 @@ function buildQuery(params: Record<string, string | number | undefined>): string
   return s.length > 0 ? `?${s}` : "";
 }
 
+export function useHideListing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<Listing>(`/listings/${id}`, { method: "PATCH", json: { status: "hidden" } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["listings"] });
+      qc.invalidateQueries({ queryKey: ["alerts"] });
+    },
+  });
+}
+
+export function useFlagAlert() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<void>(`/alerts/${id}`, { method: "PATCH", json: { flagged: true } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["alerts"] });
+    },
+  });
+}
+
+export function useUnhideListing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<Listing>(`/listings/${id}`, { method: "PATCH", json: { status: "active" } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["listings"] });
+      qc.invalidateQueries({ queryKey: ["alerts"] });
+    },
+  });
+}
+
 export function useListings(params: ListListingsParams, opts?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.listings(params),
@@ -130,6 +171,7 @@ export function useListings(params: ListListingsParams, opts?: { enabled?: boole
       );
       return { items: r.items ?? [], total: r.total ?? 0 };
     },
+    staleTime: 0,
     enabled: opts?.enabled ?? true,
   });
 }
@@ -163,6 +205,7 @@ export function useAlerts(limit = 100) {
       const r = await apiFetch<{ items: Alert[] }>(`/alerts${buildQuery({ limit })}`);
       return r.items ?? [];
     },
+    staleTime: 0,
   });
 }
 

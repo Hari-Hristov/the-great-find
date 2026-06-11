@@ -147,6 +147,18 @@ func (f *fakeQueries) GetListing(_ context.Context, id int64) (*ListingRow, erro
 	return &l, nil
 }
 
+func (f *fakeQueries) UpdateListingStatus(_ context.Context, id int64, status string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	l, ok := f.listings[id]
+	if !ok {
+		return ErrNotFound
+	}
+	l.Status = status
+	f.listings[id] = l
+	return nil
+}
+
 func (f *fakeQueries) ListListingPhotos(_ context.Context, id int64) ([]Photo, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -169,6 +181,18 @@ func (f *fakeQueries) ListRecentAlerts(_ context.Context, _ int) ([]AlertRow, er
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.alerts, nil
+}
+
+func (f *fakeQueries) FlagAlert(_ context.Context, id int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i, a := range f.alerts {
+		if a.ID == id {
+			f.alerts[i].Flagged = true
+			return nil
+		}
+	}
+	return ErrNotFound
 }
 
 func (f *fakeQueries) AnalyticsForSearch(_ context.Context, filt AnalyticsFilter) (AnalyticsRow, error) {

@@ -38,11 +38,13 @@ type Queries interface {
 	ListListings(ctx context.Context, f ListingFilter) ([]ListingRow, error)
 	CountListings(ctx context.Context, f ListingFilter) (int, error)
 	GetListing(ctx context.Context, id int64) (*ListingRow, error)
+	UpdateListingStatus(ctx context.Context, id int64, status string) error
 	ListListingPhotos(ctx context.Context, listingID int64) ([]Photo, error)
 	ListListingParams(ctx context.Context, listingID int64) ([]Param, error)
 	ListPriceHistory(ctx context.Context, listingID int64, limit int) ([]PriceObservationRow, error)
 
 	ListRecentAlerts(ctx context.Context, limit int) ([]AlertRow, error)
+	FlagAlert(ctx context.Context, id int64) error
 
 	AnalyticsForSearch(ctx context.Context, f AnalyticsFilter) (AnalyticsRow, error)
 }

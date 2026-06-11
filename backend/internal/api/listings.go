@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -28,7 +29,7 @@ func registerListings(api huma.API, q Queries) {
 		Summary:     "List listings with optional filters",
 	}, func(ctx context.Context, in *struct {
 		SearchID     int64   `query:"search_id" required:"false" doc:"Filter to listings touched by a saved search via alerts_sent or polls. Optional."`
-		Status       string  `query:"status" required:"false" enum:"active,removed,sold" doc:"Soft-delete status."`
+		Status       string  `query:"status" required:"false" enum:"active,removed,sold,hidden" doc:"Soft-delete status."`
 		PostedAfter  string  `query:"posted_after" required:"false" doc:"RFC-3339 timestamp; only listings posted at/after this time."`
 		PriceEURMin  float64 `query:"price_eur_min" required:"false"`
 		PriceEURMax  float64 `query:"price_eur_max" required:"false"`
@@ -144,5 +145,33 @@ func registerListings(api huma.API, q Queries) {
 		out.Body.Params = params
 		out.Body.PriceHistory = hist
 		return out, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "update-listing-status",
+		Method:      "PATCH",
+		Path:        "/listings/{id}",
+		Summary:     "Update listing status (e.g. hide a misleading listing)",
+	}, func(ctx context.Context, in *struct {
+		ID   int64 `path:"id"`
+		Body struct {
+			Status string `json:"status" enum:"active,hidden" doc:"New status for the listing."`
+		}
+	}) (*struct {
+		Body ListingRow
+	}, error) {
+		if err := q.UpdateListingStatus(ctx, in.ID, in.Body.Status); err != nil {
+			if errors.Is(err, ErrNotFound) {
+				return nil, huma.Error404NotFound("listing not found")
+			}
+			return nil, err
+		}
+		row, err := q.GetListing(ctx, in.ID)
+		if err != nil {
+			return nil, err
+		}
+		one := []ListingRow{*row}
+		enrichEUR(one)
+		return &struct{ Body ListingRow }{Body: one[0]}, nil
 	})
 }

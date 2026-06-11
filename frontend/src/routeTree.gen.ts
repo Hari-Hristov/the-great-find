@@ -13,6 +13,7 @@ import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
+import { Route as DashboardFlaggedRouteImport } from './routes/dashboard/flagged'
 import { Route as DashboardAlertsRouteImport } from './routes/dashboard/alerts'
 import { Route as DashboardSearchesIndexRouteImport } from './routes/dashboard/searches.index'
 import { Route as DashboardSearchesNewRouteImport } from './routes/dashboard/searches.new'
@@ -36,6 +37,11 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
 const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardFlaggedRoute = DashboardFlaggedRouteImport.update({
+  id: '/flagged',
+  path: '/flagged',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardAlertsRoute = DashboardAlertsRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/dashboard/alerts': typeof DashboardAlertsRoute
+  '/dashboard/flagged': typeof DashboardFlaggedRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/searches/$id': typeof DashboardSearchesIdRoute
@@ -72,6 +79,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard/alerts': typeof DashboardAlertsRoute
+  '/dashboard/flagged': typeof DashboardFlaggedRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard': typeof DashboardIndexRoute
   '/dashboard/searches/$id': typeof DashboardSearchesIdRoute
@@ -83,6 +91,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/dashboard/alerts': typeof DashboardAlertsRoute
+  '/dashboard/flagged': typeof DashboardFlaggedRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/searches/$id': typeof DashboardSearchesIdRoute
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/dashboard/alerts'
+    | '/dashboard/flagged'
     | '/dashboard/settings'
     | '/dashboard/'
     | '/dashboard/searches/$id'
@@ -104,6 +114,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard/alerts'
+    | '/dashboard/flagged'
     | '/dashboard/settings'
     | '/dashboard'
     | '/dashboard/searches/$id'
@@ -114,6 +125,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/dashboard/alerts'
+    | '/dashboard/flagged'
     | '/dashboard/settings'
     | '/dashboard/'
     | '/dashboard/searches/$id'
@@ -156,6 +168,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardSettingsRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
+    '/dashboard/flagged': {
+      id: '/dashboard/flagged'
+      path: '/flagged'
+      fullPath: '/dashboard/flagged'
+      preLoaderRoute: typeof DashboardFlaggedRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
     '/dashboard/alerts': {
       id: '/dashboard/alerts'
       path: '/alerts'
@@ -189,6 +208,7 @@ declare module '@tanstack/react-router' {
 
 interface DashboardRouteRouteChildren {
   DashboardAlertsRoute: typeof DashboardAlertsRoute
+  DashboardFlaggedRoute: typeof DashboardFlaggedRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   DashboardSearchesIdRoute: typeof DashboardSearchesIdRoute
@@ -198,6 +218,7 @@ interface DashboardRouteRouteChildren {
 
 const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardAlertsRoute: DashboardAlertsRoute,
+  DashboardFlaggedRoute: DashboardFlaggedRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   DashboardSearchesIdRoute: DashboardSearchesIdRoute,
