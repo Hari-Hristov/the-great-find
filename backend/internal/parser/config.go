@@ -322,6 +322,15 @@ func NewStore(initial *Config) *Store {
 // Get returns the current config. Cheap; safe to call from many goroutines.
 func (s *Store) Get() *Config { return s.v.Load() }
 
+// Categories returns the category slug→id map from the current config.
+// Returns an empty map when no API block is present.
+func (s *Store) Categories() map[string]string {
+	if api := s.v.Load().API; api != nil {
+		return api.CategoryIDMap
+	}
+	return map[string]string{}
+}
+
 // Replace swaps in a new validated config and returns the previous one.
 func (s *Store) Replace(c *Config) (*Config, error) {
 	if c == nil {

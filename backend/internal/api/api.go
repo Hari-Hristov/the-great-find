@@ -61,16 +61,17 @@ type Reloader interface {
 
 // New mounts handlers onto a chi router and returns the resulting http.Handler.
 // The caller is expected to mount this at /api/ on a parent ServeMux.
-func New(q Queries, sched Reloader) http.Handler {
+func New(q Queries, sched Reloader, cfg ConfigProvider) http.Handler {
 	r := chi.NewRouter()
-	cfg := huma.DefaultConfig("the-great-find", "0.1.0")
-	cfg.Info.Description = "Local-only API for the the-great-find dashboard. Bound to 127.0.0.1; no auth (OS user is the security boundary)."
-	api := humachi.New(r, cfg)
+	cfg2 := huma.DefaultConfig("the-great-find", "0.1.0")
+	cfg2.Info.Description = "Local-only API for the the-great-find dashboard. Bound to 127.0.0.1; no auth (OS user is the security boundary)."
+	api := humachi.New(r, cfg2)
 
 	registerSearches(api, q, sched)
 	registerListings(api, q)
 	registerAlerts(api, q)
 	registerAnalytics(api, q)
+	registerConfig(api, cfg)
 
 	return r
 }

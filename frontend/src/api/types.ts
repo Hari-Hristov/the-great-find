@@ -87,6 +87,10 @@ export interface Alert {
   listing_status?: string;
 }
 
+export interface AppConfig {
+  categories: Record<string, string>;
+}
+
 export interface TrendPoint {
   day: string;
   avg_eur: number;

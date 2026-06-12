@@ -137,7 +137,7 @@ func run() error {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
-	mux.Handle("/api/", http.StripPrefix("/api", api.New(queries, sched)))
+	mux.Handle("/api/", http.StripPrefix("/api", api.New(queries, sched, parserStore)))
 	mux.Handle("/events", api.NewSSE(bus))
 
 	server := &http.Server{
