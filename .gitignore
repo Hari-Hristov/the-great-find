@@ -34,6 +34,10 @@ frontend/openapi.json
 *.db-shm
 *.db-wal
 
+# Claude / AI tooling
+CLAUDE.md
+.claude/
+
 # Editors / OS
 .DS_Store
 Thumbs.db
