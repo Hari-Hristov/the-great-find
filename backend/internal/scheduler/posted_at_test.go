@@ -78,6 +78,24 @@ func TestParsePostedAt(t *testing.T) {
 			wantOK:   false,
 			wantZero: true,
 		},
+		{
+			name:    "ISO 8601 with timezone offset — JSON API path",
+			raw:     "2026-06-01T19:13:56+03:00",
+			wantOK:  true,
+			wantUTC: time.Date(2026, 6, 1, 16, 13, 56, 0, time.UTC),
+		},
+		{
+			name:    "unix timestamp from JSON API path",
+			raw:     "1749470400",
+			wantOK:  true,
+			wantUTC: time.Unix(1749470400, 0).UTC(),
+		},
+		{
+			name:     "zero unix timestamp rejected",
+			raw:      "0",
+			wantOK:   false,
+			wantZero: true,
+		},
 	}
 
 	for _, tc := range tests {

@@ -165,7 +165,7 @@ func TestDecode_HandlesEmpty(t *testing.T) {
 		if err != nil {
 			t.Errorf("Decode(%q): %v", raw, err)
 		}
-		if spec.NewMatch != nil || spec.Keyword != nil || spec.PriceDrop != nil {
+		if spec.NewMatch != nil || spec.Keyword != nil || spec.PriceDrop != nil || spec.PriceBelow != nil {
 			t.Errorf("Decode(%q) should be zero spec, got %+v", raw, spec)
 		}
 	}
@@ -201,5 +201,82 @@ func TestHashCriteria_Stable(t *testing.T) {
 	c := hashCriteria("keyword", &KeywordRule{Terms: []string{"a", "c"}})
 	if a == c {
 		t.Errorf("hash should differ for different inputs")
+	}
+}
+
+func TestEvaluate_PriceBelowFires(t *testing.T) {
+	spec := Spec{PriceBelow: &PriceBelowRule{ThresholdEUR: 220}}
+	listing := Listing{PriceAmount: ptr(200), PriceCurrency: "EUR"}
+	matches := spec.Evaluate(listing, nil)
+	if len(matches) != 1 || matches[0].Kind != "price_below" {
+		t.Fatalf("got %+v", matches)
+	}
+}
+
+func TestEvaluate_PriceBelowFiresAtExactThreshold(t *testing.T) {
+	spec := Spec{PriceBelow: &PriceBelowRule{ThresholdEUR: 220}}
+	listing := Listing{PriceAmount: ptr(220), PriceCurrency: "EUR"}
+	matches := spec.Evaluate(listing, nil)
+	if len(matches) != 1 {
+		t.Fatalf("should fire at exactly the threshold: %+v", matches)
+	}
+}
+
+func TestEvaluate_PriceBelowDoesNotFireAboveThreshold(t *testing.T) {
+	spec := Spec{PriceBelow: &PriceBelowRule{ThresholdEUR: 220}}
+	listing := Listing{PriceAmount: ptr(221), PriceCurrency: "EUR"}
+	matches := spec.Evaluate(listing, nil)
+	if len(matches) != 0 {
+		t.Fatalf("should not fire above threshold: %+v", matches)
+	}
+}
+
+func TestEvaluate_PriceBelowConvertsBGN(t *testing.T) {
+	spec := Spec{PriceBelow: &PriceBelowRule{ThresholdEUR: 220}}
+	// 390 BGN / 1.95583 ≈ 199.4 EUR — below threshold
+	listing := Listing{PriceAmount: ptr(390), PriceCurrency: "BGN"}
+	matches := spec.Evaluate(listing, nil)
+	if len(matches) != 1 {
+		t.Fatalf("BGN listing should normalize to EUR and fire: %+v", matches)
+	}
+}
+
+func TestEvaluate_PriceBelowSkipsNilPrice(t *testing.T) {
+	spec := Spec{PriceBelow: &PriceBelowRule{ThresholdEUR: 220}}
+	matches := spec.Evaluate(Listing{PriceAmount: nil, PriceCurrency: "EUR"}, nil)
+	if len(matches) != 0 {
+		t.Fatalf("nil price must not fire: %+v", matches)
+	}
+}
+
+func TestDecode_FlatPriceBelowFormat(t *testing.T) {
+	raw := []byte(`{"kind":"price_below","price_eur":220}`)
+	spec, err := Decode(raw)
+	if err != nil {
+		t.Fatalf("Decode flat price_below: %v", err)
+	}
+	if spec.PriceBelow == nil {
+		t.Fatal("expected PriceBelow rule to be set")
+	}
+	if spec.PriceBelow.ThresholdEUR != 220 {
+		t.Errorf("ThresholdEUR = %v, want 220", spec.PriceBelow.ThresholdEUR)
+	}
+}
+
+func TestDecode_FlatNewMatchFormat(t *testing.T) {
+	raw := []byte(`{"kind":"new_match"}`)
+	spec, err := Decode(raw)
+	if err != nil {
+		t.Fatalf("Decode flat new_match: %v", err)
+	}
+	if spec.NewMatch == nil {
+		t.Fatal("expected NewMatch rule to be set")
+	}
+}
+
+func TestDecode_FlatUnknownKindErrors(t *testing.T) {
+	raw := []byte(`{"kind":"unicorn","price_eur":100}`)
+	if _, err := Decode(raw); err == nil {
+		t.Fatal("expected error for unknown kind")
 	}
 }

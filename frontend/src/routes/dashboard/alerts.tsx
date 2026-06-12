@@ -1,85 +1,293 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { EyeOff, Tag, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useAlerts } from "@/api/hooks/queries";
-import { formatDateTime } from "@/lib/utils";
+import { useAlerts, useHideListing, useSearches, useTagAlert } from "@/api/hooks/queries";
+import { formatEUR, relativeTime } from "@/lib/utils";
+import type { Alert } from "@/api/types";
 
 export const Route = createFileRoute("/dashboard/alerts")({
   component: AlertsPage,
 });
 
+const TAG_COLORS = [
+  { name: "red",    bg: "bg-red-500" },
+  { name: "orange", bg: "bg-orange-400" },
+  { name: "yellow", bg: "bg-yellow-400" },
+  { name: "green",  bg: "bg-green-500" },
+  { name: "blue",   bg: "bg-blue-500" },
+  { name: "purple", bg: "bg-purple-500" },
+  { name: "pink",   bg: "bg-pink-400" },
+] as const;
+
+type TagColorName = (typeof TAG_COLORS)[number]["name"];
+
+const TAG_BG: Record<TagColorName, string> = Object.fromEntries(
+  TAG_COLORS.map((c) => [c.name, c.bg]),
+) as Record<TagColorName, string>;
+
+function tagBg(color?: string): string {
+  if (!color) return "bg-zinc-500";
+  return TAG_BG[color as TagColorName] ?? "bg-zinc-500";
+}
+
+function formatCriteria(raw: string): string {
+  try {
+    const c = JSON.parse(raw) as { kind?: string; price_eur?: number };
+    if (c.kind === "price_below" && c.price_eur != null) {
+      return `≤ ${formatEUR(c.price_eur)}`;
+    }
+  } catch { /* ignore */ }
+  return raw;
+}
+
+function TagPopover({
+  alertId,
+  currentLabel,
+  currentColor,
+}: {
+  alertId: number;
+  currentLabel?: string;
+  currentColor?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(currentLabel ?? "");
+  const [draftColor, setDraftColor] = useState<TagColorName>(
+    (currentColor as TagColorName | undefined) ?? "blue",
+  );
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const tag = useTagAlert();
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  function save() {
+    const label = draft.trim();
+    if (!label) return;
+    tag.mutate({ id: alertId, label, color: draftColor }, { onSuccess: () => setOpen(false) });
+  }
+
+  function clear() {
+    tag.mutate({ id: alertId, label: "", color: "" });
+  }
+
+  return (
+    <div className="relative flex items-center gap-1">
+      {currentLabel ? (
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white ${tagBg(currentColor)}`}
+        >
+          {currentLabel}
+          <button
+            aria-label="Remove tag"
+            disabled={tag.isPending}
+            onClick={clear}
+            className="ml-0.5 opacity-70 hover:opacity-100"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      ) : null}
+
+      <Button
+        size="icon"
+        variant="ghost"
+        aria-label="Add tag"
+        onClick={() => {
+          setDraft(currentLabel ?? "");
+          setDraftColor((currentColor as TagColorName | undefined) ?? "blue");
+          setOpen((v) => !v);
+        }}
+        className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
+      >
+        <Tag className="h-4 w-4" />
+      </Button>
+
+      {open ? (
+        <div
+          ref={popoverRef}
+          className="absolute right-0 top-9 z-50 w-56 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-3 shadow-lg"
+        >
+          <input
+            autoFocus
+            type="text"
+            maxLength={100}
+            placeholder="Label…"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setOpen(false); }}
+            className="w-full rounded border border-[var(--color-border-subtle)] bg-transparent px-2 py-1 text-sm outline-none focus:border-[var(--color-accent)]"
+          />
+          <div className="mt-2 flex gap-1.5">
+            {TAG_COLORS.map((c) => (
+              <button
+                key={c.name}
+                aria-label={c.name}
+                onClick={() => setDraftColor(c.name)}
+                className={`h-5 w-5 rounded-full ${c.bg} ring-offset-1 transition-all ${draftColor === c.name ? "ring-2 ring-white" : "opacity-70 hover:opacity-100"}`}
+              />
+            ))}
+          </div>
+          <div className="mt-2 flex gap-2">
+            <Button
+              size="sm"
+              disabled={!draft.trim() || tag.isPending}
+              onClick={save}
+              className="flex-1"
+            >
+              Save
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SearchAlertCard({
+  searchName,
+  alerts,
+}: {
+  searchName: string;
+  alerts: Alert[];
+}) {
+  const [open, setOpen] = useState(false);
+  const hide = useHideListing();
+
+  return (
+    <Card>
+      <CardHeader
+        className="cursor-pointer select-none"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">{searchName}</CardTitle>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">{alerts.length}</Badge>
+            <span className="text-xs text-[var(--color-text-muted)]">
+              {open ? "▲" : "▼"}
+            </span>
+          </div>
+        </div>
+      </CardHeader>
+
+      {open ? (
+        <CardContent className="pt-0">
+          <ul className="divide-y divide-[var(--color-border-subtle)]">
+            {alerts.map((a) => (
+              <li key={a.id} className="flex items-center justify-between py-3">
+                <div className="min-w-0 flex-1 pr-4">
+                  {a.listing_url ? (
+                    <a
+                      href={a.listing_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block truncate text-sm hover:text-[var(--color-accent)]"
+                    >
+                      {a.listing_title ?? a.listing_url}
+                    </a>
+                  ) : (
+                    <span className="text-sm text-[var(--color-text-muted)]">
+                      #{a.listing_id}
+                    </span>
+                  )}
+                  <div className="mt-1 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                    <span>{relativeTime(a.sent_at)}</span>
+                    <Badge variant="secondary" className="font-mono">
+                      {formatCriteria(a.criteria)}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <TagPopover
+                    alertId={a.id}
+                    currentLabel={a.tag_label}
+                    currentColor={a.tag_color}
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Hide listing"
+                    disabled={hide.isPending}
+                    onClick={() => hide.mutate(a.listing_id)}
+                    className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
+                  >
+                    <EyeOff className="h-4 w-4" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      ) : null}
+    </Card>
+  );
+}
+
 function AlertsPage() {
   const alerts = useAlerts(200);
+  const searches = useSearches();
+
+  const searchNameMap = new Map(
+    (searches.data ?? []).map((s) => [s.id, s.name]),
+  );
+
+  const visible = (alerts.data ?? []).filter((a) => a.listing_status !== "hidden");
+
+  const grouped = new Map<number, Alert[]>();
+  for (const a of visible) {
+    const bucket = grouped.get(a.search_id) ?? [];
+    bucket.push(a);
+    grouped.set(a.search_id, bucket);
+  }
+  for (const [sid, bucket] of grouped) {
+    grouped.set(sid, [...bucket].sort((a, b) => b.sent_at.localeCompare(a.sent_at)));
+  }
+
+  const searchIds = Array.from(grouped.keys()).sort((a, b) => {
+    const nameA = searchNameMap.get(a) ?? String(a);
+    const nameB = searchNameMap.get(b) ?? String(b);
+    return nameA.localeCompare(nameB);
+  });
 
   return (
     <>
-      <Topbar title="Alerts" subtitle="Most recent fired alerts" />
+      <Topbar title="Alerts" subtitle="Grouped by search — click a card to expand" />
 
       <div className="flex-1 overflow-auto px-6 py-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Last {alerts.data?.length ?? 0} alerts</CardTitle>
-            <CardDescription>Updated live via SSE — newest first</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {alerts.isLoading ? (
-              <div className="py-6 text-center text-sm text-[var(--color-text-muted)]">
-                Loading…
-              </div>
-            ) : (alerts.data?.length ?? 0) === 0 ? (
-              <div className="py-6 text-center text-sm text-[var(--color-text-muted)]">
-                No alerts yet — they'll appear here when listings match your rules.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-left text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
-                    <tr className="border-b border-[var(--color-border-subtle)]">
-                      <th className="py-2 pr-4">Sent</th>
-                      <th className="py-2 pr-4">Search</th>
-                      <th className="py-2 pr-4">Listing</th>
-                      <th className="py-2 pr-4">Criteria</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--color-border-subtle)]">
-                    {alerts.data!.map((a) => (
-                      <tr key={a.id}>
-                        <td className="whitespace-nowrap py-2 pr-4 font-mono text-xs">
-                          {formatDateTime(a.sent_at)}
-                        </td>
-                        <td className="py-2 pr-4">
-                          <Badge variant="default">#{a.search_id}</Badge>
-                        </td>
-                        <td className="py-2 pr-4">
-                          {a.listing_url ? (
-                            <a
-                              href={a.listing_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:text-[var(--color-accent)]"
-                            >
-                              {a.listing_title ?? `#${a.listing_id}`}
-                            </a>
-                          ) : (
-                            <span className="text-[var(--color-text-muted)]">
-                              #{a.listing_id}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-2 pr-4">
-                          <code className="text-xs text-[var(--color-text-muted)]">
-                            {a.criteria}
-                          </code>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {alerts.isLoading || searches.isLoading ? (
+          <div className="py-6 text-center text-sm text-[var(--color-text-muted)]">
+            Loading…
+          </div>
+        ) : searchIds.length === 0 ? (
+          <div className="py-6 text-center text-sm text-[var(--color-text-muted)]">
+            No alerts yet — they'll appear here when listings match your rules.
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {searchIds.map((sid) => (
+              <SearchAlertCard
+                key={sid}
+                searchName={searchNameMap.get(sid) ?? `Search #${sid}`}
+                alerts={grouped.get(sid)!}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </>
   );

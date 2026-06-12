@@ -22,7 +22,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
-	"github.com/harihristov/the-great-find/backend/internal/scheduler"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/scheduler"
 )
 
 // Queries is the read+write surface the API package needs. store.Store implements it.
@@ -36,14 +36,17 @@ type Queries interface {
 	DeleteSavedSearch(ctx context.Context, id int64) error
 
 	ListListings(ctx context.Context, f ListingFilter) ([]ListingRow, error)
+	CountListings(ctx context.Context, f ListingFilter) (int, error)
 	GetListing(ctx context.Context, id int64) (*ListingRow, error)
+	UpdateListingStatus(ctx context.Context, id int64, status string) error
 	ListListingPhotos(ctx context.Context, listingID int64) ([]Photo, error)
 	ListListingParams(ctx context.Context, listingID int64) ([]Param, error)
 	ListPriceHistory(ctx context.Context, listingID int64, limit int) ([]PriceObservationRow, error)
 
 	ListRecentAlerts(ctx context.Context, limit int) ([]AlertRow, error)
+	TagAlert(ctx context.Context, id int64, label, color string) error
 
-	AnalyticsForSearch(ctx context.Context, searchID int64, sinceDays int) (AnalyticsRow, error)
+	AnalyticsForSearch(ctx context.Context, f AnalyticsFilter) (AnalyticsRow, error)
 }
 
 // Reloader is what handlers call to talk to the running scheduler:

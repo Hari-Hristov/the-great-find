@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/harihristov/the-great-find/backend/internal/alerts"
-	"github.com/harihristov/the-great-find/backend/internal/events"
-	"github.com/harihristov/the-great-find/backend/internal/parser"
-	"github.com/harihristov/the-great-find/backend/internal/scraper"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/alerts"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/events"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/scraper"
 )
 
 // fakeQueries records every call and lets tests script return values.
@@ -128,6 +128,8 @@ func (f *fakeQueries) InsertAlertSent(ctx context.Context, in InsertAlertSentInp
 	f.alerts = append(f.alerts, in)
 	return nil
 }
+
+func (f *fakeQueries) RecordSearchListing(_ context.Context, _, _ int64) error { return nil }
 
 // testParserStore returns a parser.Store seeded from the embedded olx-bg config.
 func testParserStore(t *testing.T) *parser.Store {
@@ -251,7 +253,7 @@ func TestProcessListing_DropsOlderThanCutoff(t *testing.T) {
 	now := time.Date(2026, 6, 9, 15, 0, 0, 0, sofiaLoc)
 	s := New(q, nil, ps, bus, nil)
 	s.now = func() time.Time { return now }
-	// Already DefaultMaxListingAge = 30d from constructor, but be explicit:
+	// Already DefaultMaxListingAge = 90d from constructor, but be explicit:
 	s.maxListingAge = 30 * 24 * time.Hour
 
 	r := &runner{
@@ -262,7 +264,7 @@ func TestProcessListing_DropsOlderThanCutoff(t *testing.T) {
 	// Old listing — "12 дек" with no year and December > June resolves to 2025-12-12,
 	// ~6 months ago. Must be dropped (no upsert, no observation).
 	old := scraperListingStub("ext-old", "Old listing", "12 дек")
-	if err := r.processListing(context.Background(), old, cfg, defaultSpec()); err != nil {
+	if err := r.processListing(context.Background(), old, cfg, defaultSpec(), priceFilter{}); err != nil {
 		t.Fatalf("processListing(old): %v", err)
 	}
 	if len(q.upserts) != 0 {
@@ -274,7 +276,7 @@ func TestProcessListing_DropsOlderThanCutoff(t *testing.T) {
 
 	// Fresh listing — "Днес 14:32" must go through.
 	fresh := scraperListingStub("ext-new", "Fresh listing", "Днес 14:32")
-	if err := r.processListing(context.Background(), fresh, cfg, defaultSpec()); err != nil {
+	if err := r.processListing(context.Background(), fresh, cfg, defaultSpec(), priceFilter{}); err != nil {
 		t.Fatalf("processListing(fresh): %v", err)
 	}
 	if len(q.upserts) != 1 {
@@ -286,7 +288,7 @@ func TestProcessListing_DropsOlderThanCutoff(t *testing.T) {
 
 	// Unparseable timestamp — must be kept (parser bug shouldn't nuke real listings).
 	mystery := scraperListingStub("ext-mystery", "Mystery listing", "не знам кога")
-	if err := r.processListing(context.Background(), mystery, cfg, defaultSpec()); err != nil {
+	if err := r.processListing(context.Background(), mystery, cfg, defaultSpec(), priceFilter{}); err != nil {
 		t.Fatalf("processListing(mystery): %v", err)
 	}
 	if len(q.upserts) != 2 {
@@ -464,5 +466,106 @@ func TestRunner_FanOutDedupesByExternalID(t *testing.T) {
 	}
 	if len(q.upserts) != 1 {
 		t.Errorf("upserts = %d, want 1 (deduped on external_id)", len(q.upserts))
+	}
+}
+
+func TestProcessListing_PriceFilterSuppressesAlert(t *testing.T) {
+	q := newFakeQueries()
+	bus := events.NewBus(8)
+	defer bus.Close()
+	cfg, _ := parser.EmbeddedOLXBG()
+	ps := parser.NewStore(cfg)
+
+	s := New(q, nil, ps, bus, nil)
+	s.maxListingAge = 0
+	r := &runner{search: SavedSearch{ID: 1, Name: "test"}, parent: s}
+
+	spec, _ := alerts.Decode([]byte(`{"kind":"price_below","price_eur":200}`))
+	pf := parsePriceFilter([]byte(`{"keyword":"switch","price_min":"50"}`))
+
+	price := func(v float64) *float64 { return &v }
+
+	// Listing priced at €30 — below the price_min of €50.
+	// price_below:200 would normally fire (30 <= 200), but pf.contains must suppress it.
+	cheap := scraper.Listing{
+		ExternalID:    "ext-cheap",
+		URL:           "https://olx.bg/item/ext-cheap",
+		Title:         "Cheap accessory",
+		PriceAmount:   price(30),
+		PriceCurrency: "EUR",
+	}
+	if err := r.processListing(context.Background(), cheap, cfg, spec, pf); err != nil {
+		t.Fatalf("processListing(cheap): %v", err)
+	}
+	if len(q.alerts) != 0 {
+		t.Fatalf("alert must not fire for listing below price_min: got %+v", q.alerts)
+	}
+
+	// Listing priced at €150 — within [50, ∞) and below price_below:200 → must fire.
+	inRange := scraper.Listing{
+		ExternalID:    "ext-inrange",
+		URL:           "https://olx.bg/item/ext-inrange",
+		Title:         "Switch console",
+		PriceAmount:   price(150),
+		PriceCurrency: "EUR",
+	}
+	if err := r.processListing(context.Background(), inRange, cfg, spec, pf); err != nil {
+		t.Fatalf("processListing(inRange): %v", err)
+	}
+	if len(q.alerts) != 1 {
+		t.Fatalf("alert must fire for listing within price_min: got %d alerts", len(q.alerts))
+	}
+}
+
+func TestProcessListing_ObservationOnlyOnPriceChange(t *testing.T) {
+	q := newFakeQueries()
+	bus := events.NewBus(8)
+	defer bus.Close()
+	cfg, _ := parser.EmbeddedOLXBG()
+	ps := parser.NewStore(cfg)
+
+	s := New(q, nil, ps, bus, nil)
+	s.maxListingAge = 0 // disable recency filter
+	r := &runner{search: SavedSearch{ID: 1, Name: "test"}, parent: s}
+
+	price := func(v float64) *float64 { return &v }
+
+	listing := scraper.Listing{
+		ExternalID: "ext-obs",
+		URL:        "https://olx.bg/item/ext-obs",
+		Title:      "Test item",
+		PriceAmount: price(100),
+		PriceCurrency: "EUR",
+	}
+
+	// First poll — new listing, observation must be written.
+	if err := r.processListing(context.Background(), listing, cfg, defaultSpec(), priceFilter{}); err != nil {
+		t.Fatalf("first poll: %v", err)
+	}
+	if len(q.observations) != 1 {
+		t.Fatalf("after first poll: want 1 observation, got %d", len(q.observations))
+	}
+	if q.observations[0].eventType != "created" {
+		t.Errorf("first observation event_type = %q, want created", q.observations[0].eventType)
+	}
+
+	// Second poll — same price, no observation.
+	if err := r.processListing(context.Background(), listing, cfg, defaultSpec(), priceFilter{}); err != nil {
+		t.Fatalf("second poll (same price): %v", err)
+	}
+	if len(q.observations) != 1 {
+		t.Fatalf("after second poll (same price): want 1 observation, got %d", len(q.observations))
+	}
+
+	// Third poll — price changed, observation must be written.
+	listing.PriceAmount = price(90)
+	if err := r.processListing(context.Background(), listing, cfg, defaultSpec(), priceFilter{}); err != nil {
+		t.Fatalf("third poll (price drop): %v", err)
+	}
+	if len(q.observations) != 2 {
+		t.Fatalf("after third poll (price drop): want 2 observations, got %d", len(q.observations))
+	}
+	if q.observations[1].eventType != "updated" {
+		t.Errorf("second observation event_type = %q, want updated", q.observations[1].eventType)
 	}
 }

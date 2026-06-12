@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/harihristov/the-great-find/backend/internal/parser"
-	"github.com/harihristov/the-great-find/backend/internal/scraper"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/scraper"
 )
 
 // MapOffers parses one /api/v1/offers/ response body and returns the mapped

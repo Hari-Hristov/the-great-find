@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/harihristov/the-great-find/backend/internal/parser"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
 )
 
 // loadConfig loads the embedded parser config for use in tests.

@@ -1,4 +1,4 @@
-module github.com/harihristov/the-great-find/backend
+module github.com/Hari-Hristov/the-great-find/backend
 
 go 1.26.4
 

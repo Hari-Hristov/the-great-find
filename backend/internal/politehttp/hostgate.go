@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/harihristov/the-great-find/backend/internal/parser"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
 )
 
 // HostGate enforces the politeness contract: at most N in-flight requests per

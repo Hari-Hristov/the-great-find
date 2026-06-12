@@ -8,7 +8,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 
-	"github.com/harihristov/the-great-find/backend/internal/parser"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
 )
 
 // fieldValue is the union of values an extractor can return.

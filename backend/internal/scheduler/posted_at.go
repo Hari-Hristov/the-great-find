@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -43,6 +44,12 @@ func parsePostedAt(raw string, now time.Time) (time.Time, bool) {
 	if s == "" {
 		return time.Time{}, false
 	}
+
+	// ISO 8601 / RFC3339 — what the JSON API path sends (e.g. "2026-06-01T19:13:56+03:00").
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t.UTC(), true
+	}
+
 	// Detail page prefixes with "Публикувана: ".
 	s = strings.TrimPrefix(s, "Публикувана:")
 	s = strings.TrimPrefix(s, "Публикувана")
@@ -89,6 +96,11 @@ func parsePostedAt(raw string, now time.Time) (time.Time, bool) {
 			}
 			return t.UTC(), true
 		}
+	}
+
+	// Unix timestamp (seconds) — the JSON API path sets created_time as an integer.
+	if n, err := strconv.ParseInt(s, 10, 64); err == nil && n > 0 {
+		return time.Unix(n, 0).UTC(), true
 	}
 
 	return time.Time{}, false

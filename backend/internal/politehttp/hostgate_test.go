@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/harihristov/the-great-find/backend/internal/parser"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
 )
 
 func robots(maxInFlight, spacingMs, jitterMs int) parser.RobotsConfig {

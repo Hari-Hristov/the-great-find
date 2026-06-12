@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Bell, Settings, Search } from "lucide-react";
+import { Bell, EyeOff, LayoutDashboard, Search, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -12,6 +12,7 @@ const items: NavItem[] = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { to: "/dashboard/searches", label: "Searches", icon: Search },
   { to: "/dashboard/alerts", label: "Alerts", icon: Bell },
+  { to: "/dashboard/flagged", label: "Flagged", icon: EyeOff },
   { to: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
