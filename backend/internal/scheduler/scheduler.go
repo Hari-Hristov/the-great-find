@@ -37,11 +37,12 @@ import (
 // The DB layer maps its row type onto this — keeps the scheduler decoupled
 // from the sqlc generated types so the package can be tested with fakes.
 type SavedSearch struct {
-	ID              int64
-	Name            string
-	QueryParams     []byte // raw JSON from saved_searches.query_params
-	AlertCriteria   []byte // raw JSON from saved_searches.alert_criteria (may be nil)
-	PollIntervalMin int
+	ID                 int64
+	Name               string
+	QueryParams        []byte // raw JSON from saved_searches.query_params
+	AlertCriteria      []byte // raw JSON from saved_searches.alert_criteria (may be nil)
+	PollIntervalMin    int
+	MaxListingAgeDays  int    // 0 means use DefaultMaxListingAge
 }
 
 // StoredListing is the slice of the listings row the scheduler reads back.
@@ -142,7 +143,7 @@ type Scheduler struct {
 }
 
 // DefaultMaxListingAge is the production recency cutoff — drop anything older.
-const DefaultMaxListingAge = 30 * 24 * time.Hour
+const DefaultMaxListingAge = 90 * 24 * time.Hour
 
 // New builds a scheduler. fetcher may be nil in tests that exercise runner
 // lifecycle without polling — Reload still works, but any actual poll would panic.
@@ -394,10 +395,14 @@ func (r *runner) processListing(ctx context.Context, l scraper.Listing, cfg *par
 	// Recency filter — drop listings older than maxListingAge before we touch the DB.
 	// Listings whose PostedAtRaw can't be parsed are kept (parser misses shouldn't
 	// silently nuke real listings); only a successfully-parsed-and-too-old one is dropped.
+	maxAge := r.parent.maxListingAge
+	if r.search.MaxListingAgeDays > 0 {
+		maxAge = time.Duration(r.search.MaxListingAgeDays) * 24 * time.Hour
+	}
 	var postedAt *time.Time
 	if t, ok := parsePostedAt(l.PostedAtRaw, r.parent.now()); ok {
 		postedAt = &t
-		if r.parent.maxListingAge > 0 && r.parent.now().Sub(t) > r.parent.maxListingAge {
+		if maxAge > 0 && r.parent.now().Sub(t) > maxAge {
 			r.parent.logger.Debug("listing dropped: older than recency cutoff",
 				"search_id", r.search.ID, "external_id", l.ExternalID,
 				"posted_at", t, "age", r.parent.now().Sub(t))

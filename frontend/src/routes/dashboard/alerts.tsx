@@ -1,17 +1,38 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { EyeOff, Flag } from "lucide-react";
-import { useState } from "react";
+import { EyeOff, Tag, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useAlerts, useFlagAlert, useHideListing, useSearches } from "@/api/hooks/queries";
+import { useAlerts, useHideListing, useSearches, useTagAlert } from "@/api/hooks/queries";
 import { formatEUR, relativeTime } from "@/lib/utils";
 import type { Alert } from "@/api/types";
 
 export const Route = createFileRoute("/dashboard/alerts")({
   component: AlertsPage,
 });
+
+const TAG_COLORS = [
+  { name: "red",    bg: "bg-red-500" },
+  { name: "orange", bg: "bg-orange-400" },
+  { name: "yellow", bg: "bg-yellow-400" },
+  { name: "green",  bg: "bg-green-500" },
+  { name: "blue",   bg: "bg-blue-500" },
+  { name: "purple", bg: "bg-purple-500" },
+  { name: "pink",   bg: "bg-pink-400" },
+] as const;
+
+type TagColorName = (typeof TAG_COLORS)[number]["name"];
+
+const TAG_BG: Record<TagColorName, string> = Object.fromEntries(
+  TAG_COLORS.map((c) => [c.name, c.bg]),
+) as Record<TagColorName, string>;
+
+function tagBg(color?: string): string {
+  if (!color) return "bg-zinc-500";
+  return TAG_BG[color as TagColorName] ?? "bg-zinc-500";
+}
 
 function formatCriteria(raw: string): string {
   try {
@@ -23,6 +44,120 @@ function formatCriteria(raw: string): string {
   return raw;
 }
 
+function TagPopover({
+  alertId,
+  currentLabel,
+  currentColor,
+}: {
+  alertId: number;
+  currentLabel?: string;
+  currentColor?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(currentLabel ?? "");
+  const [draftColor, setDraftColor] = useState<TagColorName>(
+    (currentColor as TagColorName | undefined) ?? "blue",
+  );
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const tag = useTagAlert();
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  function save() {
+    const label = draft.trim();
+    if (!label) return;
+    tag.mutate({ id: alertId, label, color: draftColor }, { onSuccess: () => setOpen(false) });
+  }
+
+  function clear() {
+    tag.mutate({ id: alertId, label: "", color: "" });
+  }
+
+  return (
+    <div className="relative flex items-center gap-1">
+      {currentLabel ? (
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white ${tagBg(currentColor)}`}
+        >
+          {currentLabel}
+          <button
+            aria-label="Remove tag"
+            disabled={tag.isPending}
+            onClick={clear}
+            className="ml-0.5 opacity-70 hover:opacity-100"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      ) : null}
+
+      <Button
+        size="icon"
+        variant="ghost"
+        aria-label="Add tag"
+        onClick={() => {
+          setDraft(currentLabel ?? "");
+          setDraftColor((currentColor as TagColorName | undefined) ?? "blue");
+          setOpen((v) => !v);
+        }}
+        className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
+      >
+        <Tag className="h-4 w-4" />
+      </Button>
+
+      {open ? (
+        <div
+          ref={popoverRef}
+          className="absolute right-0 top-9 z-50 w-56 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-3 shadow-lg"
+        >
+          <input
+            autoFocus
+            type="text"
+            maxLength={100}
+            placeholder="Label…"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setOpen(false); }}
+            className="w-full rounded border border-[var(--color-border-subtle)] bg-transparent px-2 py-1 text-sm outline-none focus:border-[var(--color-accent)]"
+          />
+          <div className="mt-2 flex gap-1.5">
+            {TAG_COLORS.map((c) => (
+              <button
+                key={c.name}
+                aria-label={c.name}
+                onClick={() => setDraftColor(c.name)}
+                className={`h-5 w-5 rounded-full ${c.bg} ring-offset-1 transition-all ${draftColor === c.name ? "ring-2 ring-white" : "opacity-70 hover:opacity-100"}`}
+              />
+            ))}
+          </div>
+          <div className="mt-2 flex gap-2">
+            <Button
+              size="sm"
+              disabled={!draft.trim() || tag.isPending}
+              onClick={save}
+              className="flex-1"
+            >
+              Save
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function SearchAlertCard({
   searchName,
   alerts,
@@ -32,7 +167,6 @@ function SearchAlertCard({
 }) {
   const [open, setOpen] = useState(false);
   const hide = useHideListing();
-  const flag = useFlagAlert();
 
   return (
     <Card>
@@ -76,24 +210,14 @@ function SearchAlertCard({
                     <Badge variant="secondary" className="font-mono">
                       {formatCriteria(a.criteria)}
                     </Badge>
-                    {a.flagged ? (
-                      <Badge variant="default" className="font-mono">flagged</Badge>
-                    ) : null}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  {!a.flagged ? (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label="Flag alert"
-                      disabled={flag.isPending}
-                      onClick={() => flag.mutate(a.id)}
-                      className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
-                    >
-                      <Flag className="h-4 w-4" />
-                    </Button>
-                  ) : null}
+                  <TagPopover
+                    alertId={a.id}
+                    currentLabel={a.tag_label}
+                    currentColor={a.tag_color}
+                  />
                   <Button
                     size="icon"
                     variant="ghost"
@@ -129,6 +253,9 @@ function AlertsPage() {
     const bucket = grouped.get(a.search_id) ?? [];
     bucket.push(a);
     grouped.set(a.search_id, bucket);
+  }
+  for (const [sid, bucket] of grouped) {
+    grouped.set(sid, [...bucket].sort((a, b) => b.sent_at.localeCompare(a.sent_at)));
   }
 
   const searchIds = Array.from(grouped.keys()).sort((a, b) => {

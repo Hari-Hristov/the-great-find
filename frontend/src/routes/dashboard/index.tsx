@@ -2,7 +2,6 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
 import { useAlerts, useListings, useSearches } from "@/api/hooks/queries";
 import { formatEUR, relativeTime } from "@/lib/utils";
@@ -13,6 +12,21 @@ export const Route = createFileRoute("/dashboard/")({
 
 const RECENT_PAGE_SIZE = 10;
 const RECENT_TOTAL_CAP = 100;
+
+const TAG_BG: Record<string, string> = {
+  red: "bg-red-500",
+  orange: "bg-orange-400",
+  yellow: "bg-yellow-400",
+  green: "bg-green-500",
+  blue: "bg-blue-500",
+  purple: "bg-purple-500",
+  pink: "bg-pink-400",
+};
+
+function tagBg(color?: string): string {
+  if (!color) return "bg-zinc-500";
+  return TAG_BG[color] ?? "bg-zinc-500";
+}
 
 function OverviewPage() {
   const searches = useSearches();
@@ -28,6 +42,8 @@ function OverviewPage() {
   const recentItems = recent.data?.items ?? [];
   const recentTotal = Math.min(recent.data?.total ?? 0, RECENT_TOTAL_CAP);
   const recentTotalPages = Math.max(1, Math.ceil(recentTotal / RECENT_PAGE_SIZE));
+
+  const searchNameMap = new Map((searches.data ?? []).map((s) => [s.id, s.name]));
 
   const activeCount = searches.data?.filter((s) => s.active).length ?? 0;
   const totalSearches = searches.data?.length ?? 0;
@@ -75,7 +91,14 @@ function OverviewPage() {
                           {a.listing_title ?? `listing #${a.listing_id}`}
                         </a>
                         <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-                          <Badge variant="default">search #{a.search_id}</Badge>
+                          {a.tag_label ? (
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium text-white ${tagBg(a.tag_color)}`}
+                            >
+                              {a.tag_label}
+                            </span>
+                          ) : null}
+                          <span>{searchNameMap.get(a.search_id) ?? `search #${a.search_id}`}</span>
                           <span>{relativeTime(a.sent_at)}</span>
                         </div>
                       </div>

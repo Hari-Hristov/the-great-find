@@ -183,12 +183,13 @@ func (f *fakeQueries) ListRecentAlerts(_ context.Context, _ int) ([]AlertRow, er
 	return f.alerts, nil
 }
 
-func (f *fakeQueries) FlagAlert(_ context.Context, id int64) error {
+func (f *fakeQueries) TagAlert(_ context.Context, id int64, label, color string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for i, a := range f.alerts {
 		if a.ID == id {
-			f.alerts[i].Flagged = true
+			f.alerts[i].TagLabel = label
+			f.alerts[i].TagColor = color
 			return nil
 		}
 	}

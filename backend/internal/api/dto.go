@@ -4,35 +4,38 @@ import "time"
 
 // SavedSearchRow is the API/store view of a saved_searches row.
 type SavedSearchRow struct {
-	ID              int64      `json:"id"`
-	Name            string     `json:"name"`
-	Platform        string     `json:"platform"`
-	Country         string     `json:"country"`
-	QueryParams     string     `json:"query_params"`             // raw JSON
-	AlertCriteria   string     `json:"alert_criteria,omitempty"` // raw JSON, may be empty
-	PollIntervalMin int        `json:"poll_interval_min"`
-	Active          bool       `json:"active"`
-	CreatedAt       time.Time  `json:"created_at"`
-	LastPolledAt    *time.Time `json:"last_polled_at,omitempty"`
+	ID                int64      `json:"id"`
+	Name              string     `json:"name"`
+	Platform          string     `json:"platform"`
+	Country           string     `json:"country"`
+	QueryParams       string     `json:"query_params"`             // raw JSON
+	AlertCriteria     string     `json:"alert_criteria,omitempty"` // raw JSON, may be empty
+	PollIntervalMin   int        `json:"poll_interval_min"`
+	MaxListingAgeDays int        `json:"max_listing_age_days"`
+	Active            bool       `json:"active"`
+	CreatedAt         time.Time  `json:"created_at"`
+	LastPolledAt      *time.Time `json:"last_polled_at,omitempty"`
 }
 
 type CreateSavedSearchInput struct {
-	Name            string
-	Platform        string
-	Country         string
-	QueryParams     string
-	AlertCriteria   string
-	PollIntervalMin int
-	Active          bool
+	Name              string
+	Platform          string
+	Country           string
+	QueryParams       string
+	AlertCriteria     string
+	PollIntervalMin   int
+	MaxListingAgeDays int
+	Active            bool
 }
 
 type UpdateSavedSearchInput struct {
-	ID              int64
-	Name            string
-	QueryParams     string
-	AlertCriteria   string
-	PollIntervalMin int
-	Active          bool
+	ID                int64
+	Name              string
+	QueryParams       string
+	AlertCriteria     string
+	PollIntervalMin   int
+	MaxListingAgeDays int
+	Active            bool
 }
 
 // ListingRow is the canonical API/store view of a listings row.
@@ -95,7 +98,8 @@ type AlertRow struct {
 	CriteriaHash  string    `json:"criteria_hash"`
 	Criteria      string    `json:"criteria"`
 	SentAt        time.Time `json:"sent_at"`
-	Flagged       bool      `json:"flagged"`
+	TagLabel      string    `json:"tag_label,omitempty"`
+	TagColor      string    `json:"tag_color,omitempty"`
 	ListingTitle  string    `json:"listing_title,omitempty"`
 	ListingURL    string    `json:"listing_url,omitempty"`
 	ListingStatus string    `json:"listing_status,omitempty"`

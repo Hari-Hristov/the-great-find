@@ -7,6 +7,10 @@ GOOSE       ?= goose
 SQLC        ?= sqlc
 GO          ?= go
 
+# Pin the data dir to the repo's backend/ folder in dev so the app, the
+# Makefile, and any scripts all read/write the same dev.db file.
+export THE_GREAT_FIND_DATA_DIR := $(CURDIR)
+
 DB_PATH     ?= ./dev.db
 MIGRATIONS  := ./migrations
 
@@ -37,6 +41,9 @@ sqlc:
 .PHONY: db-up
 db-up:
 	$(GOOSE) -dir $(MIGRATIONS) sqlite3 $(DB_PATH) up
+
+.PHONY: db-migrate
+db-migrate: db-up
 
 .PHONY: db-down
 db-down:

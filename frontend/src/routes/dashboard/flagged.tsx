@@ -14,7 +14,12 @@ function FlaggedPage() {
   const listings = useListings({ status: "hidden", limit: 500 });
   const unhide = useUnhideListing();
 
-  const items = listings.data?.items ?? [];
+  const items = [...(listings.data?.items ?? [])].sort((a, b) => {
+    if (!a.posted_at && !b.posted_at) return 0;
+    if (!a.posted_at) return 1;
+    if (!b.posted_at) return -1;
+    return b.posted_at.localeCompare(a.posted_at);
+  });
 
   return (
     <>

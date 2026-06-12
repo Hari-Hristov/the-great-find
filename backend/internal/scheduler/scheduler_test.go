@@ -253,7 +253,7 @@ func TestProcessListing_DropsOlderThanCutoff(t *testing.T) {
 	now := time.Date(2026, 6, 9, 15, 0, 0, 0, sofiaLoc)
 	s := New(q, nil, ps, bus, nil)
 	s.now = func() time.Time { return now }
-	// Already DefaultMaxListingAge = 30d from constructor, but be explicit:
+	// Already DefaultMaxListingAge = 90d from constructor, but be explicit:
 	s.maxListingAge = 30 * 24 * time.Hour
 
 	r := &runner{

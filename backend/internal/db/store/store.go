@@ -41,7 +41,7 @@ var _ scheduler.Queries = (*Store)(nil)
 
 func (s *Store) ListActiveSavedSearches(ctx context.Context) ([]scheduler.SavedSearch, error) {
 	const q = `
-		SELECT id, name, query_params, alert_criteria, poll_interval_min
+		SELECT id, name, query_params, alert_criteria, poll_interval_min, max_listing_age_days
 		FROM saved_searches
 		WHERE active = 1
 		ORDER BY id`
@@ -56,7 +56,7 @@ func (s *Store) ListActiveSavedSearches(ctx context.Context) ([]scheduler.SavedS
 		var ss scheduler.SavedSearch
 		var qp string
 		var ac sql.NullString
-		if err := rows.Scan(&ss.ID, &ss.Name, &qp, &ac, &ss.PollIntervalMin); err != nil {
+		if err := rows.Scan(&ss.ID, &ss.Name, &qp, &ac, &ss.PollIntervalMin, &ss.MaxListingAgeDays); err != nil {
 			return nil, fmt.Errorf("scan saved_search: %w", err)
 		}
 		ss.QueryParams = []byte(qp)

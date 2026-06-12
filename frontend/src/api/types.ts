@@ -6,6 +6,7 @@ export interface SavedSearch {
   query_params: string;
   alert_criteria?: string;
   poll_interval_min: number;
+  max_listing_age_days: number;
   active: boolean;
   created_at: string;
   last_polled_at?: string;
@@ -18,6 +19,7 @@ export interface CreateSavedSearchInput {
   query_params: Record<string, string | string[]>;
   alert_criteria?: Record<string, unknown>;
   poll_interval_min: number;
+  max_listing_age_days: number;
   active: boolean;
 }
 
@@ -78,7 +80,8 @@ export interface Alert {
   criteria_hash: string;
   criteria: string;
   sent_at: string;
-  flagged: boolean;
+  tag_label?: string;
+  tag_color?: string;
   listing_title?: string;
   listing_url?: string;
   listing_status?: string;

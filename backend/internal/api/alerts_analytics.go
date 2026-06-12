@@ -7,6 +7,11 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
+var allowedTagColors = map[string]bool{
+	"red": true, "orange": true, "yellow": true, "green": true,
+	"blue": true, "purple": true, "pink": true,
+}
+
 func registerAlerts(api huma.API, q Queries) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-alerts",
@@ -38,20 +43,32 @@ func registerAlerts(api huma.API, q Queries) {
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID: "flag-alert",
+		OperationID: "tag-alert",
 		Method:      "PATCH",
 		Path:        "/alerts/{id}",
-		Summary:     "Flag an alert for follow-up",
+		Summary:     "Set or clear a tag on an alert",
 	}, func(ctx context.Context, in *struct {
 		ID   int64 `path:"id"`
 		Body struct {
-			Flagged bool `json:"flagged"`
+			TagLabel *string `json:"tag_label"`
+			TagColor *string `json:"tag_color"`
 		}
 	}) (*struct{}, error) {
-		if !in.Body.Flagged {
-			return &struct{}{}, nil
+		label := ""
+		color := ""
+		if in.Body.TagLabel != nil {
+			label = *in.Body.TagLabel
 		}
-		if err := q.FlagAlert(ctx, in.ID); err != nil {
+		if in.Body.TagColor != nil {
+			color = *in.Body.TagColor
+		}
+		if len(label) > 100 {
+			return nil, huma.Error422UnprocessableEntity("tag_label too long (max 100 chars)")
+		}
+		if color != "" && !allowedTagColors[color] {
+			return nil, huma.Error422UnprocessableEntity("tag_color must be one of: red, orange, yellow, green, blue, purple, pink")
+		}
+		if err := q.TagAlert(ctx, in.ID, label, color); err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil, huma.Error404NotFound("alert not found")
 			}

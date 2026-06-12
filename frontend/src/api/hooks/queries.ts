@@ -139,11 +139,14 @@ export function useHideListing() {
   });
 }
 
-export function useFlagAlert() {
+export function useTagAlert() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) =>
-      apiFetch<void>(`/alerts/${id}`, { method: "PATCH", json: { flagged: true } }),
+    mutationFn: ({ id, label, color }: { id: number; label: string; color: string }) =>
+      apiFetch<void>(`/alerts/${id}`, {
+        method: "PATCH",
+        json: { tag_label: label || null, tag_color: color || null },
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["alerts"] });
     },

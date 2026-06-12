@@ -54,7 +54,7 @@ func scanSavedSearch(row interface{ Scan(...any) error }) (api.SavedSearchRow, e
 	)
 	if err := row.Scan(
 		&r.ID, &r.Name, &r.Platform, &r.Country,
-		&r.QueryParams, &alertCriteria, &r.PollIntervalMin,
+		&r.QueryParams, &alertCriteria, &r.PollIntervalMin, &r.MaxListingAgeDays,
 		&active, &createdAtStr, &lastPolledAtNS,
 	); err != nil {
 		return api.SavedSearchRow{}, err
@@ -76,7 +76,7 @@ func scanSavedSearch(row interface{ Scan(...any) error }) (api.SavedSearchRow, e
 func (s *Store) GetSavedSearch(ctx context.Context, id int64) (*api.SavedSearchRow, error) {
 	const q = `
 		SELECT id, name, platform, country, query_params, alert_criteria,
-		       poll_interval_min, active, created_at, last_polled_at
+		       poll_interval_min, max_listing_age_days, active, created_at, last_polled_at
 		FROM saved_searches WHERE id = ?`
 	r, err := scanSavedSearch(s.pools.Reader.QueryRowContext(ctx, q, id))
 	if errors.Is(err, sql.ErrNoRows) {
@@ -91,7 +91,7 @@ func (s *Store) GetSavedSearch(ctx context.Context, id int64) (*api.SavedSearchR
 func (s *Store) ListAllSavedSearches(ctx context.Context) ([]api.SavedSearchRow, error) {
 	const q = `
 		SELECT id, name, platform, country, query_params, alert_criteria,
-		       poll_interval_min, active, created_at, last_polled_at
+		       poll_interval_min, max_listing_age_days, active, created_at, last_polled_at
 		FROM saved_searches ORDER BY id`
 	rows, err := s.pools.Reader.QueryContext(ctx, q)
 	if err != nil {
@@ -112,17 +112,17 @@ func (s *Store) ListAllSavedSearches(ctx context.Context) ([]api.SavedSearchRow,
 
 func (s *Store) CreateSavedSearch(ctx context.Context, in api.CreateSavedSearchInput) (api.SavedSearchRow, error) {
 	const q = `
-		INSERT INTO saved_searches (name, platform, country, query_params, alert_criteria, poll_interval_min, active)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO saved_searches (name, platform, country, query_params, alert_criteria, poll_interval_min, max_listing_age_days, active)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		RETURNING id, name, platform, country, query_params, alert_criteria,
-		          poll_interval_min, active, created_at, last_polled_at`
+		          poll_interval_min, max_listing_age_days, active, created_at, last_polled_at`
 	active := 0
 	if in.Active {
 		active = 1
 	}
 	row := s.pools.Writer.QueryRowContext(ctx, q,
 		in.Name, in.Platform, in.Country, in.QueryParams,
-		nullString(in.AlertCriteria), in.PollIntervalMin, active,
+		nullString(in.AlertCriteria), in.PollIntervalMin, in.MaxListingAgeDays, active,
 	)
 	r, err := scanSavedSearch(row)
 	if err != nil {
@@ -135,17 +135,17 @@ func (s *Store) UpdateSavedSearch(ctx context.Context, in api.UpdateSavedSearchI
 	const q = `
 		UPDATE saved_searches
 		SET name = ?, query_params = ?, alert_criteria = ?,
-		    poll_interval_min = ?, active = ?
+		    poll_interval_min = ?, max_listing_age_days = ?, active = ?
 		WHERE id = ?
 		RETURNING id, name, platform, country, query_params, alert_criteria,
-		          poll_interval_min, active, created_at, last_polled_at`
+		          poll_interval_min, max_listing_age_days, active, created_at, last_polled_at`
 	active := 0
 	if in.Active {
 		active = 1
 	}
 	row := s.pools.Writer.QueryRowContext(ctx, q,
 		in.Name, in.QueryParams, nullString(in.AlertCriteria),
-		in.PollIntervalMin, active, in.ID,
+		in.PollIntervalMin, in.MaxListingAgeDays, active, in.ID,
 	)
 	r, err := scanSavedSearch(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -440,7 +440,8 @@ func (s *Store) ListRecentAlerts(ctx context.Context, limit int) ([]api.AlertRow
 		limit = 100
 	}
 	const q = `
-		SELECT a.id, a.search_id, a.listing_id, a.criteria_hash, a.criteria, a.sent_at, a.flagged,
+		SELECT a.id, a.search_id, a.listing_id, a.criteria_hash, a.criteria, a.sent_at,
+		       a.tag_label, a.tag_color,
 		       l.title, l.url, l.status
 		FROM alerts_sent a
 		LEFT JOIN listings l ON l.id = a.listing_id
@@ -455,20 +456,26 @@ func (s *Store) ListRecentAlerts(ctx context.Context, limit int) ([]api.AlertRow
 	out := []api.AlertRow{}
 	for rows.Next() {
 		var (
-			r               api.AlertRow
-			sentAt          string
-			flagged         int
-			title, url      sql.NullString
-			listingStatus   sql.NullString
+			r                       api.AlertRow
+			sentAt                  string
+			tagLabel, tagColor      sql.NullString
+			title, url              sql.NullString
+			listingStatus           sql.NullString
 		)
 		if err := rows.Scan(&r.ID, &r.SearchID, &r.ListingID,
-			&r.CriteriaHash, &r.Criteria, &sentAt, &flagged, &title, &url, &listingStatus); err != nil {
+			&r.CriteriaHash, &r.Criteria, &sentAt, &tagLabel, &tagColor,
+			&title, &url, &listingStatus); err != nil {
 			return nil, err
 		}
 		if t, err := parseTS(sentAt); err == nil {
 			r.SentAt = t
 		}
-		r.Flagged = flagged != 0
+		if tagLabel.Valid {
+			r.TagLabel = tagLabel.String
+		}
+		if tagColor.Valid {
+			r.TagColor = tagColor.String
+		}
 		if title.Valid {
 			r.ListingTitle = title.String
 		}
@@ -483,11 +490,17 @@ func (s *Store) ListRecentAlerts(ctx context.Context, limit int) ([]api.AlertRow
 	return out, rows.Err()
 }
 
-func (s *Store) FlagAlert(ctx context.Context, id int64) error {
+func (s *Store) TagAlert(ctx context.Context, id int64, label, color string) error {
+	var tagLabel, tagColor interface{}
+	if label != "" {
+		tagLabel = label
+		tagColor = color
+	}
 	res, err := s.pools.Writer.ExecContext(ctx,
-		`UPDATE alerts_sent SET flagged = 1 WHERE id = ?`, id)
+		`UPDATE alerts_sent SET tag_label = ?, tag_color = ? WHERE id = ?`,
+		tagLabel, tagColor, id)
 	if err != nil {
-		return fmt.Errorf("flag alert: %w", err)
+		return fmt.Errorf("tag alert: %w", err)
 	}
 	n, err := res.RowsAffected()
 	if err != nil {

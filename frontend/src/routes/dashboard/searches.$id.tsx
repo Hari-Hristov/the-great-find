@@ -57,6 +57,7 @@ function EditForm({
   const [sort, setSort] = useState((qp.sort as string) ?? "");
   const [alertBelowEur, setAlertBelowEur] = useState(parseAlertBelowEur(search.alert_criteria));
   const [interval, setInterval] = useState(search.poll_interval_min);
+  const [maxListingAgeDays, setMaxListingAgeDays] = useState(search.max_listing_age_days || 90);
   const [keywordVariants, setKeywordVariants] = useState<string[]>(
     Array.isArray(qp.keyword_variants) ? (qp.keyword_variants as string[]) : [],
   );
@@ -102,6 +103,7 @@ function EditForm({
         query_params: queryParams,
         alert_criteria: alertCriteria,
         poll_interval_min: interval,
+        max_listing_age_days: maxListingAgeDays,
         active: search.active,
       },
       {
@@ -225,6 +227,15 @@ function EditForm({
               <option value="filter_float_price:asc">Price: low → high</option>
               <option value="filter_float_price:desc">Price: high → low</option>
               <option value="relevance:desc">Relevance</option>
+            </Select>
+          </div>
+          <div>
+            <Label>Listing age cutoff (days)</Label>
+            <Select value={String(maxListingAgeDays)} onChange={(e) => setMaxListingAgeDays(Number(e.target.value))}>
+              <option value="30">30 days</option>
+              <option value="60">60 days</option>
+              <option value="90">90 days</option>
+              <option value="120">120 days</option>
             </Select>
           </div>
           <div>
@@ -368,7 +379,12 @@ function SearchDetailPage() {
           </CardHeader>
           <CardContent>
             <ul className="divide-y divide-[var(--color-border-subtle)]">
-              {(listings.data?.items ?? []).map((l) => (
+              {[...(listings.data?.items ?? [])].sort((a, b) => {
+                if (!a.posted_at && !b.posted_at) return 0;
+                if (!a.posted_at) return 1;
+                if (!b.posted_at) return -1;
+                return b.posted_at.localeCompare(a.posted_at);
+              }).map((l) => (
                 <li key={l.id} className="flex items-center justify-between py-3">
                   <div className="min-w-0 flex-1 pr-4">
                     <a

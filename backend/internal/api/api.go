@@ -44,7 +44,7 @@ type Queries interface {
 	ListPriceHistory(ctx context.Context, listingID int64, limit int) ([]PriceObservationRow, error)
 
 	ListRecentAlerts(ctx context.Context, limit int) ([]AlertRow, error)
-	FlagAlert(ctx context.Context, id int64) error
+	TagAlert(ctx context.Context, id int64, label, color string) error
 
 	AnalyticsForSearch(ctx context.Context, f AnalyticsFilter) (AnalyticsRow, error)
 }

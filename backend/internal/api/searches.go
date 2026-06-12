@@ -13,13 +13,14 @@ import (
 
 // SavedSearchInput is the payload for create/update.
 type SavedSearchInput struct {
-	Name            string          `json:"name" minLength:"1" maxLength:"200" doc:"Human-readable label."`
-	Platform        string          `json:"platform,omitempty" enum:"olx" doc:"Defaults to olx."`
-	Country         string          `json:"country,omitempty" doc:"ISO-3166 alpha-2; defaults to BG."`
-	QueryParams     json.RawMessage `json:"query_params" doc:"Raw query params. Must be a JSON object of string values; keys are filtered against the parser config's allow-list at poll time."`
-	AlertCriteria   json.RawMessage `json:"alert_criteria,omitempty" doc:"Optional alert rules; see /api/searches/{id}#alert-criteria-shape."`
-	PollIntervalMin int             `json:"poll_interval_min,omitempty" minimum:"5" maximum:"720" doc:"Minutes between polls. Defaults to 30."`
-	Active          *bool           `json:"active,omitempty" doc:"Defaults to true on create."`
+	Name              string          `json:"name" minLength:"1" maxLength:"200" doc:"Human-readable label."`
+	Platform          string          `json:"platform,omitempty" enum:"olx" doc:"Defaults to olx."`
+	Country           string          `json:"country,omitempty" doc:"ISO-3166 alpha-2; defaults to BG."`
+	QueryParams       json.RawMessage `json:"query_params" doc:"Raw query params. Must be a JSON object of string values; keys are filtered against the parser config's allow-list at poll time."`
+	AlertCriteria     json.RawMessage `json:"alert_criteria,omitempty" doc:"Optional alert rules; see /api/searches/{id}#alert-criteria-shape."`
+	PollIntervalMin   int             `json:"poll_interval_min,omitempty" minimum:"5" maximum:"720" doc:"Minutes between polls. Defaults to 30."`
+	MaxListingAgeDays int             `json:"max_listing_age_days,omitempty" enum:"30,60,90,120" doc:"Recency cutoff in days. Listings older than this are dropped at scrape time. Defaults to 90."`
+	Active            *bool           `json:"active,omitempty" doc:"Defaults to true on create."`
 }
 
 func (in SavedSearchInput) defaults() SavedSearchInput {
@@ -31,6 +32,9 @@ func (in SavedSearchInput) defaults() SavedSearchInput {
 	}
 	if in.PollIntervalMin == 0 {
 		in.PollIntervalMin = 30
+	}
+	if in.MaxListingAgeDays == 0 {
+		in.MaxListingAgeDays = 90
 	}
 	return in
 }
@@ -112,13 +116,14 @@ func registerSearches(api huma.API, q Queries, sched Reloader) {
 			active = *body.Active
 		}
 		row, err := q.CreateSavedSearch(ctx, CreateSavedSearchInput{
-			Name:            body.Name,
-			Platform:        body.Platform,
-			Country:         body.Country,
-			QueryParams:     string(body.QueryParams),
-			AlertCriteria:   string(body.AlertCriteria),
-			PollIntervalMin: body.PollIntervalMin,
-			Active:          active,
+			Name:              body.Name,
+			Platform:          body.Platform,
+			Country:           body.Country,
+			QueryParams:       string(body.QueryParams),
+			AlertCriteria:     string(body.AlertCriteria),
+			PollIntervalMin:   body.PollIntervalMin,
+			MaxListingAgeDays: body.MaxListingAgeDays,
+			Active:            active,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("create saved search: %w", err)
@@ -147,12 +152,13 @@ func registerSearches(api huma.API, q Queries, sched Reloader) {
 			active = *body.Active
 		}
 		row, err := q.UpdateSavedSearch(ctx, UpdateSavedSearchInput{
-			ID:              in.ID,
-			Name:            body.Name,
-			QueryParams:     string(body.QueryParams),
-			AlertCriteria:   string(body.AlertCriteria),
-			PollIntervalMin: body.PollIntervalMin,
-			Active:          active,
+			ID:                in.ID,
+			Name:              body.Name,
+			QueryParams:       string(body.QueryParams),
+			AlertCriteria:     string(body.AlertCriteria),
+			PollIntervalMin:   body.PollIntervalMin,
+			MaxListingAgeDays: body.MaxListingAgeDays,
+			Active:            active,
 		})
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
