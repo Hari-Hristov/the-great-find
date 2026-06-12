@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/harihristov/the-great-find/backend/internal/parser"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
 )
 
 // loadConfig pulls the embedded olx-bg.json so the mapper tests run against

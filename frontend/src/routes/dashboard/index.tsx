@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
 import { useAlerts, useListings, useSearches } from "@/api/hooks/queries";
 import { formatEUR, relativeTime } from "@/lib/utils";
 
@@ -9,19 +10,49 @@ export const Route = createFileRoute("/dashboard/")({
   component: OverviewPage,
 });
 
+const RECENT_PAGE_SIZE = 10;
+const RECENT_TOTAL_CAP = 100;
+
+const TAG_BG: Record<string, string> = {
+  red: "bg-red-500",
+  orange: "bg-orange-400",
+  yellow: "bg-yellow-400",
+  green: "bg-green-500",
+  blue: "bg-blue-500",
+  purple: "bg-purple-500",
+  pink: "bg-pink-400",
+};
+
+function tagBg(color?: string): string {
+  if (!color) return "bg-zinc-500";
+  return TAG_BG[color] ?? "bg-zinc-500";
+}
+
 function OverviewPage() {
   const searches = useSearches();
   const alerts = useAlerts(50);
-  const recent = useListings({ status: "active", limit: 8 });
+
+  const [recentPage, setRecentPage] = useState(1);
+  const recent = useListings({
+    status: "active",
+    limit: RECENT_PAGE_SIZE,
+    offset: (recentPage - 1) * RECENT_PAGE_SIZE,
+  });
+
+  const recentItems = recent.data?.items ?? [];
+  const recentTotal = Math.min(recent.data?.total ?? 0, RECENT_TOTAL_CAP);
+  const recentTotalPages = Math.max(1, Math.ceil(recentTotal / RECENT_PAGE_SIZE));
+
+  const searchNameMap = new Map((searches.data ?? []).map((s) => [s.id, s.name]));
 
   const activeCount = searches.data?.filter((s) => s.active).length ?? 0;
   const totalSearches = searches.data?.length ?? 0;
   const alertCount = alerts.data?.length ?? 0;
 
-  const minPrice = recent.data?.reduce<number | null>((acc, l) => {
+  const minPrice = recentItems.reduce<number | null>((acc, l) => {
     if (l.price_eur === undefined) return acc;
     return acc === null ? l.price_eur : Math.min(acc, l.price_eur);
-  }, null) ?? null;
+  }, null);
 
   return (
     <>
@@ -31,7 +62,7 @@ function OverviewPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Saved searches" value={`${activeCount}/${totalSearches}`} hint="active / total" />
           <StatCard label="Recent alerts" value={alertCount.toString()} hint="last 50" />
-          <StatCard label="New listings" value={(recent.data?.length ?? 0).toString()} hint="active, latest" />
+          <StatCard label="New listings" value={recentTotal.toString()} hint="most recent 100" />
           <StatCard label="Cheapest active" value={formatEUR(minPrice)} hint="among recent" />
         </div>
 
@@ -60,7 +91,14 @@ function OverviewPage() {
                           {a.listing_title ?? `listing #${a.listing_id}`}
                         </a>
                         <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-                          <Badge variant="default">search #{a.search_id}</Badge>
+                          {a.tag_label ? (
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium text-white ${tagBg(a.tag_color)}`}
+                            >
+                              {a.tag_label}
+                            </span>
+                          ) : null}
+                          <span>{searchNameMap.get(a.search_id) ?? `search #${a.search_id}`}</span>
                           <span>{relativeTime(a.sent_at)}</span>
                         </div>
                       </div>
@@ -74,36 +112,46 @@ function OverviewPage() {
           <Card>
             <CardHeader>
               <CardTitle>Recent listings</CardTitle>
-              <CardDescription>Most recently scraped active listings</CardDescription>
+              <CardDescription>
+                Most recent {RECENT_TOTAL_CAP} active listings
+                {recentTotal > 0 ? ` · ${recentTotal} total` : null}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {recent.isLoading ? (
                 <Empty>Loading…</Empty>
-              ) : (recent.data?.length ?? 0) === 0 ? (
+              ) : recentItems.length === 0 ? (
                 <Empty>Nothing scraped yet — add a search to start.</Empty>
               ) : (
-                <ul className="divide-y divide-[var(--color-border-subtle)]">
-                  {recent.data!.map((l) => (
-                    <li key={l.id} className="flex items-center justify-between py-2">
-                      <div className="min-w-0 flex-1 pr-4">
-                        <a
-                          href={l.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block truncate text-sm hover:text-[var(--color-accent)]"
-                        >
-                          {l.title}
-                        </a>
-                        <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                          {l.location_city ?? "—"} · {relativeTime(l.posted_at)}
+                <>
+                  <ul className="divide-y divide-[var(--color-border-subtle)]">
+                    {recentItems.map((l) => (
+                      <li key={l.id} className="flex items-center justify-between py-2">
+                        <div className="min-w-0 flex-1 pr-4">
+                          <a
+                            href={l.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block truncate text-sm hover:text-[var(--color-accent)]"
+                          >
+                            {l.title}
+                          </a>
+                          <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                            {l.location_city ?? "—"} · found {relativeTime(l.scraped_first_at)}
+                          </div>
                         </div>
-                      </div>
-                      <span className="font-mono text-sm tabular-nums">
-                        {formatEUR(l.price_eur)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                        <span className="font-mono text-sm tabular-nums">
+                          {formatEUR(l.price_eur)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Pagination
+                    page={recentPage}
+                    totalPages={recentTotalPages}
+                    onPageChange={setRecentPage}
+                  />
+                </>
               )}
             </CardContent>
           </Card>

@@ -68,16 +68,28 @@
   "api": {
     "list_path": "/api/v1/offers/",
     "query_params": {
-      "keyword":   "query",
-      "price_min": "search[filter_float_price:from]",
-      "price_max": "search[filter_float_price:to]",
-      "sort":      "sort_by",
-      "offset":    "offset",
-      "limit":     "limit"
+      "keyword":     "query",
+      "category_id": "category_id",
+      "price_min":   "search[filter_float_price:from]",
+      "price_max":   "search[filter_float_price:to]",
+      "sort":        "sort_by",
+      "offset":      "offset",
+      "limit":       "limit"
     },
     "query_param_defaults": {
       "sort":  "created_at:desc",
       "limit": "40"
+    },
+    "category_id_map": {
+      "elektronika":                                           "632",
+      "elektronika/kompyutri":                                 "275",
+      "elektronika/kompyutri/nastolni-kompyutri":              "872",
+      "elektronika/kompyutri/laptopi":                         "271",
+      "elektronika/kompyutri/tableti":                         "272",
+      "elektronika/telefoni":                                  "2",
+      "elektronika/telefoni/smartfoni":                        "3",
+      "elektronika/audio-i-video":                             "4",
+      "elektronika/igri-i-konzoli":                            "1184"
     },
     "pagination": {
       "next_link_path": "links.next.href",

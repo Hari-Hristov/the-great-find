@@ -52,7 +52,13 @@ export function useCreateSearch() {
   return useMutation({
     mutationFn: (input: CreateSavedSearchInput) =>
       apiFetch<SavedSearch>("/searches", { method: "POST", json: input }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.searches }),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: qk.searches });
+      apiFetch<void>(`/searches/${created.id}/poll`, { method: "POST" }).then(() => {
+        qc.invalidateQueries({ queryKey: ["listings"] });
+        qc.invalidateQueries({ queryKey: ["alerts"] });
+      }).catch(() => {});
+    },
   });
 }
 
@@ -121,15 +127,55 @@ function buildQuery(params: Record<string, string | number | undefined>): string
   return s.length > 0 ? `?${s}` : "";
 }
 
-export function useListings(params: ListListingsParams) {
+export function useHideListing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<Listing>(`/listings/${id}`, { method: "PATCH", json: { status: "hidden" } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["listings"] });
+      qc.invalidateQueries({ queryKey: ["alerts"] });
+    },
+  });
+}
+
+export function useTagAlert() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, label, color }: { id: number; label: string; color: string }) =>
+      apiFetch<void>(`/alerts/${id}`, {
+        method: "PATCH",
+        json: { tag_label: label || null, tag_color: color || null },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["alerts"] });
+    },
+  });
+}
+
+export function useUnhideListing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<Listing>(`/listings/${id}`, { method: "PATCH", json: { status: "active" } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["listings"] });
+      qc.invalidateQueries({ queryKey: ["alerts"] });
+    },
+  });
+}
+
+export function useListings(params: ListListingsParams, opts?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.listings(params),
     queryFn: async () => {
-      const r = await apiFetch<{ items: Listing[] }>(
+      const r = await apiFetch<{ items: Listing[]; total: number }>(
         `/listings${buildQuery(params as Record<string, string | number | undefined>)}`,
       );
-      return r.items ?? [];
+      return { items: r.items ?? [], total: r.total ?? 0 };
     },
+    staleTime: 0,
+    enabled: opts?.enabled ?? true,
   });
 }
 
@@ -158,16 +204,25 @@ export function useListing(id: number) {
 export function useAlerts(limit = 100) {
   return useQuery({
     queryKey: qk.alerts(limit),
-    queryFn: () => apiFetch<Alert[]>(`/alerts${buildQuery({ limit })}`),
+    queryFn: async () => {
+      const r = await apiFetch<{ items: Alert[] }>(`/alerts${buildQuery({ limit })}`);
+      return r.items ?? [];
+    },
+    staleTime: 0,
   });
 }
 
-export function useAnalytics(searchId: number, windowDays = 30) {
+export function useAnalytics(
+  searchId: number,
+  windowDays = 30,
+  priceEurMin?: number,
+  priceEurMax?: number,
+) {
   return useQuery({
-    queryKey: qk.analytics(searchId, windowDays),
+    queryKey: [...qk.analytics(searchId, windowDays), priceEurMin, priceEurMax],
     queryFn: () =>
       apiFetch<Analytics>(
-        `/analytics/searches/${searchId}${buildQuery({ window_days: windowDays })}`,
+        `/analytics/searches/${searchId}${buildQuery({ window_days: windowDays, price_eur_min: priceEurMin, price_eur_max: priceEurMax })}`,
       ),
     enabled: Number.isFinite(searchId) && searchId > 0,
   });

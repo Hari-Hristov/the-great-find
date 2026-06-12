@@ -6,7 +6,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/harihristov/the-great-find/backend/internal/scraper"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/scraper"
 )
 
 func TestExpandQueryParams_NilInput(t *testing.T) {
@@ -166,4 +166,57 @@ func stringify(out [][]byte) []string {
 	}
 	sort.Strings(s)
 	return s
+}
+
+func fptr(v float64) *float64 { return &v }
+
+func TestParsePriceFilter_NoBounds(t *testing.T) {
+	pf := parsePriceFilter([]byte(`{"keyword":"laptop"}`))
+	if pf.minEUR != nil || pf.maxEUR != nil {
+		t.Fatalf("expected no bounds, got %+v", pf)
+	}
+}
+
+func TestParsePriceFilter_BothBounds(t *testing.T) {
+	pf := parsePriceFilter([]byte(`{"keyword":"laptop","price_min":"100","price_max":"500"}`))
+	if pf.minEUR == nil || *pf.minEUR != 100 {
+		t.Errorf("minEUR = %v, want 100", pf.minEUR)
+	}
+	if pf.maxEUR == nil || *pf.maxEUR != 500 {
+		t.Errorf("maxEUR = %v, want 500", pf.maxEUR)
+	}
+}
+
+func TestPriceFilter_Contains(t *testing.T) {
+	min100 := parsePriceFilter([]byte(`{"price_min":"100"}`))
+	max500 := parsePriceFilter([]byte(`{"price_max":"500"}`))
+	both := parsePriceFilter([]byte(`{"price_min":"100","price_max":"500"}`))
+	none := priceFilter{}
+
+	cases := []struct {
+		name    string
+		pf      priceFilter
+		amount  *float64
+		cur     string
+		want    bool
+	}{
+		{"no filter passes anything", none, fptr(5), "EUR", true},
+		{"min: below excluded", min100, fptr(50), "EUR", false},
+		{"min: at bound passes", min100, fptr(100), "EUR", true},
+		{"max: above excluded", max500, fptr(600), "EUR", false},
+		{"max: at bound passes", max500, fptr(500), "EUR", true},
+		{"both: in range passes", both, fptr(300), "EUR", true},
+		{"both: below min excluded", both, fptr(50), "EUR", false},
+		{"both: above max excluded", both, fptr(600), "EUR", false},
+		{"nil price always passes", both, nil, "EUR", true},
+		{"BGN converted before compare", both, fptr(390), "BGN", true}, // ~199.4 EUR, within 100-500
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.pf.contains(tc.amount, tc.cur)
+			if got != tc.want {
+				t.Errorf("contains(%v, %q) = %v, want %v", tc.amount, tc.cur, got, tc.want)
+			}
+		})
+	}
 }

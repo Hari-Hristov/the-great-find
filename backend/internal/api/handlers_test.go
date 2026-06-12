@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/harihristov/the-great-find/backend/internal/events"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/events"
 )
 
 func newTestServer(t *testing.T, q Queries, sched Reloader) (*httptest.Server, *events.Bus) {
@@ -163,12 +163,16 @@ func TestListings_AddsPriceEUR(t *testing.T) {
 	}
 	var resp struct {
 		Items []ListingRow `json:"items"`
+		Total int          `json:"total"`
 	}
 	if err := json.Unmarshal(raw, &resp); err != nil {
 		t.Fatalf("decode: %v body=%s", err, raw)
 	}
 	if len(resp.Items) != 1 {
 		t.Fatalf("got %d items", len(resp.Items))
+	}
+	if resp.Total != 1 {
+		t.Errorf("total = %d, want 1", resp.Total)
 	}
 	got := resp.Items[0]
 	if got.PriceEUR == nil {

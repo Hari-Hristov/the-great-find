@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/harihristov/the-great-find/backend/internal/db"
-	"github.com/harihristov/the-great-find/backend/internal/scheduler"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/db"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/scheduler"
 )
 
 // Store wraps a Pools and exposes the scheduler.Queries surface.
@@ -41,7 +41,7 @@ var _ scheduler.Queries = (*Store)(nil)
 
 func (s *Store) ListActiveSavedSearches(ctx context.Context) ([]scheduler.SavedSearch, error) {
 	const q = `
-		SELECT id, name, query_params, alert_criteria, poll_interval_min
+		SELECT id, name, query_params, alert_criteria, poll_interval_min, max_listing_age_days
 		FROM saved_searches
 		WHERE active = 1
 		ORDER BY id`
@@ -56,7 +56,7 @@ func (s *Store) ListActiveSavedSearches(ctx context.Context) ([]scheduler.SavedS
 		var ss scheduler.SavedSearch
 		var qp string
 		var ac sql.NullString
-		if err := rows.Scan(&ss.ID, &ss.Name, &qp, &ac, &ss.PollIntervalMin); err != nil {
+		if err := rows.Scan(&ss.ID, &ss.Name, &qp, &ac, &ss.PollIntervalMin, &ss.MaxListingAgeDays); err != nil {
 			return nil, fmt.Errorf("scan saved_search: %w", err)
 		}
 		ss.QueryParams = []byte(qp)
@@ -82,14 +82,14 @@ func (s *Store) UpdateSavedSearchPolledAt(ctx context.Context, id int64, ts time
 
 func (s *Store) GetListingByExternalID(ctx context.Context, platform, country, externalID string) (*scheduler.StoredListing, error) {
 	const q = `
-		SELECT id, price_amount, price_currency
+		SELECT id, price_amount, price_currency, status
 		FROM listings
 		WHERE platform = ? AND country = ? AND external_id = ?`
 	var l scheduler.StoredListing
 	var amount sql.NullFloat64
 	var currency sql.NullString
 	err := s.pools.Reader.QueryRowContext(ctx, q, platform, country, externalID).
-		Scan(&l.ID, &amount, &currency)
+		Scan(&l.ID, &amount, &currency, &l.Status)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -228,6 +228,15 @@ func (s *Store) InsertAlertSent(ctx context.Context, in scheduler.InsertAlertSen
 	_, err := s.pools.Writer.ExecContext(ctx, q, in.SearchID, in.ListingID, in.CriteriaHash, in.CriteriaJSON)
 	if err != nil {
 		return fmt.Errorf("insert alert: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) RecordSearchListing(ctx context.Context, searchID, listingID int64) error {
+	const q = `INSERT OR IGNORE INTO search_listings (search_id, listing_id) VALUES (?, ?)`
+	_, err := s.pools.Writer.ExecContext(ctx, q, searchID, listingID)
+	if err != nil {
+		return fmt.Errorf("record search listing: %w", err)
 	}
 	return nil
 }

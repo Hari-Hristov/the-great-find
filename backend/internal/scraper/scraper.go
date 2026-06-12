@@ -33,8 +33,8 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 
-	"github.com/harihristov/the-great-find/backend/internal/parser"
-	"github.com/harihristov/the-great-find/backend/internal/politehttp"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/politehttp"
 )
 
 // Listing is the canonical scraped form. The DB layer maps this onto its row shape.

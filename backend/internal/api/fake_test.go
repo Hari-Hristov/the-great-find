@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/harihristov/the-great-find/backend/internal/scheduler"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/scheduler"
 )
 
 // fakeQueries is a thin in-memory Queries used by api package tests.
@@ -48,6 +48,7 @@ func (f *fakeQueries) GetListingByExternalID(_ context.Context, _, _, _ string) 
 func (f *fakeQueries) UpsertListing(_ context.Context, _ scheduler.UpsertListingInput) (scheduler.StoredListing, error) {
 	return scheduler.StoredListing{}, nil
 }
+func (f *fakeQueries) RecordSearchListing(_ context.Context, _ int64, _ int64) error { return nil }
 func (f *fakeQueries) InsertPriceObservation(_ context.Context, _ int64, _ string, _ *float64, _ string) error {
 	return nil
 }
@@ -130,6 +131,12 @@ func (f *fakeQueries) ListListings(_ context.Context, _ ListingFilter) ([]Listin
 	return out, nil
 }
 
+func (f *fakeQueries) CountListings(_ context.Context, _ ListingFilter) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.listings), nil
+}
+
 func (f *fakeQueries) GetListing(_ context.Context, id int64) (*ListingRow, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -138,6 +145,18 @@ func (f *fakeQueries) GetListing(_ context.Context, id int64) (*ListingRow, erro
 		return nil, nil
 	}
 	return &l, nil
+}
+
+func (f *fakeQueries) UpdateListingStatus(_ context.Context, id int64, status string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	l, ok := f.listings[id]
+	if !ok {
+		return ErrNotFound
+	}
+	l.Status = status
+	f.listings[id] = l
+	return nil
 }
 
 func (f *fakeQueries) ListListingPhotos(_ context.Context, id int64) ([]Photo, error) {
@@ -164,8 +183,21 @@ func (f *fakeQueries) ListRecentAlerts(_ context.Context, _ int) ([]AlertRow, er
 	return f.alerts, nil
 }
 
-func (f *fakeQueries) AnalyticsForSearch(_ context.Context, searchID int64, days int) (AnalyticsRow, error) {
-	return AnalyticsRow{SearchID: searchID, WindowDays: days, TrendEUR: []TrendPoint{}}, nil
+func (f *fakeQueries) TagAlert(_ context.Context, id int64, label, color string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i, a := range f.alerts {
+		if a.ID == id {
+			f.alerts[i].TagLabel = label
+			f.alerts[i].TagColor = color
+			return nil
+		}
+	}
+	return ErrNotFound
+}
+
+func (f *fakeQueries) AnalyticsForSearch(_ context.Context, filt AnalyticsFilter) (AnalyticsRow, error) {
+	return AnalyticsRow{SearchID: filt.SearchID, WindowDays: filt.WindowDays, TrendEUR: []TrendPoint{}}, nil
 }
 
 // fakeReloader counts Reload calls.

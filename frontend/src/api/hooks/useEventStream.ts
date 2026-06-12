@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { qk } from "./queries";
 
 export type EventName =
   | "alert.fired"
@@ -45,7 +44,7 @@ export function useEventStream(opts: UseEventStreamOpts = {}) {
       setLast(evt);
 
       if (name === "alert.fired") {
-        qc.invalidateQueries({ queryKey: qk.alerts(100) });
+        qc.invalidateQueries({ queryKey: ["alerts"] });
       }
       if (name.startsWith("listing.")) {
         qc.invalidateQueries({ queryKey: ["listings"] });

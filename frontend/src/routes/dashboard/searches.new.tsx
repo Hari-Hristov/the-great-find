@@ -29,6 +29,7 @@ function NewSearchPage() {
   const [sort, setSort] = useState<string>("");
   const [alertBelowEur, setAlertBelowEur] = useState<string>("");
   const [interval, setInterval] = useState(30);
+  const [maxListingAgeDays, setMaxListingAgeDays] = useState(90);
   const [keywordVariants, setKeywordVariants] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,6 +78,7 @@ function NewSearchPage() {
         query_params: queryParams,
         alert_criteria: alertCriteria,
         poll_interval_min: interval,
+        max_listing_age_days: maxListingAgeDays,
         active: true,
       },
       {
@@ -146,7 +148,7 @@ function NewSearchPage() {
                 <Label>Category slug (optional)</Label>
                 <Input value={category} onChange={(e) => setCategory(e.target.value)} />
                 <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                  Path from olx.bg URL after the domain. Multi-segment ok.
+                  Path from olx.bg URL after the domain. Multi-segment ok (e.g. <code>elektronika/kompyutri/nastolni-kompyutri</code>). Known slugs are auto-resolved to the numeric API category ID.
                 </p>
               </div>
               <div>
@@ -201,6 +203,15 @@ function NewSearchPage() {
                   <option value="filter_float_price:asc">Price: low → high</option>
                   <option value="filter_float_price:desc">Price: high → low</option>
                   <option value="relevance:desc">Relevance</option>
+                </Select>
+              </div>
+              <div>
+                <Label>Listing age cutoff (days)</Label>
+                <Select value={String(maxListingAgeDays)} onChange={(e) => setMaxListingAgeDays(Number(e.target.value))}>
+                  <option value="30">30 days</option>
+                  <option value="60">60 days</option>
+                  <option value="90">90 days</option>
+                  <option value="120">120 days</option>
                 </Select>
               </div>
               <div>

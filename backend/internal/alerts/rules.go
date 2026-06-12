@@ -28,7 +28,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/harihristov/the-great-find/backend/internal/money"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/money"
 )
 
 // Listing is the minimum surface the rules need from a scraped listing.
@@ -55,9 +55,10 @@ type PriceHistory struct {
 //
 // Any combination of rules can be set. Unset rules are no-ops.
 type Spec struct {
-	NewMatch  *NewMatchRule  `json:"new_match,omitempty"`
-	Keyword   *KeywordRule   `json:"keyword,omitempty"`
-	PriceDrop *PriceDropRule `json:"price_drop,omitempty"`
+	NewMatch   *NewMatchRule   `json:"new_match,omitempty"`
+	Keyword    *KeywordRule    `json:"keyword,omitempty"`
+	PriceDrop  *PriceDropRule  `json:"price_drop,omitempty"`
+	PriceBelow *PriceBelowRule `json:"price_below,omitempty"`
 }
 
 // NewMatchRule fires once when a listing is first observed under this search.
@@ -80,6 +81,15 @@ type PriceDropRule struct {
 	AbsoluteEUR float64 `json:"absolute_eur,omitempty"`
 }
 
+// PriceBelowRule fires when a listing's current EUR price is at or below
+// ThresholdEUR. The criteria_hash dedup in alerts_sent prevents it from
+// re-firing on the same listing while the price stays below the threshold;
+// if the price rises above and then drops below again, the hash changes
+// because the stored criteria JSON embeds the current price, so it re-fires.
+type PriceBelowRule struct {
+	ThresholdEUR float64 `json:"price_eur"`
+}
+
 // Match is a fired alert ready to insert into alerts_sent.
 type Match struct {
 	Kind          string         // "new_match" | "keyword" | "price_drop"
@@ -91,15 +101,51 @@ type Match struct {
 // Decode parses a JSON spec from saved_searches.alert_criteria. A nil/empty
 // blob is treated as "no rules configured" and yields a zero Spec — every
 // Evaluate call against it returns no matches.
+//
+// Two formats are accepted:
+//
+//   - Nested (canonical): {"price_below":{"price_eur":220},"new_match":{}}
+//   - Flat legacy (written by the frontend EditForm): {"kind":"price_below","price_eur":220}
+//
+// The flat format is auto-promoted to the nested canonical shape.
 func Decode(raw []byte) (Spec, error) {
 	if len(raw) == 0 {
 		return Spec{}, nil
 	}
+
+	// Peek at whether this is a flat {"kind":"...","price_eur":...} object.
+	var flat struct {
+		Kind         string  `json:"kind"`
+		PriceEUR     float64 `json:"price_eur"`
+	}
+	if err := json.Unmarshal(raw, &flat); err != nil {
+		return Spec{}, fmt.Errorf("decode alert_criteria: %w", err)
+	}
+	if flat.Kind != "" {
+		return promoteFlatSpec(flat.Kind, flat.PriceEUR)
+	}
+
 	var s Spec
 	if err := json.Unmarshal(raw, &s); err != nil {
 		return Spec{}, fmt.Errorf("decode alert_criteria: %w", err)
 	}
 	return s, nil
+}
+
+// promoteFlatSpec converts the frontend's flat {"kind":"price_below","price_eur":220}
+// format into a canonical Spec.
+func promoteFlatSpec(kind string, priceEUR float64) (Spec, error) {
+	switch kind {
+	case "price_below":
+		if priceEUR <= 0 {
+			return Spec{}, fmt.Errorf("decode alert_criteria: price_below requires positive price_eur")
+		}
+		return Spec{PriceBelow: &PriceBelowRule{ThresholdEUR: priceEUR}}, nil
+	case "new_match":
+		return Spec{NewMatch: &NewMatchRule{}}, nil
+	default:
+		return Spec{}, fmt.Errorf("decode alert_criteria: unknown flat kind %q", kind)
+	}
 }
 
 // Evaluate runs all configured rules against the listing snapshot.
@@ -119,6 +165,11 @@ func (s Spec) Evaluate(l Listing, history []PriceHistory) []Match {
 	}
 	if s.PriceDrop != nil {
 		if m, ok := s.PriceDrop.evaluate(l, history); ok {
+			matches = append(matches, m)
+		}
+	}
+	if s.PriceBelow != nil {
+		if m, ok := s.PriceBelow.evaluate(l); ok {
 			matches = append(matches, m)
 		}
 	}
@@ -201,6 +252,33 @@ func (p *PriceDropRule) evaluate(l Listing, history []PriceHistory) (Match, bool
 			"current_eur":  currentEUR,
 			"drop_eur":     dropAbs,
 			"drop_percent": dropPct,
+		},
+	}, true
+}
+
+func (p *PriceBelowRule) evaluate(l Listing) (Match, bool) {
+	if l.PriceAmount == nil {
+		return Match{}, false
+	}
+	currentEUR, ok := money.ToEUR(*l.PriceAmount, l.PriceCurrency)
+	if !ok {
+		return Match{}, false
+	}
+	if currentEUR > p.ThresholdEUR {
+		return Match{}, false
+	}
+	return Match{
+		Kind:         "price_below",
+		CriteriaHash: hashCriteria("price_below", p),
+		CriteriaJSON: mustJSON(map[string]any{
+			"kind":          "price_below",
+			"price_eur":     p.ThresholdEUR,
+			"current_eur":   currentEUR,
+		}),
+		Details: map[string]any{
+			"kind":        "price_below",
+			"threshold":   p.ThresholdEUR,
+			"current_eur": currentEUR,
 		},
 	}, true
 }
