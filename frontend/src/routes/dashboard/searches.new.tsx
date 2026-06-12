@@ -5,7 +5,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input, Label, Select } from "@/components/ui/input";
-import { useCreateSearch } from "@/api/hooks/queries";
+import { useCreateSearch, useConfig } from "@/api/hooks/queries";
 
 export const Route = createFileRoute("/dashboard/searches/new")({
   component: NewSearchPage,
@@ -14,6 +14,7 @@ export const Route = createFileRoute("/dashboard/searches/new")({
 function NewSearchPage() {
   const navigate = useNavigate();
   const create = useCreateSearch();
+  const config = useConfig();
   const [name, setName] = useState("");
   const [queryText, setQueryText] = useState("");
   // Path-segment fields. olx.bg encodes category + location as PATH segments,
@@ -146,9 +147,19 @@ function NewSearchPage() {
 
               <div>
                 <Label>Category slug (optional)</Label>
-                <Input value={category} onChange={(e) => setCategory(e.target.value)} />
+                <Input
+                  list="category-options"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="e.g. elektronika/kompyutri"
+                />
+                <datalist id="category-options">
+                  {Object.keys(config.data?.categories ?? {}).sort().map((slug) => (
+                    <option key={slug} value={slug} />
+                  ))}
+                </datalist>
                 <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                  Path from olx.bg URL after the domain. Multi-segment ok (e.g. <code>elektronika/kompyutri/nastolni-kompyutri</code>). Known slugs are auto-resolved to the numeric API category ID.
+                  Path from olx.bg URL after the domain — known slugs are suggested as you type.
                 </p>
               </div>
               <div>

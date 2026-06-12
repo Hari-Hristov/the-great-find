@@ -20,7 +20,7 @@ func newTestServer(t *testing.T, q Queries, sched Reloader) (*httptest.Server, *
 	t.Cleanup(bus.Close)
 
 	mux := http.NewServeMux()
-	mux.Handle("/api/", http.StripPrefix("/api", New(q, sched)))
+	mux.Handle("/api/", http.StripPrefix("/api", New(q, sched, &fakeConfig{})))
 	mux.Handle("/events", NewSSE(bus))
 
 	srv := httptest.NewServer(mux)

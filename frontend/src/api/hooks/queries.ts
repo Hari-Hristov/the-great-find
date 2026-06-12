@@ -8,6 +8,7 @@ import { apiFetch } from "../client";
 import type {
   Alert,
   Analytics,
+  AppConfig,
   CreateSavedSearchInput,
   Listing,
   ListingDetail,
@@ -24,6 +25,7 @@ export const qk = {
   listings: (params: ListListingsParams) => ["listings", params] as const,
   listing: (id: number) => ["listings", id] as const,
   alerts: (limit: number) => ["alerts", limit] as const,
+  config: ["config"] as const,
   analytics: (searchId: number, windowDays: number) =>
     ["analytics", searchId, windowDays] as const,
 };
@@ -35,6 +37,14 @@ export function useSearches() {
       const r = await apiFetch<{ items: SavedSearch[] }>("/searches");
       return r.items ?? [];
     },
+  });
+}
+
+export function useConfig() {
+  return useQuery({
+    queryKey: qk.config,
+    queryFn: () => apiFetch<AppConfig>("/config"),
+    staleTime: Infinity,
   });
 }
 

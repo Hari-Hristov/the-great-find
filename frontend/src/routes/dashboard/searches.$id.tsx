@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input, Label, Select } from "@/components/ui/input";
 import { TrendChart, type TrendDatum } from "@/components/charts/TrendChart";
-import { useAnalytics, useHideListing, useListings, usePollSearch, useSearch, useUpdateSearch } from "@/api/hooks/queries";
+import { useAnalytics, useHideListing, useListings, usePollSearch, useSearch, useUpdateSearch, useConfig } from "@/api/hooks/queries";
 import { formatEUR, relativeTime } from "@/lib/utils";
 import type { SavedSearch } from "@/api/types";
 
@@ -44,6 +44,7 @@ function EditForm({
   onDone: () => void;
 }) {
   const update = useUpdateSearch(search.id);
+  const config = useConfig();
   const qp = parseQueryParams(search.query_params);
 
   const [name, setName] = useState(search.name);
@@ -170,9 +171,19 @@ function EditForm({
 
           <div>
             <Label>Category slug (optional)</Label>
-            <Input value={category} onChange={(e) => setCategory(e.target.value)} />
+            <Input
+              list="category-options-edit"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="e.g. elektronika/kompyutri"
+            />
+            <datalist id="category-options-edit">
+              {Object.keys(config.data?.categories ?? {}).sort().map((slug) => (
+                <option key={slug} value={slug} />
+              ))}
+            </datalist>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              Path from olx.bg URL after the domain.
+              Path from olx.bg URL after the domain — known slugs are suggested as you type.
             </p>
           </div>
           <div>

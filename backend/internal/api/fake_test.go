@@ -215,10 +215,15 @@ func (f *fakeReloader) Reload(_ context.Context) error {
 }
 
 func (f *fakeReloader) PollSearchByID(_ context.Context, _ int64) error { return nil }
-func (f *fakeReloader) PollAll(_ context.Context) int                    { return 0 }
+func (f *fakeReloader) PollAll(_ context.Context) int { return 0 }
+
+type fakeConfig struct{}
+
+func (f *fakeConfig) Categories() map[string]string { return map[string]string{} }
 
 // Compile-time assertions.
 var (
-	_ Queries  = (*fakeQueries)(nil)
-	_ Reloader = (*fakeReloader)(nil)
+	_ Queries        = (*fakeQueries)(nil)
+	_ Reloader       = (*fakeReloader)(nil)
+	_ ConfigProvider = (*fakeConfig)(nil)
 )
