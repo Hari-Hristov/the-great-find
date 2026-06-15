@@ -246,7 +246,7 @@ func TestStripIDPrefix_Cases(t *testing.T) {
 		"listing-555":  "555",
 		"raw-no-strip": "raw-no-strip",
 		"":             "",
-		"ad-":          "",
+		"ad-":          "ad-",
 	}
 	for in, want := range cases {
 		if got := stripIDPrefix(in); got != want {

@@ -1,0 +1,55 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    # Correctness — these catch real bugs, not style
+    - errcheck        # unhandled errors
+    - bodyclose       # HTTP response bodies left open (memory leak)
+    - noctx           # HTTP requests made without a context
+    - exhaustive      # missing cases in switch on named enum types
+    - ineffassign     # assigned value never used
+    - copyloopvar     # loop variable captured by reference (pre-Go 1.22 footgun)
+
+    # Reliability
+    - govet           # superset of go vet
+    - staticcheck     # SA/S/QF checks (includes gosimple)
+    - errorlint       # incorrect error wrapping/comparison patterns
+    - unused          # unexported identifiers that are never used
+
+    # Minor but consistent
+    - misspell        # common English misspellings in comments and strings
+
+  settings:
+    errcheck:
+      # defer Close() errors are unrecoverable at call site — standard Go idiom.
+      # fmt.Fprint* to http.ResponseWriter in SSE handlers: client disconnect is
+      # handled by context cancellation, not the write error.
+      exclude-functions:
+        - (io.Closer).Close
+        - (*database/sql.Rows).Close
+        - fmt.Fprint
+        - fmt.Fprintf
+
+    exhaustive:
+      # Only enforce on switches that have a default branch — avoids noise on
+      # intentional partial switches.
+      default-signifies-exhaustive: true
+
+  exclusions:
+    rules:
+      # Test files — relax errcheck (test helpers intentionally ignore errors)
+      # and unused (test-only types are fine).
+      - path: "_test\\.go$"
+        linters:
+          - errcheck
+          - unused
+
+      # net.Listen in main is a one-time server startup call, not a request
+      # handler — no ambient context to pass.
+      - path: "cmd/the-great-find/main\\.go$"
+        linters:
+          - noctx
+
+issues:
+  max-same-issues: 3

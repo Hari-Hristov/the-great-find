@@ -16,7 +16,6 @@ package api
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
@@ -75,6 +74,3 @@ func New(q Queries, sched Reloader, cfg ConfigProvider) http.Handler {
 
 	return r
 }
-
-// nowUTC is a tiny indirection so tests can pin time.
-var nowUTC = func() time.Time { return time.Now().UTC() }

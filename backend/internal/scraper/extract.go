@@ -27,7 +27,13 @@ type fieldValue struct {
 //
 // fx.Absolute resolves href/src against baseURL (relative URLs are common on olx.bg).
 func extractField(root *goquery.Selection, fx parser.FieldExtract, baseURL string) (fieldValue, bool) {
+	// root.Find searches descendants only; FilterSelf handles "select this card's own attribute".
 	matched := root.Find(fx.Selector)
+	if matched.Length() == 0 {
+		matched = root.FilterFunction(func(_ int, s *goquery.Selection) bool {
+			return s.Is(fx.Selector)
+		})
+	}
 	if matched.Length() == 0 {
 		return fieldValue{}, false
 	}
@@ -206,6 +212,8 @@ func parsePrice(raw string) (*float64, string, bool) {
 		}
 	}, raw)
 	cleaned = strings.ReplaceAll(cleaned, ",", ".")
+	// Strip a trailing bare dot that comes from currency suffixes like "лв."
+	cleaned = strings.TrimRight(cleaned, ".")
 	// Multiple dots from "1.200.50" type strings — keep only the last as the decimal.
 	if cnt := strings.Count(cleaned, "."); cnt > 1 {
 		idx := strings.LastIndex(cleaned, ".")

@@ -82,8 +82,8 @@ func TestDecode_ValidJSON(t *testing.T) {
 }
 
 func TestDecode_RejectsUnknownFields(t *testing.T) {
-	tampered := strings.Replace(validJSON, `"updated_at": "2026-06-05",`,
-		`"updated_at": "2026-06-05", "evil_field": true,`, 1)
+	tampered := strings.Replace(validJSON, `"updated_at": "2026-06-09",`,
+		`"updated_at": "2026-06-09", "evil_field": true,`, 1)
 	if _, err := Decode([]byte(tampered)); err == nil {
 		t.Fatal("expected error on unknown field")
 	}
@@ -137,7 +137,7 @@ func TestStore_AtomicReplace(t *testing.T) {
 		t.Fatalf("initial decode: %v", err)
 	}
 	store := NewStore(initial)
-	if got := store.Get(); got.SchemaVersion != 1 {
+	if got := store.Get(); got.SchemaVersion != 2 {
 		t.Errorf("Get returned wrong config")
 	}
 
