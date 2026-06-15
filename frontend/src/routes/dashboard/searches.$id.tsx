@@ -471,29 +471,29 @@ function DetailsPopover({ search }: { search: SavedSearch }) {
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded border border-[#1a3a1a] bg-[#020a02] shadow-lg" style={{ boxShadow: "0 0 24px rgba(0,180,0,0.1), 0 4px 24px rgba(0,0,0,0.6)" }}>
-          <div className="flex items-center justify-between border-b border-[#1a3a1a] px-3 py-1.5">
-            <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-[#2d5a2d]">
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded border border-[var(--color-terminal-border)] bg-[var(--color-terminal-bg)] shadow-lg" style={{ boxShadow: `0 0 24px var(--color-terminal-shadow), 0 4px 24px rgba(0,0,0,0.6)` }}>
+          <div className="flex items-center justify-between border-b border-[var(--color-terminal-border)] px-3 py-1.5">
+            <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-[var(--color-terminal-text-dim)]">
               ████ clearance lv-2 · {search.id.toString().padStart(6, "0")} ████
             </span>
-            <button onClick={() => setOpen(false)} className="text-[#2d5a2d] hover:text-[#5aaa5a]">
+            <button onClick={() => setOpen(false)} className="text-[var(--color-terminal-text-dim)] hover:text-[var(--color-terminal-text-bright)]">
               <X className="h-3 w-3" />
             </button>
           </div>
-          <div className="divide-y divide-[#0d200d] p-3 font-mono text-xs">
+          <div className="divide-y divide-[var(--color-terminal-border)] p-3 font-mono text-xs">
             {Object.entries(queryFields).map(([k, v]) => (
               <div key={k} className="flex gap-3 py-1.5">
-                <span className="w-28 shrink-0 text-[10px] uppercase tracking-wider text-[#2d6b2d]">{k.replace(/_/g, " ")}</span>
-                <span className="break-all text-[#5aff5a]">{Array.isArray(v) ? v.join(", ") : String(v)}</span>
+                <span className="w-28 shrink-0 text-[10px] uppercase tracking-wider text-[var(--color-terminal-text-dim)]">{k.replace(/_/g, " ")}</span>
+                <span className="break-all text-[var(--color-terminal-text-bright)]">{Array.isArray(v) ? v.join(", ") : String(v)}</span>
               </div>
             ))}
             {Object.keys(criteriaFields).length > 0 && (
               <>
-                <div className="pb-1 pt-2 text-[9px] uppercase tracking-[0.25em] text-[#2d5a2d]">▸ alert criteria</div>
+                <div className="pb-1 pt-2 text-[9px] uppercase tracking-[0.25em] text-[var(--color-terminal-text-dim)]">▸ alert criteria</div>
                 {Object.entries(criteriaFields).map(([k, v]) => (
                   <div key={k} className="flex gap-3 py-1.5">
-                    <span className="w-28 shrink-0 text-[10px] uppercase tracking-wider text-[#2d6b2d]">{k.replace(/_/g, " ")}</span>
-                    <span className="break-all text-[#5aff5a]">{String(v)}</span>
+                    <span className="w-28 shrink-0 text-[10px] uppercase tracking-wider text-[var(--color-terminal-text-dim)]">{k.replace(/_/g, " ")}</span>
+                    <span className="break-all text-[var(--color-terminal-text-bright)]">{String(v)}</span>
                   </div>
                 ))}
               </>
