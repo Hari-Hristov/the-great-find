@@ -88,7 +88,7 @@ func (f *fakeQueries) CreateSavedSearch(_ context.Context, in CreateSavedSearchI
 	r := SavedSearchRow{
 		ID: id, Name: in.Name, Platform: in.Platform, Country: in.Country,
 		QueryParams: in.QueryParams, AlertCriteria: in.AlertCriteria,
-		PollIntervalMin: in.PollIntervalMin, Active: in.Active,
+		PollIntervalMin: in.PollIntervalMin, MaxListingAgeDays: in.MaxListingAgeDays, Active: in.Active,
 		CreatedAt: time.Now().UTC(),
 	}
 	f.searches[id] = r
@@ -200,11 +200,13 @@ func (f *fakeQueries) AnalyticsForSearch(_ context.Context, filt AnalyticsFilter
 	return AnalyticsRow{SearchID: filt.SearchID, WindowDays: filt.WindowDays, TrendEUR: []TrendPoint{}}, nil
 }
 
-// fakeReloader counts Reload calls.
+// fakeReloader counts Reload calls and supports injecting errors.
 type fakeReloader struct {
-	mu    sync.Mutex
-	calls int
-	err   error
+	mu           sync.Mutex
+	calls        int
+	err          error
+	pollByIDErr  error
+	pollAllCount int
 }
 
 func (f *fakeReloader) Reload(_ context.Context) error {
@@ -214,12 +216,28 @@ func (f *fakeReloader) Reload(_ context.Context) error {
 	return f.err
 }
 
-func (f *fakeReloader) PollSearchByID(_ context.Context, _ int64) error { return nil }
-func (f *fakeReloader) PollAll(_ context.Context) int { return 0 }
+func (f *fakeReloader) PollSearchByID(_ context.Context, _ int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.pollByIDErr
+}
 
-type fakeConfig struct{}
+func (f *fakeReloader) PollAll(_ context.Context) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.pollAllCount
+}
 
-func (f *fakeConfig) Categories() map[string]string { return map[string]string{} }
+type fakeConfig struct {
+	categories map[string]string
+}
+
+func (f *fakeConfig) Categories() map[string]string {
+	if f.categories == nil {
+		return map[string]string{}
+	}
+	return f.categories
+}
 
 // Compile-time assertions.
 var (
