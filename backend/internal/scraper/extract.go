@@ -172,7 +172,7 @@ func applyDetailField(l *Listing, name string, v fieldValue) {
 
 // stripIDPrefix turns "ad-1234567" or "card-9876" into "1234567"/"9876". Falls back
 // to the raw value if no recognized prefix is present.
-var idPrefixRE = regexp.MustCompile(`^(?:ad|card|listing)-(.*)$`)
+var idPrefixRE = regexp.MustCompile(`^(?:ad|card|listing)-(.+)$`)
 
 func stripIDPrefix(raw string) string {
 	if m := idPrefixRE.FindStringSubmatch(raw); m != nil {

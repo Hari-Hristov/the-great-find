@@ -218,6 +218,11 @@ func TestSSE_StreamsBusEvents(t *testing.T) {
 
 	// Read until we see an event:alert.fired frame or time out.
 	deadline := time.Now().Add(2 * time.Second)
+	// Watchdog: close the body at the deadline so Read never blocks past it.
+	go func() {
+		time.Sleep(time.Until(deadline))
+		resp.Body.Close()
+	}()
 	buf := make([]byte, 4096)
 	var seen string
 	for time.Now().Before(deadline) {
