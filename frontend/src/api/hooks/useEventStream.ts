@@ -39,7 +39,7 @@ export function useEventStream(opts: UseEventStreamOpts = {}) {
       let parsed: unknown = ev.data;
       try {
         parsed = JSON.parse(ev.data);
-      } catch {}
+      } catch { /* non-JSON payload — use raw string */ }
       const evt: BusEvent = { name, data: parsed, receivedAt: Date.now() };
       setLast(evt);
 

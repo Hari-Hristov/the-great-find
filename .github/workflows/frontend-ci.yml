@@ -8,7 +8,7 @@ on:
 
 jobs:
   typecheck-and-lint:
-    name: Typecheck & Lint
+    name: Frontend Typecheck & Lint
     runs-on: ubuntu-latest
 
     steps:

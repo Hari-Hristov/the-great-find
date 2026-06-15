@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Test & Vet
+    name: Backend Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -27,8 +27,8 @@ jobs:
         working-directory: backend
         run: go test -race -count=1 ./...
 
-  staticcheck:
-    name: Staticcheck
+  lint:
+    name: Backend Static Analysis
     runs-on: ubuntu-latest
 
     steps:
@@ -39,7 +39,7 @@ jobs:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
 
-      - uses: dominikh/staticcheck-action@v1
+      - uses: golangci/golangci-lint-action@v6
         with:
           working-directory: backend
-          version: "latest"
+          version: latest

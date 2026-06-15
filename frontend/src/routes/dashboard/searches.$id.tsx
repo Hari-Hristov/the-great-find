@@ -456,8 +456,8 @@ function DetailsPopover({ search }: { search: SavedSearch }) {
 
   let queryFields: Record<string, unknown> = {};
   let criteriaFields: Record<string, unknown> = {};
-  try { queryFields = JSON.parse(search.query_params); } catch {}
-  try { if (search.alert_criteria) criteriaFields = JSON.parse(search.alert_criteria); } catch {}
+  try { queryFields = JSON.parse(search.query_params); } catch { /* invalid JSON — keep defaults */ }
+  try { if (search.alert_criteria) criteriaFields = JSON.parse(search.alert_criteria); } catch { /* invalid JSON — keep defaults */ }
 
   return (
     <div ref={ref} className="relative">

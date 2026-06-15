@@ -277,7 +277,6 @@ func (s *Scheduler) PollAll(ctx context.Context) int {
 	s.mu.Unlock()
 
 	for _, r := range runners {
-		r := r
 		go func() {
 			if err := r.poll(rootCtx); err != nil && rootCtx.Err() == nil {
 				s.logger.Error("manual poll failed",

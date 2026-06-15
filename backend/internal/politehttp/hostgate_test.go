@@ -2,6 +2,7 @@ package politehttp
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -147,5 +148,5 @@ func TestHostGate_ConcurrentSafe(t *testing.T) {
 }
 
 func isContextError(err error) bool {
-	return err == context.Canceled || err == context.DeadlineExceeded
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
