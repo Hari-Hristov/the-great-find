@@ -223,6 +223,11 @@ func TestSSE_StreamsBusEvents(t *testing.T) {
 	})
 	defer watchdog.Stop()
 	buf := make([]byte, 4096)
+	// Ensure Read unblocks even if the server never flushes.
+	go func() {
+		time.Sleep(time.Until(deadline))
+		_ = resp.Body.Close()
+	}()
 	var seen string
 	for time.Now().Before(deadline) {
 		n, err := resp.Body.Read(buf)
