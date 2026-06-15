@@ -14,10 +14,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
 import { Route as DashboardFlaggedRouteImport } from './routes/dashboard/flagged'
-import { Route as DashboardAlertsRouteImport } from './routes/dashboard/alerts'
 import { Route as DashboardSearchesIndexRouteImport } from './routes/dashboard/searches.index'
+import { Route as DashboardAlertsIndexRouteImport } from './routes/dashboard/alerts.index'
 import { Route as DashboardSearchesNewRouteImport } from './routes/dashboard/searches.new'
 import { Route as DashboardSearchesIdRouteImport } from './routes/dashboard/searches.$id'
+import { Route as DashboardAlertsSearchIdRouteImport } from './routes/dashboard/alerts.$searchId'
 
 const DashboardRouteRoute = DashboardRouteRouteImport.update({
   id: '/dashboard',
@@ -44,14 +45,14 @@ const DashboardFlaggedRoute = DashboardFlaggedRouteImport.update({
   path: '/flagged',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
-const DashboardAlertsRoute = DashboardAlertsRouteImport.update({
-  id: '/alerts',
-  path: '/alerts',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
 const DashboardSearchesIndexRoute = DashboardSearchesIndexRouteImport.update({
   id: '/searches/',
   path: '/searches/',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardAlertsIndexRoute = DashboardAlertsIndexRouteImport.update({
+  id: '/alerts/',
+  path: '/alerts/',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardSearchesNewRoute = DashboardSearchesNewRouteImport.update({
@@ -64,38 +65,46 @@ const DashboardSearchesIdRoute = DashboardSearchesIdRouteImport.update({
   path: '/searches/$id',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
+const DashboardAlertsSearchIdRoute = DashboardAlertsSearchIdRouteImport.update({
+  id: '/alerts/$searchId',
+  path: '/alerts/$searchId',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteRouteWithChildren
-  '/dashboard/alerts': typeof DashboardAlertsRoute
   '/dashboard/flagged': typeof DashboardFlaggedRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/alerts/$searchId': typeof DashboardAlertsSearchIdRoute
   '/dashboard/searches/$id': typeof DashboardSearchesIdRoute
   '/dashboard/searches/new': typeof DashboardSearchesNewRoute
+  '/dashboard/alerts/': typeof DashboardAlertsIndexRoute
   '/dashboard/searches/': typeof DashboardSearchesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/dashboard/alerts': typeof DashboardAlertsRoute
   '/dashboard/flagged': typeof DashboardFlaggedRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/dashboard/alerts/$searchId': typeof DashboardAlertsSearchIdRoute
   '/dashboard/searches/$id': typeof DashboardSearchesIdRoute
   '/dashboard/searches/new': typeof DashboardSearchesNewRoute
+  '/dashboard/alerts': typeof DashboardAlertsIndexRoute
   '/dashboard/searches': typeof DashboardSearchesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteRouteWithChildren
-  '/dashboard/alerts': typeof DashboardAlertsRoute
   '/dashboard/flagged': typeof DashboardFlaggedRoute
   '/dashboard/settings': typeof DashboardSettingsRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/alerts/$searchId': typeof DashboardAlertsSearchIdRoute
   '/dashboard/searches/$id': typeof DashboardSearchesIdRoute
   '/dashboard/searches/new': typeof DashboardSearchesNewRoute
+  '/dashboard/alerts/': typeof DashboardAlertsIndexRoute
   '/dashboard/searches/': typeof DashboardSearchesIndexRoute
 }
 export interface FileRouteTypes {
@@ -103,33 +112,36 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
-    | '/dashboard/alerts'
     | '/dashboard/flagged'
     | '/dashboard/settings'
     | '/dashboard/'
+    | '/dashboard/alerts/$searchId'
     | '/dashboard/searches/$id'
     | '/dashboard/searches/new'
+    | '/dashboard/alerts/'
     | '/dashboard/searches/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/dashboard/alerts'
     | '/dashboard/flagged'
     | '/dashboard/settings'
     | '/dashboard'
+    | '/dashboard/alerts/$searchId'
     | '/dashboard/searches/$id'
     | '/dashboard/searches/new'
+    | '/dashboard/alerts'
     | '/dashboard/searches'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
-    | '/dashboard/alerts'
     | '/dashboard/flagged'
     | '/dashboard/settings'
     | '/dashboard/'
+    | '/dashboard/alerts/$searchId'
     | '/dashboard/searches/$id'
     | '/dashboard/searches/new'
+    | '/dashboard/alerts/'
     | '/dashboard/searches/'
   fileRoutesById: FileRoutesById
 }
@@ -175,18 +187,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardFlaggedRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
-    '/dashboard/alerts': {
-      id: '/dashboard/alerts'
-      path: '/alerts'
-      fullPath: '/dashboard/alerts'
-      preLoaderRoute: typeof DashboardAlertsRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
     '/dashboard/searches/': {
       id: '/dashboard/searches/'
       path: '/searches'
       fullPath: '/dashboard/searches/'
       preLoaderRoute: typeof DashboardSearchesIndexRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/alerts/': {
+      id: '/dashboard/alerts/'
+      path: '/alerts'
+      fullPath: '/dashboard/alerts/'
+      preLoaderRoute: typeof DashboardAlertsIndexRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/searches/new': {
@@ -203,26 +215,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardSearchesIdRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
+    '/dashboard/alerts/$searchId': {
+      id: '/dashboard/alerts/$searchId'
+      path: '/alerts/$searchId'
+      fullPath: '/dashboard/alerts/$searchId'
+      preLoaderRoute: typeof DashboardAlertsSearchIdRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
   }
 }
 
 interface DashboardRouteRouteChildren {
-  DashboardAlertsRoute: typeof DashboardAlertsRoute
   DashboardFlaggedRoute: typeof DashboardFlaggedRoute
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardAlertsSearchIdRoute: typeof DashboardAlertsSearchIdRoute
   DashboardSearchesIdRoute: typeof DashboardSearchesIdRoute
   DashboardSearchesNewRoute: typeof DashboardSearchesNewRoute
+  DashboardAlertsIndexRoute: typeof DashboardAlertsIndexRoute
   DashboardSearchesIndexRoute: typeof DashboardSearchesIndexRoute
 }
 
 const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
-  DashboardAlertsRoute: DashboardAlertsRoute,
   DashboardFlaggedRoute: DashboardFlaggedRoute,
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardAlertsSearchIdRoute: DashboardAlertsSearchIdRoute,
   DashboardSearchesIdRoute: DashboardSearchesIdRoute,
   DashboardSearchesNewRoute: DashboardSearchesNewRoute,
+  DashboardAlertsIndexRoute: DashboardAlertsIndexRoute,
   DashboardSearchesIndexRoute: DashboardSearchesIndexRoute,
 }
 

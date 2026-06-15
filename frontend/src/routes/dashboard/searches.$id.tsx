@@ -1,6 +1,6 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
-import { EyeOff, Pencil, Plus, RefreshCw, X } from "lucide-react";
-import { useState } from "react";
+import { EyeOff, Pencil, Plus, RefreshCw, ShieldAlert, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -329,6 +329,7 @@ function SearchDetailPage() {
         back={{ to: "/dashboard/searches", label: "Back to searches" }}
         actions={
           <div className="flex items-center gap-2">
+            {search.data && <DetailsPopover search={search.data} />}
             <Button
               size="sm"
               variant="ghost"
@@ -437,6 +438,70 @@ function SearchDetailPage() {
         </Card>
       </div>
     </>
+  );
+}
+
+function DetailsPopover({ search }: { search: SavedSearch }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  let queryFields: Record<string, unknown> = {};
+  let criteriaFields: Record<string, unknown> = {};
+  try { queryFields = JSON.parse(search.query_params); } catch {}
+  try { if (search.alert_criteria) criteriaFields = JSON.parse(search.alert_criteria); } catch {}
+
+  return (
+    <div ref={ref} className="relative">
+      <Button
+        size="sm"
+        variant={open ? "secondary" : "ghost"}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <ShieldAlert className="h-4 w-4" />
+        Details
+      </Button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded border border-[#1a3a1a] bg-[#020a02] shadow-lg" style={{ boxShadow: "0 0 24px rgba(0,180,0,0.1), 0 4px 24px rgba(0,0,0,0.6)" }}>
+          <div className="flex items-center justify-between border-b border-[#1a3a1a] px-3 py-1.5">
+            <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-[#2d5a2d]">
+              ████ clearance lv-2 · {search.id.toString().padStart(6, "0")} ████
+            </span>
+            <button onClick={() => setOpen(false)} className="text-[#2d5a2d] hover:text-[#5aaa5a]">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+          <div className="divide-y divide-[#0d200d] p-3 font-mono text-xs">
+            {Object.entries(queryFields).map(([k, v]) => (
+              <div key={k} className="flex gap-3 py-1.5">
+                <span className="w-28 shrink-0 text-[10px] uppercase tracking-wider text-[#2d6b2d]">{k.replace(/_/g, " ")}</span>
+                <span className="break-all text-[#5aff5a]">{Array.isArray(v) ? v.join(", ") : String(v)}</span>
+              </div>
+            ))}
+            {Object.keys(criteriaFields).length > 0 && (
+              <>
+                <div className="pb-1 pt-2 text-[9px] uppercase tracking-[0.25em] text-[#2d5a2d]">▸ alert criteria</div>
+                {Object.entries(criteriaFields).map(([k, v]) => (
+                  <div key={k} className="flex gap-3 py-1.5">
+                    <span className="w-28 shrink-0 text-[10px] uppercase tracking-wider text-[#2d6b2d]">{k.replace(/_/g, " ")}</span>
+                    <span className="break-all text-[#5aff5a]">{String(v)}</span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

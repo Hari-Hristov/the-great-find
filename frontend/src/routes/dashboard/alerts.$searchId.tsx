@@ -1,16 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useParams } from "@tanstack/react-router";
 import { EyeOff, Tag, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAlerts, useHideListing, useSearches, useTagAlert } from "@/api/hooks/queries";
 import { formatEUR, relativeTime } from "@/lib/utils";
 import type { Alert } from "@/api/types";
 
-export const Route = createFileRoute("/dashboard/alerts")({
-  component: AlertsPage,
+export const Route = createFileRoute("/dashboard/alerts/$searchId")({
+  component: AlertDetailPage,
 });
 
 const TAG_COLORS = [
@@ -158,37 +157,40 @@ function TagPopover({
   );
 }
 
-function SearchAlertCard({
-  searchName,
-  alerts,
-}: {
-  searchName: string;
-  alerts: Alert[];
-}) {
-  const [open, setOpen] = useState(false);
+function AlertDetailPage() {
+  const { searchId: searchIdParam } = useParams({ from: "/dashboard/alerts/$searchId" });
+  const searchId = Number(searchIdParam);
+
+  const alerts = useAlerts(200);
+  const searches = useSearches();
   const hide = useHideListing();
 
-  return (
-    <Card>
-      <CardHeader
-        className="cursor-pointer select-none"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base">{searchName}</CardTitle>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">{alerts.length}</Badge>
-            <span className="text-xs text-[var(--color-text-muted)]">
-              {open ? "▲" : "▼"}
-            </span>
-          </div>
-        </div>
-      </CardHeader>
+  const search = (searches.data ?? []).find((s) => s.id === searchId);
 
-      {open ? (
-        <CardContent className="pt-0">
+  const items = (alerts.data ?? [])
+    .filter((a) => a.search_id === searchId && a.listing_status !== "hidden")
+    .sort((a, b) => b.sent_at.localeCompare(a.sent_at));
+
+  return (
+    <>
+      <Topbar
+        title={search?.name ?? `Search #${searchId}`}
+        subtitle={`${items.length} alert${items.length === 1 ? "" : "s"}`}
+        back={{ to: "/dashboard/alerts", label: "Back to alerts" }}
+      />
+
+      <div className="flex-1 overflow-auto px-6 py-6">
+        {alerts.isLoading || searches.isLoading ? (
+          <div className="py-6 text-center text-sm text-[var(--color-text-muted)]">
+            Loading…
+          </div>
+        ) : items.length === 0 ? (
+          <div className="py-6 text-center text-sm text-[var(--color-text-muted)]">
+            No alerts for this search.
+          </div>
+        ) : (
           <ul className="divide-y divide-[var(--color-border-subtle)]">
-            {alerts.map((a) => (
+            {items.map((a: Alert) => (
               <li key={a.id} className="flex items-center justify-between py-3">
                 <div className="min-w-0 flex-1 pr-4">
                   {a.listing_url ? (
@@ -232,61 +234,6 @@ function SearchAlertCard({
               </li>
             ))}
           </ul>
-        </CardContent>
-      ) : null}
-    </Card>
-  );
-}
-
-function AlertsPage() {
-  const alerts = useAlerts(200);
-  const searches = useSearches();
-
-  const searchNameMap = new Map(
-    (searches.data ?? []).map((s) => [s.id, s.name]),
-  );
-
-  const visible = (alerts.data ?? []).filter((a) => a.listing_status !== "hidden");
-
-  const grouped = new Map<number, Alert[]>();
-  for (const a of visible) {
-    const bucket = grouped.get(a.search_id) ?? [];
-    bucket.push(a);
-    grouped.set(a.search_id, bucket);
-  }
-  for (const [sid, bucket] of grouped) {
-    grouped.set(sid, [...bucket].sort((a, b) => b.sent_at.localeCompare(a.sent_at)));
-  }
-
-  const searchIds = Array.from(grouped.keys()).sort((a, b) => {
-    const nameA = searchNameMap.get(a) ?? String(a);
-    const nameB = searchNameMap.get(b) ?? String(b);
-    return nameA.localeCompare(nameB);
-  });
-
-  return (
-    <>
-      <Topbar title="Alerts" subtitle="Grouped by search — click a card to expand" />
-
-      <div className="flex-1 overflow-auto px-6 py-6">
-        {alerts.isLoading || searches.isLoading ? (
-          <div className="py-6 text-center text-sm text-[var(--color-text-muted)]">
-            Loading…
-          </div>
-        ) : searchIds.length === 0 ? (
-          <div className="py-6 text-center text-sm text-[var(--color-text-muted)]">
-            No alerts yet — they'll appear here when listings match your rules.
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {searchIds.map((sid) => (
-              <SearchAlertCard
-                key={sid}
-                searchName={searchNameMap.get(sid) ?? `Search #${sid}`}
-                alerts={grouped.get(sid)!}
-              />
-            ))}
-          </div>
         )}
       </div>
     </>

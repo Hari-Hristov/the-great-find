@@ -67,7 +67,7 @@ function SearchCard({ search }: { search: SavedSearch }) {
   const del = useDeleteSearch();
   const poll = usePollSearch();
   return (
-    <Card>
+    <Card className="transition-colors hover:border-[var(--color-accent)]">
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div className="min-w-0">
@@ -107,10 +107,6 @@ function SearchCard({ search }: { search: SavedSearch }) {
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
-        </div>
-
-        <div className="mt-3 break-all rounded-md bg-[var(--color-bg-base)] px-3 py-2 font-mono text-xs text-[var(--color-text-muted)]">
-          {search.query_params}
         </div>
       </CardContent>
     </Card>
