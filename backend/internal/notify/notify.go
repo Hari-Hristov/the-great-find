@@ -27,18 +27,43 @@ type SMTPConfig struct {
 	ToAddr   string
 }
 
+// ConfigLoader is a function that loads the current SMTPConfig on demand.
+// When set, the service reloads config before each email send so changes
+// made via the settings UI take effect without restarting the app.
+type ConfigLoader func() (SMTPConfig, error)
+
 // Service dispatches notifications. Construct with New and run with Run.
 type Service struct {
-	smtp   SMTPConfig
-	logger *slog.Logger
+	smtp       SMTPConfig
+	loadConfig ConfigLoader
+	logger     *slog.Logger
 }
 
 // New returns a Service. cfg.Host == "" means email is disabled.
+// Use SetConfigLoader to enable dynamic config reload.
 func New(cfg SMTPConfig, logger *slog.Logger) *Service {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &Service{smtp: cfg, logger: logger}
+}
+
+// SetConfigLoader sets a function that the service calls before each email
+// send to get the latest SMTP configuration.
+func (s *Service) SetConfigLoader(loader ConfigLoader) {
+	s.loadConfig = loader
+}
+
+func (s *Service) currentSMTPConfig() SMTPConfig {
+	if s.loadConfig != nil {
+		cfg, err := s.loadConfig()
+		if err != nil {
+			s.logger.Warn("failed to reload SMTP config, using cached", "err", err)
+			return s.smtp
+		}
+		s.smtp = cfg
+	}
+	return s.smtp
 }
 
 // Run subscribes to the bus and blocks until ctx is cancelled.
@@ -69,9 +94,10 @@ func (s *Service) dispatch(e events.Event) {
 			s.logger.Warn("os notification failed", "err", err)
 		}
 
-		if s.smtp.Host != "" {
+		cfg := s.currentSMTPConfig()
+		if cfg.Host != "" {
 			body := alertEmailBody(title, url, kind)
-			if err := sendEmail(s.smtp, subject, body); err != nil {
+			if err := sendEmail(cfg, subject, body); err != nil {
 				s.logger.Warn("email notification failed", "err", err)
 			}
 		}

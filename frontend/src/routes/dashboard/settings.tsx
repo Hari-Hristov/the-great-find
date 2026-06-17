@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTheme, type ThemeId } from "@/contexts/ThemeContext";
@@ -43,19 +43,19 @@ function SettingsPage() {
     from_addr: "",
     to_addr: "",
   });
-  const [formLoaded, setFormLoaded] = useState(false);
 
-  if (notifSettings && !formLoaded) {
-    setForm({
-      smtp_host: notifSettings.smtp_host ?? "",
-      smtp_port: notifSettings.smtp_port ?? 587,
-      smtp_username: notifSettings.smtp_username ?? "",
-      smtp_password: notifSettings.smtp_password ?? "",
-      from_addr: notifSettings.from_addr ?? "",
-      to_addr: notifSettings.to_addr ?? "",
-    });
-    setFormLoaded(true);
-  }
+  useEffect(() => {
+    if (notifSettings) {
+      setForm({
+        smtp_host: notifSettings.smtp_host ?? "",
+        smtp_port: notifSettings.smtp_port ?? 587,
+        smtp_username: notifSettings.smtp_username ?? "",
+        smtp_password: notifSettings.smtp_password ?? "",
+        from_addr: notifSettings.from_addr ?? "",
+        to_addr: notifSettings.to_addr ?? "",
+      });
+    }
+  }, [notifSettings]);
 
   function handleChange(key: keyof NotificationSettings, value: string | number) {
     setForm((prev) => ({ ...prev, [key]: value }));

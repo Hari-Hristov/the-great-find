@@ -2,7 +2,7 @@
 
 Personal-use, locally-installed price-monitoring & alert app for [olx.bg](https://olx.bg) listings.
 
-Polls saved searches every 30 minutes, stores listings + price history in a local SQLite DB, fires both an OS notification AND an email when user-defined criteria match, and exposes a live local dashboard with analytics.
+Polls saved searches every 30 minutes, stores listings + price history in a local SQLite DB, fires OS notifications on every alert match, and optionally sends emails when SMTP is configured. Exposes a live local dashboard with analytics.
 
 > **Status:** v1 in progress. See `docs/` and the implementation plan.
 
@@ -10,7 +10,7 @@ Polls saved searches every 30 minutes, stores listings + price history in a loca
 
 - Watches olx.bg for listings matching saved searches you define
 - Polls every 30 minutes; stores everything in a local SQLite DB
-- Fires OS notifications **and** emails when criteria match (both mandatory)
+- Fires OS notifications on every alert match (mandatory); emails are optional when SMTP is configured
 - Lives in your system tray — closing the browser does not quit the app
 - Renders a live dashboard with analytics (lowest price last 30d, average, trend, recent listings)
 - Hot-reloads parser config from a public GitHub URL so olx.bg HTML changes don't require a re-download

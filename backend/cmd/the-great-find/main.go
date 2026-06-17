@@ -117,6 +117,9 @@ func run() error {
 		slog.Warn("could not load SMTP config, email notifications disabled", "err", err)
 	}
 	notifySvc := notify.New(smtpCfg, slog.Default())
+	notifySvc.SetConfigLoader(func() (notify.SMTPConfig, error) {
+		return api.LoadSMTPConfig(context.Background(), queries)
+	})
 	go notifySvc.Run(ctx, bus)
 
 	sched := scheduler.New(queries, fetcher, parserStore, bus, slog.Default())

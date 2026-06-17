@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -109,30 +110,55 @@ func LoadSMTPConfig(ctx context.Context, store AppStateStore) (notify.SMTPConfig
 }
 
 func loadSMTPConfig(ctx context.Context, store AppStateStore) (notify.SMTPConfig, error) {
-	get := func(key string) string {
-		v, _ := store.GetAppState(ctx, key)
-		return v
+	get := func(key string) (string, error) {
+		return store.GetAppState(ctx, key)
 	}
 
-	portStr := get("smtp_port")
+	host, err := get("smtp_host")
+	if err != nil {
+		return notify.SMTPConfig{}, fmt.Errorf("read %s: %w", "smtp_host", err)
+	}
+
+	portStr, err := get("smtp_port")
+	if err != nil {
+		return notify.SMTPConfig{}, fmt.Errorf("read %s: %w", "smtp_port", err)
+	}
 	port, _ := strconv.Atoi(portStr)
 	if port == 0 {
 		port = 587
 	}
 
-	encPass := get("smtp_password_enc")
+	username, err := get("smtp_username")
+	if err != nil {
+		return notify.SMTPConfig{}, fmt.Errorf("read %s: %w", "smtp_username", err)
+	}
+
+	encPass, err := get("smtp_password_enc")
+	if err != nil {
+		return notify.SMTPConfig{}, fmt.Errorf("read %s: %w", "smtp_password_enc", err)
+	}
 	password, err := notify.DecryptPassword(encPass)
 	if err != nil {
 		// Decryption failure (e.g. machine changed) — treat as unconfigured.
 		password = ""
 	}
 
+	fromAddr, err := get("smtp_from")
+	if err != nil {
+		return notify.SMTPConfig{}, fmt.Errorf("read %s: %w", "smtp_from", err)
+	}
+
+	toAddr, err := get("smtp_to")
+	if err != nil {
+		return notify.SMTPConfig{}, fmt.Errorf("read %s: %w", "smtp_to", err)
+	}
+
 	return notify.SMTPConfig{
-		Host:     get("smtp_host"),
+		Host:     host,
 		Port:     port,
-		Username: get("smtp_username"),
+		Username: username,
 		Password: password,
-		FromAddr: get("smtp_from"),
-		ToAddr:   get("smtp_to"),
+		FromAddr: fromAddr,
+		ToAddr:   toAddr,
 	}, nil
 }

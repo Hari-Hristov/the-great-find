@@ -39,21 +39,23 @@ function DashboardLayout() {
       </main>
 
       {showPopup && (
-        <Link
-          to="/dashboard/settings"
-          onClick={dismiss}
-          className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full border border-amber-500/30 bg-[var(--color-bg-elev)]/90 px-3 py-1.5 shadow-lg backdrop-blur-sm transition-opacity hover:opacity-80"
-        >
-          <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-          <span className="text-xs text-[var(--color-text-muted)]">Email alerts not configured</span>
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full border border-amber-500/30 bg-[var(--color-bg-elev)]/90 px-3 py-1.5 shadow-lg backdrop-blur-sm">
+          <Link
+            to="/dashboard/settings"
+            onClick={dismiss}
+            className="flex items-center gap-2 transition-opacity hover:opacity-80"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+            <span className="text-xs text-[var(--color-text-muted)]">Email alerts not configured</span>
+          </Link>
           <button
-            onClick={(e) => { e.preventDefault(); dismiss(); }}
+            onClick={dismiss}
             className="ml-1 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
             aria-label="Dismiss"
           >
             <X size={12} />
           </button>
-        </Link>
+        </div>
       )}
     </div>
   );
