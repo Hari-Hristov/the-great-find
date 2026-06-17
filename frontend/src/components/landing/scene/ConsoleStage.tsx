@@ -20,9 +20,13 @@ function DriftLight({ offset }: { offset: number }) {
 
 function ActiveConsoles({ stateRef }: { stateRef: MutableRefObject<SceneState> }) {
   const [section, setSection] = useState<SceneState["section"]>("cold-open");
+  const sectionRef = useRef<SceneState["section"]>("cold-open");
   useFrame(() => {
     const next = stateRef.current.section;
-    if (next !== section) setSection(next);
+    if (next !== sectionRef.current) {
+      sectionRef.current = next;
+      setSection(next);
+    }
   });
 
   const show3ds = section === "3ds-hero" || section === "portal-dive";

@@ -5,7 +5,7 @@ export type EventName =
   | "alert.fired"
   | "listing.new"
   | "listing.updated"
-  | "scheduler.tick"
+  | "poll.finished"
   | string;
 
 export interface BusEvent {
@@ -49,7 +49,7 @@ export function useEventStream(opts: UseEventStreamOpts = {}) {
       if (name.startsWith("listing.")) {
         qc.invalidateQueries({ queryKey: ["listings"] });
       }
-      if (name === "scheduler.tick") {
+      if (name === "poll.finished") {
         qc.invalidateQueries({ queryKey: ["searches"] });
       }
 
@@ -65,7 +65,7 @@ export function useEventStream(opts: UseEventStreamOpts = {}) {
       "alert.fired",
       "listing.new",
       "listing.updated",
-      "scheduler.tick",
+      "poll.finished",
     ];
     for (const n of names) es.addEventListener(n, handler(n));
 

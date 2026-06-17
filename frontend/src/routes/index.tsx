@@ -24,21 +24,13 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-// Lazy-created at module level so Vite doesn't prefetch R3F until first call,
+// Lazy-loaded at module level so Vite doesn't prefetch R3F chunks eagerly,
 // but the component reference is stable across renders.
-let CinematicLanding: React.ComponentType | null = null;
-function getCinematicLanding() {
-  if (!CinematicLanding) {
-    CinematicLanding = lazy(() =>
-      import("@/components/landing/scene/CinematicLanding").then((m) => ({
-        default: m.CinematicLanding,
-      })),
-    );
-  }
-  return CinematicLanding;
-}
-
-const Cinematic = getCinematicLanding();
+const Cinematic = lazy(() =>
+  import("@/components/landing/scene/CinematicLanding").then((m) => ({
+    default: m.CinematicLanding,
+  })),
+);
 
 function LandingPage() {
   const can3D = useCanRender3D();

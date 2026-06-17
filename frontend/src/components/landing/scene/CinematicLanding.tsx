@@ -2,6 +2,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Environment } from "@react-three/drei";
+import { ACESFilmicToneMapping } from "three";
 import { useSceneStateRef } from "./sceneState";
 import type { SceneState } from "./sceneState";
 import { useScrollDriver } from "./scrollDriver";
@@ -23,13 +24,22 @@ export function CinematicLanding() {
   const [glitchActive, setGlitchActive] = useState(false);
   const [deliveryActive, setDeliveryActive] = useState(false);
   const [currentSection, setCurrentSection] = useState<Section>("cold-open");
+  const glitchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (glitchTimerRef.current !== null) clearTimeout(glitchTimerRef.current);
+    };
+  }, []);
 
   const handleGlitch = useCallback(() => {
+    if (glitchTimerRef.current !== null) clearTimeout(glitchTimerRef.current);
     stateRef.current.glitchActive = true;
     setGlitchActive(true);
-    setTimeout(() => {
+    glitchTimerRef.current = setTimeout(() => {
       stateRef.current.glitchActive = false;
       setGlitchActive(false);
+      glitchTimerRef.current = null;
     }, 300);
   }, [stateRef]);
 
@@ -61,7 +71,7 @@ export function CinematicLanding() {
         <Canvas
           dpr={[1, 1.5]}
           camera={{ position: [0, 0, 6], fov: 45, near: 0.1, far: 100 }}
-          gl={{ antialias: true, alpha: true, toneMapping: 3, powerPreference: "high-performance" }}
+          gl={{ antialias: true, alpha: true, toneMapping: ACESFilmicToneMapping, powerPreference: "high-performance" }}
           performance={{ min: 0.5 }}
         >
           <Suspense fallback={null}>

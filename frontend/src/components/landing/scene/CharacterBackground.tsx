@@ -85,6 +85,9 @@ export function CharacterBackground() {
   const animRef = useRef<number | null>(null);
 
   useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+
     const tick = (ts: number) => {
       CHARACTERS.forEach((ch, i) => {
         const el = refs.current[i];
