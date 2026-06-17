@@ -16,7 +16,11 @@ const items: NavItem[] = [
   { to: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  emailUnconfigured?: boolean;
+}
+
+export function Sidebar({ emailUnconfigured }: SidebarProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
@@ -37,6 +41,7 @@ export function Sidebar() {
               ? pathname === "/dashboard"
               : pathname.startsWith(item.to);
           const Icon = item.icon;
+          const showDot = item.to === "/dashboard/settings" && emailUnconfigured;
           return (
             <Link
               key={item.to}
@@ -48,7 +53,12 @@ export function Sidebar() {
                   : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-primary)]",
               )}
             >
-              <Icon className="h-4 w-4" />
+              <span className="relative">
+                <Icon className="h-4 w-4" />
+                {showDot && (
+                  <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-amber-400" />
+                )}
+              </span>
               {item.label}
             </Link>
           );
