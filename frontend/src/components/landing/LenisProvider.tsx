@@ -13,9 +13,9 @@ export function LenisProvider({ children }: { children: React.ReactNode }) {
     if (reduce) return;
 
     const lenis = new Lenis({
-      lerp: 0.1,
+      lerp: 0.12,
       smoothWheel: true,
-      wheelMultiplier: 1,
+      wheelMultiplier: 0.9,
       touchMultiplier: 1.5,
     });
     lenisRef.current = lenis;

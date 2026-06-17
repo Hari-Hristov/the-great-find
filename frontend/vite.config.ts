@@ -24,6 +24,14 @@ export default defineConfig({
       "/events": { target: apiTarget, changeOrigin: true, ws: false },
     },
   },
+  optimizeDeps: {
+    include: [
+      "@react-three/fiber",
+      "@react-three/drei",
+      "@react-three/postprocessing",
+      "three",
+    ],
+  },
   build: {
     target: "es2022",
     sourcemap: false,

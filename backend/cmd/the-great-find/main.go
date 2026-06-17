@@ -108,15 +108,25 @@ func run() error {
 	}
 
 	bus := events.NewBus(64)
-	defer bus.Close()
 
 	queries := store.New(pools)
 	sched := scheduler.New(queries, fetcher, parserStore, bus, slog.Default())
 	if err := sched.Start(ctx); err != nil {
+		bus.Close()
 		return fmt.Errorf("scheduler start: %w", err)
 	}
-	defer sched.Stop()
 	slog.Info("scheduler: started")
+
+	cleanedUp := false
+	cleanup := func() {
+		if cleanedUp {
+			return
+		}
+		cleanedUp = true
+		sched.Stop()
+		bus.Close()
+	}
+	defer cleanup()
 
 	// BACKEND_PORT pins the listener port for local dev (Vite proxies /api → :8088
 	// by default). Empty / "0" → OS picks one, intended for the embedded prod binary.
@@ -158,6 +168,13 @@ func run() error {
 	case <-ctx.Done():
 		slog.Info("shutting down")
 	}
+
+	// Stop the scheduler first so all in-flight polls finish and the event bus
+	// drains before we ask the HTTP server to close. SSE handlers block until
+	// bus.Close() closes their channel — shutting those down before calling
+	// server.Shutdown means the server has no long-lived connections left to
+	// drain and won't race against the timeout.
+	cleanup()
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
