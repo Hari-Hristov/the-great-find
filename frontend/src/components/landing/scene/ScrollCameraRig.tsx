@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import type { SceneState } from "./sceneState";
@@ -9,12 +9,11 @@ const _pos = new THREE.Vector3();
 const _target = new THREE.Vector3();
 
 export function ScrollCameraRig({ stateRef }: { stateRef: MutableRefObject<SceneState> }) {
-  const { camera } = useThree();
   const currentPos = useRef(new THREE.Vector3(0, 0, 6));
   const currentTarget = useRef(new THREE.Vector3(0, 0, 0));
   const currentFov = useRef(45);
 
-  useFrame((_, delta) => {
+  useFrame(({ camera }, delta) => {
     const { section, sectionProgress } = stateRef.current;
     const cfg = CAMERA_BY_SECTION[section];
 

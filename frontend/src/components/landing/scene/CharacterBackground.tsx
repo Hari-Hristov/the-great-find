@@ -1,19 +1,5 @@
 import { useEffect, useRef } from "react";
 
-interface Character {
-  id: string;
-  x: number;
-  y: number;
-  size: number;
-  opacity: number;
-  rotation: number;
-  color: string;
-  driftX: number;
-  driftY: number;
-  driftSpeed: number;
-  path: string;
-}
-
 // Clean, readable silhouettes at 100x100 viewBox
 const MARIO_PATH =
   // Hat brim + body — recognizable mushroom kingdom guy

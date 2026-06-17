@@ -1,5 +1,5 @@
 import { Component, Suspense } from "react";
-import type { ReactNode, ErrorInfo } from "react";
+import type { ReactNode } from "react";
 import { useGLTF } from "@react-three/drei";
 import type { Group } from "three";
 
@@ -19,7 +19,7 @@ class ModelErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
     return { hasError: true };
   }
 
-  componentDidCatch(_err: Error, _info: ErrorInfo) {}
+  componentDidCatch() {}
 
   render() {
     if (this.state.hasError) return this.props.fallback;

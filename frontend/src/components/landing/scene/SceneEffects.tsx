@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import {
   EffectComposer,
@@ -12,7 +12,8 @@ import type { MutableRefObject } from "react";
 import type { SceneState } from "./sceneState";
 
 export function SceneEffects({ stateRef }: { stateRef: MutableRefObject<SceneState> }) {
-  const offsetRef = useRef(new THREE.Vector2(0.0003, 0.0003));
+  const [offset] = useState(() => new THREE.Vector2(0.0003, 0.0003));
+  const offsetRef = useRef(offset);
 
   useFrame(() => {
     const { glitchActive } = stateRef.current;
@@ -29,7 +30,7 @@ export function SceneEffects({ stateRef }: { stateRef: MutableRefObject<SceneSta
         mipmapBlur
       />
       <ChromaticAberration
-        offset={offsetRef.current}
+        offset={offset}
         blendFunction={BlendFunction.NORMAL}
         radialModulation={false}
         modulationOffset={0}

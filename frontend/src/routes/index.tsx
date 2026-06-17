@@ -24,7 +24,8 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-// Lazy-created inside the branch so Vite doesn't prefetch R3F until GPU is confirmed
+// Lazy-created at module level so Vite doesn't prefetch R3F until first call,
+// but the component reference is stable across renders.
 let CinematicLanding: React.ComponentType | null = null;
 function getCinematicLanding() {
   if (!CinematicLanding) {
@@ -37,13 +38,14 @@ function getCinematicLanding() {
   return CinematicLanding;
 }
 
+const Cinematic = getCinematicLanding();
+
 function LandingPage() {
   const can3D = useCanRender3D();
   const skipIntro =
     typeof window !== "undefined" && localStorage.getItem("skipIntro") === "true";
 
   if (can3D && !skipIntro) {
-    const Cinematic = getCinematicLanding();
     return (
       <Suspense fallback={<CinematicSkeleton />}>
         <Cinematic />

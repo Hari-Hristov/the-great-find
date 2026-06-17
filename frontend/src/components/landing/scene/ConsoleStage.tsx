@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useState, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Sparkles } from "@react-three/drei";
 import * as THREE from "three";
@@ -19,12 +19,12 @@ function DriftLight({ offset }: { offset: number }) {
 }
 
 function ActiveConsoles({ stateRef }: { stateRef: MutableRefObject<SceneState> }) {
-  const sectionRef = useRef<SceneState["section"]>("cold-open");
+  const [section, setSection] = useState<SceneState["section"]>("cold-open");
   useFrame(() => {
-    sectionRef.current = stateRef.current.section;
+    const next = stateRef.current.section;
+    if (next !== section) setSection(next);
   });
 
-  const section = sectionRef.current;
   const show3ds = section === "3ds-hero" || section === "portal-dive";
   const showSwitch = section === "switch-emergence" || section === "pivot";
   const showDeck = section === "steam-deck" || section === "delivery";
