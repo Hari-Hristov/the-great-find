@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { LenisProvider } from "@/components/landing/LenisProvider";
 import { Hero } from "@/components/landing/Hero";
+import { useCanRender3D } from "@/hooks/useCanRender3D";
 
 const Problem = lazy(() =>
   import("@/components/landing/Problem").then((m) => ({ default: m.Problem })),
@@ -23,7 +24,33 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
+// Lazy-created inside the branch so Vite doesn't prefetch R3F until GPU is confirmed
+let CinematicLanding: React.ComponentType | null = null;
+function getCinematicLanding() {
+  if (!CinematicLanding) {
+    CinematicLanding = lazy(() =>
+      import("@/components/landing/scene/CinematicLanding").then((m) => ({
+        default: m.CinematicLanding,
+      })),
+    );
+  }
+  return CinematicLanding;
+}
+
 function LandingPage() {
+  const can3D = useCanRender3D();
+  const skipIntro =
+    typeof window !== "undefined" && localStorage.getItem("skipIntro") === "true";
+
+  if (can3D && !skipIntro) {
+    const Cinematic = getCinematicLanding();
+    return (
+      <Suspense fallback={<CinematicSkeleton />}>
+        <Cinematic />
+      </Suspense>
+    );
+  }
+
   return (
     <LenisProvider>
       <div className="min-h-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)]">
@@ -38,6 +65,10 @@ function LandingPage() {
       </div>
     </LenisProvider>
   );
+}
+
+function CinematicSkeleton() {
+  return <div className="fixed inset-0 bg-[#090912]" aria-hidden />;
 }
 
 function SectionSkeleton() {

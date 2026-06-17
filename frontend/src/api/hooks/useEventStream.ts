@@ -49,6 +49,9 @@ export function useEventStream(opts: UseEventStreamOpts = {}) {
       if (name.startsWith("listing.")) {
         qc.invalidateQueries({ queryKey: ["listings"] });
       }
+      if (name === "scheduler.tick") {
+        qc.invalidateQueries({ queryKey: ["searches"] });
+      }
 
       const extra = opts.invalidate?.[name];
       if (extra) {
