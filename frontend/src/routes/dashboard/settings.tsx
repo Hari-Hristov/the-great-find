@@ -1,7 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTheme, type ThemeId } from "@/contexts/ThemeContext";
+import {
+  useNotificationSettings,
+  useSaveNotificationSettings,
+  type NotificationSettings,
+} from "@/api/hooks/queries";
 
 export const Route = createFileRoute("/dashboard/settings")({
   component: SettingsPage,
@@ -24,6 +30,26 @@ const THEMES: { id: ThemeId; label: string; description: string; swatches: strin
 
 function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const { data: notifSettings } = useNotificationSettings();
+  const saveNotif = useSaveNotificationSettings();
+
+  const isEmailConfigured = Boolean(notifSettings?.smtp_host);
+
+  const baseForm: NotificationSettings = {
+    smtp_host: notifSettings?.smtp_host ?? "",
+    smtp_port: notifSettings?.smtp_port ?? 587,
+    smtp_username: notifSettings?.smtp_username ?? "",
+    smtp_password: notifSettings?.smtp_password ?? "",
+    from_addr: notifSettings?.from_addr ?? "",
+    to_addr: notifSettings?.to_addr ?? "",
+  };
+
+  const [editedForm, setEditedForm] = useState<NotificationSettings | null>(null);
+  const form = editedForm ?? baseForm;
+
+  function handleChange(key: keyof NotificationSettings, value: string | number) {
+    setEditedForm((prev) => ({ ...(prev ?? baseForm), [key]: value }));
+  }
 
   return (
     <>
@@ -71,6 +97,95 @@ function SettingsPage() {
                     </button>
                   );
                 })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Notifications</CardTitle>
+                  <CardDescription>OS alerts are always on. Email is optional.</CardDescription>
+                </div>
+                {!isEmailConfigured && (
+                  <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-400">
+                    Email not configured
+                  </span>
+                )}
+                {isEmailConfigured && (
+                  <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-400">
+                    Email configured
+                  </span>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <Row k="OS notifications" v="Enabled — fires on every alert match and poll failure" />
+
+              <div className="border-t border-[var(--color-border-subtle)] pt-4">
+                <p className="mb-4 text-xs text-[var(--color-text-muted)]">
+                  Email is sent via your own SMTP credentials — nothing is stored outside this machine.
+                  Gmail users: use an App Password (Google Account → Security → App Passwords).
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field
+                    label="SMTP Host"
+                    placeholder="smtp.gmail.com"
+                    value={form.smtp_host}
+                    onChange={(v) => handleChange("smtp_host", v)}
+                  />
+                  <Field
+                    label="SMTP Port"
+                    placeholder="587"
+                    value={String(form.smtp_port)}
+                    onChange={(v) => handleChange("smtp_port", parseInt(v, 10) || 587)}
+                  />
+                  <Field
+                    label="Username"
+                    placeholder="you@gmail.com"
+                    value={form.smtp_username}
+                    onChange={(v) => handleChange("smtp_username", v)}
+                  />
+                  <Field
+                    label="Password"
+                    placeholder="App password"
+                    type="password"
+                    value={form.smtp_password}
+                    onChange={(v) => handleChange("smtp_password", v)}
+                  />
+                  <Field
+                    label="From address"
+                    placeholder="you@gmail.com"
+                    value={form.from_addr}
+                    onChange={(v) => handleChange("from_addr", v)}
+                  />
+                  <Field
+                    label="To address"
+                    placeholder="you@gmail.com"
+                    value={form.to_addr}
+                    onChange={(v) => handleChange("to_addr", v)}
+                  />
+                </div>
+                <div className="mt-4 flex items-center gap-3">
+                  <button
+                    onClick={() =>
+                      saveNotif.mutate(form, {
+                        onSuccess: () => setEditedForm(null),
+                      })
+                    }
+                    disabled={saveNotif.isPending}
+                    className="rounded-[var(--radius-btn)] bg-[var(--color-accent)] px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:opacity-40"
+                  >
+                    {saveNotif.isPending ? "Saving…" : "Save"}
+                  </button>
+                  {saveNotif.isSuccess && (
+                    <span className="text-xs text-emerald-400">Saved</span>
+                  )}
+                  {saveNotif.isError && (
+                    <span className="text-xs text-red-400">Failed to save</span>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -133,5 +248,32 @@ function Row({ k, v }: { k: string; v: string }) {
       <span>{k}</span>
       <span className="font-mono text-xs text-[var(--color-text-primary)]">{v}</span>
     </div>
+  );
+}
+
+function Field({
+  label,
+  placeholder,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  placeholder?: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-xs text-[var(--color-text-muted)]">{label}</span>
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-[var(--radius-input,4px)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-elev)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent)] focus:outline-none"
+      />
+    </label>
   );
 }

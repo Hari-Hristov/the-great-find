@@ -200,6 +200,9 @@ func (f *fakeQueries) AnalyticsForSearch(_ context.Context, filt AnalyticsFilter
 	return AnalyticsRow{SearchID: filt.SearchID, WindowDays: filt.WindowDays, TrendEUR: []TrendPoint{}}, nil
 }
 
+func (f *fakeQueries) GetAppState(_ context.Context, _ string) (string, error) { return "", nil }
+func (f *fakeQueries) SetAppState(_ context.Context, _, _ string) error         { return nil }
+
 // fakeReloader counts Reload calls and supports injecting errors.
 type fakeReloader struct {
 	mu           sync.Mutex

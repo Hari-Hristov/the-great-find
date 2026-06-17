@@ -17,6 +17,7 @@ import (
 	"github.com/Hari-Hristov/the-great-find/backend/internal/db"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/db/store"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/events"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/notify"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/paths"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/politehttp"
@@ -110,6 +111,17 @@ func run() error {
 	bus := events.NewBus(64)
 
 	queries := store.New(pools)
+
+	smtpCfg, err := api.LoadSMTPConfig(ctx, queries)
+	if err != nil {
+		slog.Warn("could not load SMTP config, email notifications disabled", "err", err)
+	}
+	notifySvc := notify.New(smtpCfg, slog.Default())
+	notifySvc.SetConfigLoader(func() (notify.SMTPConfig, error) {
+		return api.LoadSMTPConfig(context.Background(), queries)
+	})
+	go notifySvc.Run(ctx, bus)
+
 	sched := scheduler.New(queries, fetcher, parserStore, bus, slog.Default())
 	if err := sched.Start(ctx); err != nil {
 		bus.Close()

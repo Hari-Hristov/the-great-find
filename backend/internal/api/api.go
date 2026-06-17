@@ -27,6 +27,7 @@ import (
 // Queries is the read+write surface the API package needs. store.Store implements it.
 type Queries interface {
 	scheduler.Queries
+	AppStateStore
 
 	GetSavedSearch(ctx context.Context, id int64) (*SavedSearchRow, error)
 	ListAllSavedSearches(ctx context.Context) ([]SavedSearchRow, error)
@@ -71,6 +72,7 @@ func New(q Queries, sched Reloader, cfg ConfigProvider) http.Handler {
 	registerAlerts(api, q)
 	registerAnalytics(api, q)
 	registerConfig(api, cfg)
+	registerNotificationSettings(api, q)
 
 	return r
 }

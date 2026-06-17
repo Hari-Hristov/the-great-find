@@ -222,6 +222,32 @@ export function useAlerts(limit = 100) {
   });
 }
 
+export interface NotificationSettings {
+  smtp_host: string;
+  smtp_port: number;
+  smtp_username: string;
+  smtp_password: string;
+  from_addr: string;
+  to_addr: string;
+}
+
+export function useNotificationSettings() {
+  return useQuery({
+    queryKey: ["notification-settings"] as const,
+    queryFn: () => apiFetch<NotificationSettings>("/settings/notifications"),
+    staleTime: Infinity,
+  });
+}
+
+export function useSaveNotificationSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: NotificationSettings) =>
+      apiFetch<void>("/settings/notifications", { method: "PUT", json: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notification-settings"] }),
+  });
+}
+
 export function useAnalytics(
   searchId: number,
   windowDays = 30,
