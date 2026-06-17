@@ -77,14 +77,16 @@ func (s *Service) dispatch(e events.Event) {
 		}
 
 	case events.TypePollFailed:
-		searchID, _ := e.Payload["search_id"]
 		name, _ := e.Payload["name"].(string)
 		errMsg, _ := e.Payload["err"].(string)
 
-		title := fmt.Sprintf("Poll failed — %s (search %v)", name, searchID)
+		title := fmt.Sprintf("Poll failed — %s", name)
 		if err := sendOSNotification(title, errMsg); err != nil {
 			s.logger.Warn("os notification failed", "err", err)
 		}
+
+	case events.TypeListingNew, events.TypeListingUpdated, events.TypePollStarted, events.TypePollFinished:
+		// not acted on yet — reserved for future notification types
 	}
 }
 
