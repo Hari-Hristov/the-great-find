@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTheme, type ThemeId } from "@/contexts/ThemeContext";
@@ -35,30 +35,20 @@ function SettingsPage() {
 
   const isEmailConfigured = Boolean(notifSettings?.smtp_host);
 
-  const [form, setForm] = useState<NotificationSettings>({
-    smtp_host: "",
-    smtp_port: 587,
-    smtp_username: "",
-    smtp_password: "",
-    from_addr: "",
-    to_addr: "",
-  });
+  const baseForm: NotificationSettings = {
+    smtp_host: notifSettings?.smtp_host ?? "",
+    smtp_port: notifSettings?.smtp_port ?? 587,
+    smtp_username: notifSettings?.smtp_username ?? "",
+    smtp_password: notifSettings?.smtp_password ?? "",
+    from_addr: notifSettings?.from_addr ?? "",
+    to_addr: notifSettings?.to_addr ?? "",
+  };
 
-  useEffect(() => {
-    if (notifSettings) {
-      setForm({
-        smtp_host: notifSettings.smtp_host ?? "",
-        smtp_port: notifSettings.smtp_port ?? 587,
-        smtp_username: notifSettings.smtp_username ?? "",
-        smtp_password: notifSettings.smtp_password ?? "",
-        from_addr: notifSettings.from_addr ?? "",
-        to_addr: notifSettings.to_addr ?? "",
-      });
-    }
-  }, [notifSettings]);
+  const [editedForm, setEditedForm] = useState<NotificationSettings | null>(null);
+  const form = editedForm ?? baseForm;
 
   function handleChange(key: keyof NotificationSettings, value: string | number) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setEditedForm((prev) => ({ ...(prev ?? baseForm), [key]: value }));
   }
 
   return (
@@ -179,7 +169,11 @@ function SettingsPage() {
                 </div>
                 <div className="mt-4 flex items-center gap-3">
                   <button
-                    onClick={() => saveNotif.mutate(form)}
+                    onClick={() =>
+                      saveNotif.mutate(form, {
+                        onSuccess: () => setEditedForm(null),
+                      })
+                    }
                     disabled={saveNotif.isPending}
                     className="rounded-[var(--radius-btn)] bg-[var(--color-accent)] px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:opacity-40"
                   >
