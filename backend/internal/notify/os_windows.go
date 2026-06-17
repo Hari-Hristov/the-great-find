@@ -18,5 +18,5 @@ $textNodes.Item(1).AppendChild($template.CreateTextNode($args[1])) | Out-Null
 $toast = [Windows.UI.Notifications.ToastNotification]::new($template)
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("the-great-find").Show($toast)
 `
-	return exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script, "-args", title, body).Run()
+	return exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script, title, body).Run()
 }
