@@ -1,4 +1,4 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import { createFileRoute, useParams, Link } from "@tanstack/react-router";
 import { EyeOff, Pencil, Plus, RefreshCw, ShieldAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input, Label, Select } from "@/components/ui/input";
-import { TrendChart, type TrendDatum } from "@/components/charts/TrendChart";
-import { useAnalytics, useHideListing, useListings, usePollSearch, useSearch, useUpdateSearch, useConfig } from "@/api/hooks/queries";
+import { useHideListing, useListings, usePollSearch, useSearch, useUpdateSearch, useConfig } from "@/api/hooks/queries";
 import { formatEUR, relativeTime } from "@/lib/utils";
 import type { SavedSearch } from "@/api/types";
 
@@ -298,7 +297,6 @@ function SearchDetailPage() {
   const priceMin = qp ? Number(qp.price_min ?? 0) || undefined : undefined;
   const priceMax = qp ? Number(qp.price_max ?? 0) || undefined : undefined;
 
-  const analytics = useAnalytics(id, 30, priceMin, priceMax);
   const listings = useListings({
     search_id: id,
     status: "active",
@@ -310,12 +308,6 @@ function SearchDetailPage() {
   const poll = usePollSearch();
   const hide = useHideListing();
   const [editing, setEditing] = useState(false);
-
-  const trend: TrendDatum[] = (analytics.data?.trend_eur ?? []).map((p) => ({
-    date: p.day,
-    avgEur: p.avg_eur ?? 0,
-    count: p.n,
-  }));
 
   const subtitle = search.data
     ? `${search.data.platform} · ${search.data.country} · every ${search.data.poll_interval_min}m`
@@ -330,6 +322,13 @@ function SearchDetailPage() {
         actions={
           <div className="flex items-center gap-2">
             {search.data && <DetailsPopover search={search.data} />}
+            <Link
+              to="/dashboard/searches/$id/analytics"
+              params={{ id: idParam }}
+              className="inline-flex h-8 items-center gap-2 rounded-[var(--radius-button)] border border-[var(--color-border-subtle)] px-3 text-sm font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-base)]"
+            >
+              Analytics
+            </Link>
             <Button
               size="sm"
               variant="ghost"
@@ -356,33 +355,7 @@ function SearchDetailPage() {
           <EditForm search={search.data} onDone={() => setEditing(false)} />
         ) : null}
 
-        <div className={`grid grid-cols-1 gap-4 md:grid-cols-4 ${editing ? "mt-6" : ""}`}>
-          <Stat
-            label="Listings"
-            value={(analytics.data?.listing_count ?? 0).toString()}
-          />
-          <Stat label="Min" value={formatEUR(analytics.data?.min_eur ?? null)} />
-          <Stat label="Avg" value={formatEUR(analytics.data?.avg_eur ?? null)} />
-          <Stat label="Max" value={formatEUR(analytics.data?.max_eur ?? null)} />
-        </div>
-
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Price & volume — last 30 days</CardTitle>
-            <CardDescription>Daily average EUR price and listing count</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {trend.length === 0 ? (
-              <div className="py-12 text-center text-sm text-[var(--color-text-muted)]">
-                Not enough data yet.
-              </div>
-            ) : (
-              <TrendChart data={trend} />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="mt-6">
+        <Card className={editing ? "mt-6" : ""}>
           <CardHeader>
             <CardTitle>Listings</CardTitle>
             <CardDescription>
@@ -502,18 +475,5 @@ function DetailsPopover({ search }: { search: SavedSearch }) {
         </div>
       )}
     </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
-          {label}
-        </div>
-        <div className="mt-2 font-display text-2xl font-semibold">{value}</div>
-      </CardContent>
-    </Card>
   );
 }

@@ -66,12 +66,12 @@ func run() error {
 	slog.Info("db: migrations up-to-date")
 
 	// Startup retention sweep — same predicate as the AFTER INSERT trigger from
-	// migration 0002. Covers the case where the app sat idle for >90 days with
+	// migration 0007. Covers the case where the app sat idle for >120 days with
 	// no new inserts to fire the trigger.
 	if res, err := pools.Writer.ExecContext(ctx,
 		`DELETE FROM listings
 		 WHERE datetime(COALESCE(posted_at, scraped_first_at))
-		       < datetime('now', '-90 days')`); err != nil {
+		       < datetime('now', '-120 days')`); err != nil {
 		slog.Warn("startup retention sweep failed", "err", err)
 	} else if n, _ := res.RowsAffected(); n > 0 {
 		slog.Info("startup retention sweep: pruned listings", "count", n)

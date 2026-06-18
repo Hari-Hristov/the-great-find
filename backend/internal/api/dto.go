@@ -108,6 +108,7 @@ type AlertRow struct {
 type AnalyticsFilter struct {
 	SearchID    int64
 	WindowDays  int
+	Scope       string // "active" (default) | "inactive"
 	PriceEURMin *float64
 	PriceEURMax *float64
 }
@@ -115,11 +116,16 @@ type AnalyticsFilter struct {
 type AnalyticsRow struct {
 	SearchID     int64    `json:"search_id"`
 	WindowDays   int      `json:"window_days"`
+	Scope        string   `json:"scope"`
 	ListingCount int      `json:"listing_count"`
 	MinEUR       *float64 `json:"min_eur,omitempty"`
 	MaxEUR       *float64 `json:"max_eur,omitempty"`
 	AvgEUR       *float64 `json:"avg_eur,omitempty"`
 	TrendEUR     []TrendPoint `json:"trend_eur"`
+	// Inactive-scope only.
+	DOMAvgDays      *float64 `json:"dom_avg_days,omitempty"`
+	DOMMedianDays   *float64 `json:"dom_median_days,omitempty"`
+	AbsorptionPerWk *int     `json:"absorption_per_week,omitempty"`
 }
 
 type TrendPoint struct {

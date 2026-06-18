@@ -100,9 +100,13 @@ export interface TrendPoint {
 export interface Analytics {
   search_id: number;
   window_days: number;
+  scope: string;
   listing_count: number;
   min_eur?: number;
   max_eur?: number;
   avg_eur?: number;
   trend_eur: TrendPoint[];
+  dom_avg_days?: number;
+  dom_median_days?: number;
+  absorption_per_week?: number;
 }

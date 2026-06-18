@@ -253,12 +253,13 @@ export function useAnalytics(
   windowDays = 30,
   priceEurMin?: number,
   priceEurMax?: number,
+  scope: 'active' | 'inactive' = 'active',
 ) {
   return useQuery({
-    queryKey: [...qk.analytics(searchId, windowDays), priceEurMin, priceEurMax],
+    queryKey: [...qk.analytics(searchId, windowDays), priceEurMin, priceEurMax, scope],
     queryFn: () =>
       apiFetch<Analytics>(
-        `/analytics/searches/${searchId}${buildQuery({ window_days: windowDays, price_eur_min: priceEurMin, price_eur_max: priceEurMax })}`,
+        `/analytics/searches/${searchId}${buildQuery({ window_days: windowDays, price_eur_min: priceEurMin, price_eur_max: priceEurMax, scope })}`,
       ),
     enabled: Number.isFinite(searchId) && searchId > 0,
   });
