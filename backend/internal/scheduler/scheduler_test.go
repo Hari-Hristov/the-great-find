@@ -36,6 +36,21 @@ type fakeQueries struct {
 
 	// signals
 	pollSignaled chan struct{}
+
+	// stale sweep tracking
+	staleSweepCalls []int
+	staleSweepN     int64
+	staleSweepErr   error
+
+	// unseen tracking
+	unseenCalls []unseenCall
+	unseenN     int64
+	unseenErr   error
+}
+
+type unseenCall struct {
+	searchID        int64
+	seenExternalIDs []string
 }
 
 type obsCall struct {
@@ -130,6 +145,23 @@ func (f *fakeQueries) InsertAlertSent(ctx context.Context, in InsertAlertSentInp
 }
 
 func (f *fakeQueries) RecordSearchListing(_ context.Context, _, _ int64) error { return nil }
+
+func (f *fakeQueries) MarkStaleListingsRemoved(_ context.Context, staleDays int) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.staleSweepCalls = append(f.staleSweepCalls, staleDays)
+	return f.staleSweepN, f.staleSweepErr
+}
+
+func (f *fakeQueries) MarkUnseenListingsRemoved(_ context.Context, searchID int64, seenIDs []string) (int64, error) {
+	if len(seenIDs) == 0 {
+		return 0, nil
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.unseenCalls = append(f.unseenCalls, unseenCall{searchID: searchID, seenExternalIDs: seenIDs})
+	return f.unseenN, f.unseenErr
+}
 
 // testParserStore returns a parser.Store seeded from the embedded olx-bg config.
 func testParserStore(t *testing.T) *parser.Store {
@@ -567,5 +599,236 @@ func TestProcessListing_ObservationOnlyOnPriceChange(t *testing.T) {
 	}
 	if q.observations[1].eventType != "updated" {
 		t.Errorf("second observation event_type = %q, want updated", q.observations[1].eventType)
+	}
+}
+
+func TestStaleSweepLoop_CallsMarkStaleAndPublishes(t *testing.T) {
+	q := newFakeQueries()
+	q.staleSweepN = 3
+
+	bus := events.NewBus(8)
+	defer bus.Close()
+	sub, unsub := bus.Subscribe()
+	defer unsub()
+
+	s := New(q, nil, testParserStore(t), bus, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Run a single sweep directly.
+	s.runStaleSweep(ctx)
+
+	q.mu.Lock()
+	calls := q.staleSweepCalls
+	q.mu.Unlock()
+
+	if len(calls) != 1 {
+		t.Fatalf("expected 1 stale sweep call, got %d", len(calls))
+	}
+	if calls[0] != DefaultStaleListingDays {
+		t.Errorf("stale sweep called with %d days, want %d", calls[0], DefaultStaleListingDays)
+	}
+
+	// Should have published a listing.removed event.
+	select {
+	case ev := <-sub:
+		if ev.Type != events.TypeListingRemoved {
+			t.Errorf("event type = %q, want %q", ev.Type, events.TypeListingRemoved)
+		}
+		count, _ := ev.Payload["count"].(int64)
+		if count != 3 {
+			t.Errorf("event payload count = %d, want 3", count)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected listing.removed event but got none")
+	}
+}
+
+func TestStaleSweepLoop_NoEventOnZeroUpdates(t *testing.T) {
+	q := newFakeQueries()
+	q.staleSweepN = 0
+
+	bus := events.NewBus(8)
+	defer bus.Close()
+	sub, unsub := bus.Subscribe()
+	defer unsub()
+
+	s := New(q, nil, testParserStore(t), bus, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	s.runStaleSweep(ctx)
+
+	select {
+	case ev := <-sub:
+		t.Fatalf("expected no event, got %v", ev)
+	case <-time.After(50 * time.Millisecond):
+		// good — no event published
+	}
+}
+
+func TestMarkUnseenListingsRemoved_EmptyInput(t *testing.T) {
+	q := newFakeQueries()
+	q.unseenN = 5 // would return 5 if called without the early-return guard
+
+	bus := events.NewBus(8)
+	defer bus.Close()
+	s := New(q, nil, testParserStore(t), bus, nil)
+
+	// Call with empty slice — must return (0, nil) without panicking.
+	n, err := s.queries.MarkUnseenListingsRemoved(context.Background(), 1, []string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("expected 0 rows affected, got %d", n)
+	}
+}
+
+func TestPoll_MarkUnseenListingsRemoved_CalledWithExpectedIDs(t *testing.T) {
+	q := newFakeQueries()
+	q.activeSearches = []SavedSearch{
+		{ID: 5, Name: "unseen-test", PollIntervalMin: 60, QueryParams: []byte(`{"keyword":"phone"}`)},
+	}
+	q.unseenN = 2 // simulate 2 listings being marked removed
+
+	bus := events.NewBus(8)
+	defer bus.Close()
+
+	fetcher := &fakeFetcher{
+		listings: []scraper.Listing{
+			scraperListingStub("ext-a", "Phone A", "Днес 10:00"),
+			scraperListingStub("ext-b", "Phone B", "Днес 11:00"),
+		},
+	}
+	s := New(q, fetcher, testParserStore(t), bus, nil)
+
+	if err := s.Start(context.Background()); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer s.Stop()
+
+	// Wait for the immediate startup poll to complete.
+	select {
+	case <-q.pollSignaled:
+	case <-time.After(time.Second):
+		t.Fatal("scheduler never polled")
+	}
+
+	q.mu.Lock()
+	calls := q.unseenCalls
+	q.mu.Unlock()
+
+	if len(calls) != 1 {
+		t.Fatalf("expected 1 MarkUnseenListingsRemoved call, got %d", len(calls))
+	}
+	if calls[0].searchID != 5 {
+		t.Errorf("searchID = %d, want 5", calls[0].searchID)
+	}
+	// The seen IDs must match the external IDs returned by the fetcher.
+	wantIDs := map[string]bool{"ext-a": true, "ext-b": true}
+	if len(calls[0].seenExternalIDs) != 2 {
+		t.Fatalf("seenExternalIDs length = %d, want 2", len(calls[0].seenExternalIDs))
+	}
+	for _, id := range calls[0].seenExternalIDs {
+		if !wantIDs[id] {
+			t.Errorf("unexpected external ID %q in MarkUnseenListingsRemoved call", id)
+		}
+	}
+}
+
+func TestPoll_MarkUnseenListingsRemoved_PublishesEventWhenRowsUpdated(t *testing.T) {
+	q := newFakeQueries()
+	q.activeSearches = []SavedSearch{
+		{ID: 3, Name: "removed-event", PollIntervalMin: 60, QueryParams: []byte(`{"keyword":"tablet"}`)},
+	}
+	q.unseenN = 4 // simulate 4 listings removed
+
+	bus := events.NewBus(16)
+	defer bus.Close()
+	sub, unsub := bus.Subscribe()
+	defer unsub()
+
+	fetcher := &fakeFetcher{
+		listings: []scraper.Listing{
+			scraperListingStub("ext-x", "Tablet", "Днес 09:00"),
+		},
+	}
+	s := New(q, fetcher, testParserStore(t), bus, nil)
+
+	if err := s.Start(context.Background()); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer s.Stop()
+
+	// Wait for the poll to finish.
+	select {
+	case <-q.pollSignaled:
+	case <-time.After(time.Second):
+		t.Fatal("scheduler never polled")
+	}
+
+	// Drain events and look for TypeListingRemoved with search_id and count.
+	var found bool
+	deadline := time.After(time.Second)
+	for !found {
+		select {
+		case ev := <-sub:
+			if ev.Type == events.TypeListingRemoved {
+				searchID, _ := ev.Payload["search_id"].(int64)
+				count, _ := ev.Payload["count"].(int64)
+				if searchID == 3 && count == 4 {
+					found = true
+				}
+			}
+		case <-deadline:
+			t.Fatal("expected listing.removed event with search_id=3 and count=4, got none")
+		}
+	}
+}
+
+func TestPoll_MarkUnseenListingsRemoved_NoEventWhenZeroRows(t *testing.T) {
+	q := newFakeQueries()
+	q.activeSearches = []SavedSearch{
+		{ID: 6, Name: "no-removed", PollIntervalMin: 60, QueryParams: []byte(`{"keyword":"camera"}`)},
+	}
+	q.unseenN = 0 // no listings removed
+
+	bus := events.NewBus(16)
+	defer bus.Close()
+	sub, unsub := bus.Subscribe()
+	defer unsub()
+
+	fetcher := &fakeFetcher{
+		listings: []scraper.Listing{
+			scraperListingStub("ext-c", "Camera", "Днес 12:00"),
+		},
+	}
+	s := New(q, fetcher, testParserStore(t), bus, nil)
+
+	if err := s.Start(context.Background()); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer s.Stop()
+
+	select {
+	case <-q.pollSignaled:
+	case <-time.After(time.Second):
+		t.Fatal("scheduler never polled")
+	}
+
+	// Drain events — TypeListingRemoved must NOT appear.
+	deadline := time.After(200 * time.Millisecond)
+	for {
+		select {
+		case ev := <-sub:
+			if ev.Type == events.TypeListingRemoved {
+				t.Fatalf("unexpected listing.removed event: %+v", ev)
+			}
+		case <-deadline:
+			return // good — no listing.removed event
+		}
 	}
 }

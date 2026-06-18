@@ -668,6 +668,12 @@ func (s *Store) AnalyticsForSearch(ctx context.Context, f api.AnalyticsFilter) (
 		}
 
 		// Median DOM via SQLite middle-row trick.
+		// The two inner COUNT subqueries use l2/l3 aliases so statusClause
+		// (which references l.*) must be re-aliased for each sub-scope.
+		statusClause2 := strings.ReplaceAll(statusClause, " l.", " l2.")
+		statusClause3 := strings.ReplaceAll(statusClause, " l.", " l3.")
+		priceWhere2 := strings.ReplaceAll(priceWhere, " l.", " l2.")
+		priceWhere3 := strings.ReplaceAll(priceWhere, " l.", " l3.")
 		domMedianQ := fmt.Sprintf(`
 			SELECT AVG(dom) FROM (
 			    SELECT julianday(l.scraped_last_at) - julianday(l.scraped_first_at) AS dom
@@ -680,7 +686,7 @@ func (s *Store) AnalyticsForSearch(ctx context.Context, f api.AnalyticsFilter) (
 			            FROM listings l3
 			            WHERE l3.id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)%s%s)
 			)`,
-			statusClause, priceWhere, statusClause, priceWhere, statusClause, priceWhere)
+			statusClause, priceWhere, statusClause2, priceWhere2, statusClause3, priceWhere3)
 		domMedianArgs := append([]any{f.SearchID}, priceArgs...)
 		domMedianArgs = append(domMedianArgs, f.SearchID)
 		domMedianArgs = append(domMedianArgs, priceArgs...)

@@ -115,6 +115,7 @@ export type EventName =
   | "alert.fired"
   | "listing.new"
   | "listing.updated"
+  | "listing.removed"
   | "poll.finished"
   | string;
 

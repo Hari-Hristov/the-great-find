@@ -8,12 +8,19 @@ import (
 	"os/exec"
 )
 
+var notifySendPath string
+
+func init() {
+	notifySendPath, _ = exec.LookPath("notify-send")
+}
+
+func osNotifyAvailable() bool { return notifySendPath != "" }
+
 func sendOSNotification(title, body string) error {
-	path, err := exec.LookPath("notify-send")
-	if err != nil {
-		return fmt.Errorf("notify-send not found: %w", err)
+	if notifySendPath == "" {
+		return nil
 	}
-	if err := exec.CommandContext(context.Background(), path, title, body).Run(); err != nil {
+	if err := exec.CommandContext(context.Background(), notifySendPath, title, body).Run(); err != nil {
 		return fmt.Errorf("notify-send failed: %w", err)
 	}
 	return nil

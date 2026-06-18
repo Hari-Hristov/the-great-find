@@ -58,6 +58,12 @@ func (f *fakeQueries) ListObservationsForListing(_ context.Context, _ int64, _ i
 func (f *fakeQueries) InsertAlertSent(_ context.Context, _ scheduler.InsertAlertSentInput) error {
 	return nil
 }
+func (f *fakeQueries) MarkStaleListingsRemoved(_ context.Context, _ int) (int64, error) {
+	return 0, nil
+}
+func (f *fakeQueries) MarkUnseenListingsRemoved(_ context.Context, _ int64, _ []string) (int64, error) {
+	return 0, nil
+}
 
 // api.Queries surface.
 func (f *fakeQueries) GetSavedSearch(_ context.Context, id int64) (*SavedSearchRow, error) {

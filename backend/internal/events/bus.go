@@ -15,6 +15,7 @@ type Type string
 const (
 	TypeListingNew     Type = "listing.new"
 	TypeListingUpdated Type = "listing.updated"
+	TypeListingRemoved Type = "listing.removed"
 	TypeAlertFired     Type = "alert.fired"
 	TypePollStarted    Type = "poll.started"
 	TypePollFinished   Type = "poll.finished"

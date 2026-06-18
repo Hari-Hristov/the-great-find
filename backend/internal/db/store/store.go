@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Hari-Hristov/the-great-find/backend/internal/db"
@@ -239,6 +240,51 @@ func (s *Store) RecordSearchListing(ctx context.Context, searchID, listingID int
 		return fmt.Errorf("record search listing: %w", err)
 	}
 	return nil
+}
+
+func (s *Store) MarkStaleListingsRemoved(ctx context.Context, staleDays int) (int64, error) {
+	const q = `
+		UPDATE listings
+		SET status = 'removed', scraped_last_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+		WHERE status = 'active'
+		  AND datetime(scraped_last_at) < datetime('now', printf('-%d days', ?))`
+	res, err := s.pools.Writer.ExecContext(ctx, q, staleDays)
+	if err != nil {
+		return 0, fmt.Errorf("mark stale listings removed: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("mark stale listings removed rows: %w", err)
+	}
+	return n, nil
+}
+
+func (s *Store) MarkUnseenListingsRemoved(ctx context.Context, searchID int64, seenExternalIDs []string) (int64, error) {
+	if len(seenExternalIDs) == 0 {
+		return 0, nil
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(seenExternalIDs)), ",")
+	q := fmt.Sprintf(`
+		UPDATE listings
+		SET status = 'removed', scraped_last_at = strftime('%%Y-%%m-%%dT%%H:%%M:%%fZ','now')
+		WHERE status = 'active'
+		  AND external_id NOT IN (%s)
+		  AND id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)`,
+		placeholders)
+	args := make([]any, 0, len(seenExternalIDs)+1)
+	for _, id := range seenExternalIDs {
+		args = append(args, id)
+	}
+	args = append(args, searchID)
+	res, err := s.pools.Writer.ExecContext(ctx, q, args...)
+	if err != nil {
+		return 0, fmt.Errorf("mark unseen listings removed: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("mark unseen listings removed rows: %w", err)
+	}
+	return n, nil
 }
 
 func nullFloat(p *float64) sql.NullFloat64 {

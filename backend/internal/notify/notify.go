@@ -92,8 +92,10 @@ func (s *Service) dispatch(e events.Event) {
 		title, url, kind := extractAlertFields(e.Payload)
 		subject := fmt.Sprintf("Alert: %s", title)
 
-		if err := sendOSNotification(subject, kind); err != nil {
-			s.logger.Warn("os notification failed", "err", err)
+		if osNotifyAvailable() {
+			if err := sendOSNotification(subject, kind); err != nil {
+				s.logger.Warn("os notification failed", "err", err)
+			}
 		}
 
 		cfg := s.currentSMTPConfig()
@@ -109,10 +111,12 @@ func (s *Service) dispatch(e events.Event) {
 		errMsg, _ := e.Payload["err"].(string)
 
 		title := fmt.Sprintf("Poll failed — %s", name)
-		if err := sendOSNotification(title, errMsg); err != nil {
-			s.logger.Warn("os notification failed", "err", err)
+		if osNotifyAvailable() {
+			if err := sendOSNotification(title, errMsg); err != nil {
+				s.logger.Warn("os notification failed", "err", err)
+			}
 		}
-	case events.TypeListingNew, events.TypeListingUpdated, events.TypePollStarted, events.TypePollFinished:
+	case events.TypeListingNew, events.TypeListingUpdated, events.TypeListingRemoved, events.TypePollStarted, events.TypePollFinished:
 	}
 }
 

@@ -13,7 +13,7 @@ export function useEventStreamContext() {
   return useContext(EventStreamContext);
 }
 
-const EVENT_NAMES: EventName[] = ["alert.fired", "listing.new", "listing.updated", "poll.finished"];
+const EVENT_NAMES: EventName[] = ["alert.fired", "listing.new", "listing.updated", "listing.removed", "poll.finished"];
 
 export function EventStreamProvider({ children }: { children: React.ReactNode }) {
   const qc = useQueryClient();
@@ -34,7 +34,10 @@ export function EventStreamProvider({ children }: { children: React.ReactNode })
       setLast({ name, data: parsed, receivedAt: Date.now() });
 
       if (name === "alert.fired") qc.invalidateQueries({ queryKey: ["alerts"] });
-      if (name.startsWith("listing.")) qc.invalidateQueries({ queryKey: ["listings"] });
+      if (name.startsWith("listing.")) {
+        qc.invalidateQueries({ queryKey: ["listings"] });
+        qc.invalidateQueries({ queryKey: ["alerts"] });
+      }
       if (name === "poll.finished") qc.invalidateQueries({ queryKey: ["searches"] });
     };
 

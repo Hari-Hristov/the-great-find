@@ -73,6 +73,9 @@ type Queries interface {
 	ListObservationsForListing(ctx context.Context, listingID int64, limit int32) ([]PriceObservation, error)
 
 	InsertAlertSent(ctx context.Context, in InsertAlertSentInput) error
+
+	MarkStaleListingsRemoved(ctx context.Context, staleDays int) (int64, error)
+	MarkUnseenListingsRemoved(ctx context.Context, searchID int64, seenExternalIDs []string) (int64, error)
 }
 
 // UpsertListingInput is the scheduler's view of what an upsert requires. The
@@ -148,6 +151,10 @@ type Scheduler struct {
 // DefaultMaxListingAge is the production recency cutoff — drop anything older.
 const DefaultMaxListingAge = 90 * 24 * time.Hour
 
+// DefaultStaleListingDays is how many days without a scrape before a listing
+// is considered gone from OLX and marked removed.
+const DefaultStaleListingDays = 7
+
 // New builds a scheduler. fetcher may be nil in tests that exercise runner
 // lifecycle without polling — Reload still works, but any actual poll would panic.
 func New(q Queries, fetcher Fetcher, cfg *parser.Store, bus *events.Bus, logger *slog.Logger) *Scheduler {
@@ -177,6 +184,12 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	}
 	s.rootCtx, s.cancel = context.WithCancel(ctx)
 	s.mu.Unlock()
+
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		s.staleSweepLoop(s.rootCtx)
+	}()
 
 	return s.Reload(s.rootCtx)
 }
@@ -289,6 +302,48 @@ func (s *Scheduler) PollAll(ctx context.Context) int {
 	return len(runners)
 }
 
+// staleSweepLoop runs once on startup (after a short delay to let the DB
+// settle) and then every 24 h. It marks active listings that haven't been
+// seen in DefaultStaleListingDays days as removed and publishes a
+// listing.removed event so the frontend can refetch.
+func (s *Scheduler) staleSweepLoop(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(30 * time.Second):
+	}
+
+	s.runStaleSweep(ctx)
+
+	t := time.NewTicker(24 * time.Hour)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			s.runStaleSweep(ctx)
+		}
+	}
+}
+
+func (s *Scheduler) runStaleSweep(ctx context.Context) {
+	n, err := s.queries.MarkStaleListingsRemoved(ctx, DefaultStaleListingDays)
+	if err != nil {
+		if ctx.Err() == nil {
+			s.logger.Error("stale listing sweep failed", "err", err)
+		}
+		return
+	}
+	if n > 0 {
+		s.logger.Info("stale listings marked removed", "count", n)
+		s.bus.Publish(events.Event{
+			Type:    events.TypeListingRemoved,
+			Payload: map[string]any{"count": n},
+		})
+	}
+}
+
 // ErrSearchNotRunning is returned by PollSearchByID when no runner exists for
 // the requested id (e.g. the search is inactive). Handlers translate it to
 // 404 at the API edge.
@@ -380,6 +435,29 @@ func (r *runner) poll(ctx context.Context) error {
 		if err := r.processListing(ctx, l, cfg, spec, pf); err != nil {
 			r.parent.logger.Warn("listing process failed",
 				"search_id", r.search.ID, "external_id", l.ExternalID, "err", err)
+		}
+	}
+
+	// Mark listings previously linked to this search that were NOT seen in this
+	// poll cycle as removed. This catches items that disappear from the platform
+	// between polls (e.g., seller deletes the ad). Only run when the poll returned
+	// at least one listing — an empty result likely signals a fetch issue rather
+	// than all listings being gone.
+	if len(listings) > 0 {
+		seenIDs := make([]string, 0, len(listings))
+		for _, l := range listings {
+			seenIDs = append(seenIDs, l.ExternalID)
+		}
+		n, err := r.parent.queries.MarkUnseenListingsRemoved(ctx, r.search.ID, seenIDs)
+		if err != nil {
+			r.parent.logger.Error("mark unseen listings removed failed",
+				"search_id", r.search.ID, "err", err)
+		} else if n > 0 {
+			r.parent.logger.Info("unseen listings marked removed",
+				"search_id", r.search.ID, "count", n)
+			r.publishListingEvent(events.TypeListingRemoved, map[string]any{
+				"search_id": r.search.ID, "count": n,
+			})
 		}
 	}
 
