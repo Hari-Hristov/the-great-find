@@ -516,7 +516,7 @@ func (s *Store) AnalyticsForSearch(ctx context.Context, f api.AnalyticsFilter) (
 	if f.WindowDays <= 0 {
 		f.WindowDays = 30
 	}
-	if f.Scope == "" {
+	if f.Scope != "active" && f.Scope != "inactive" {
 		f.Scope = "active"
 	}
 	out := api.AnalyticsRow{SearchID: f.SearchID, WindowDays: f.WindowDays, Scope: f.Scope, TrendEUR: []api.TrendPoint{}}
@@ -655,10 +655,11 @@ func (s *Store) AnalyticsForSearch(ctx context.Context, f api.AnalyticsFilter) (
 		domAvgQ := fmt.Sprintf(`
 			SELECT AVG(julianday(l.scraped_last_at) - julianday(l.scraped_first_at))
 			FROM listings l
-			WHERE l.id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)%s`,
-			statusClause)
+			WHERE l.id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)%s%s`,
+			statusClause, priceWhere)
+		domAvgArgs := append([]any{f.SearchID}, priceArgs...)
 		var domAvg sql.NullFloat64
-		if err := s.pools.Reader.QueryRowContext(ctx, domAvgQ, f.SearchID).Scan(&domAvg); err != nil {
+		if err := s.pools.Reader.QueryRowContext(ctx, domAvgQ, domAvgArgs...).Scan(&domAvg); err != nil {
 			return out, fmt.Errorf("analytics dom avg: %w", err)
 		}
 		if domAvg.Valid {
@@ -671,17 +672,22 @@ func (s *Store) AnalyticsForSearch(ctx context.Context, f api.AnalyticsFilter) (
 			SELECT AVG(dom) FROM (
 			    SELECT julianday(l.scraped_last_at) - julianday(l.scraped_first_at) AS dom
 			    FROM listings l
-			    WHERE l.id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)%s
+			    WHERE l.id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)%s%s
 			    ORDER BY dom
 			    LIMIT 2 - (SELECT COUNT(*) FROM listings l2
-			               WHERE l2.id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)%s) %% 2
+			               WHERE l2.id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)%s%s) %% 2
 			    OFFSET (SELECT (COUNT(*) - 1) / 2
 			            FROM listings l3
-			            WHERE l3.id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)%s)
+			            WHERE l3.id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)%s%s)
 			)`,
-			statusClause, statusClause, statusClause)
+			statusClause, priceWhere, statusClause, priceWhere, statusClause, priceWhere)
+		domMedianArgs := append([]any{f.SearchID}, priceArgs...)
+		domMedianArgs = append(domMedianArgs, f.SearchID)
+		domMedianArgs = append(domMedianArgs, priceArgs...)
+		domMedianArgs = append(domMedianArgs, f.SearchID)
+		domMedianArgs = append(domMedianArgs, priceArgs...)
 		var domMedian sql.NullFloat64
-		if err := s.pools.Reader.QueryRowContext(ctx, domMedianQ, f.SearchID, f.SearchID, f.SearchID).Scan(&domMedian); err != nil {
+		if err := s.pools.Reader.QueryRowContext(ctx, domMedianQ, domMedianArgs...).Scan(&domMedian); err != nil {
 			return out, fmt.Errorf("analytics dom median: %w", err)
 		}
 		if domMedian.Valid {
@@ -692,11 +698,12 @@ func (s *Store) AnalyticsForSearch(ctx context.Context, f api.AnalyticsFilter) (
 		absQ := fmt.Sprintf(`
 			SELECT COUNT(*)
 			FROM listings l
-			WHERE l.id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)%s
+			WHERE l.id IN (SELECT listing_id FROM search_listings WHERE search_id = ?)%s%s
 			  AND datetime(l.scraped_last_at) >= datetime('now', '-7 days')`,
-			statusClause)
+			statusClause, priceWhere)
+		absArgs := append([]any{f.SearchID}, priceArgs...)
 		var absorption int
-		if err := s.pools.Reader.QueryRowContext(ctx, absQ, f.SearchID).Scan(&absorption); err != nil {
+		if err := s.pools.Reader.QueryRowContext(ctx, absQ, absArgs...).Scan(&absorption); err != nil {
 			return out, fmt.Errorf("analytics absorption: %w", err)
 		}
 		out.AbsorptionPerWk = &absorption

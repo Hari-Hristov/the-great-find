@@ -29,6 +29,8 @@ function WindowSelector({
       {WINDOWS.map((w) => (
         <button
           key={w.value}
+          type="button"
+          aria-pressed={value === w.value}
           onClick={() => onChange(w.value)}
           className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
             value === w.value

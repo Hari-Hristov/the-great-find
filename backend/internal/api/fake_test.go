@@ -197,7 +197,11 @@ func (f *fakeQueries) TagAlert(_ context.Context, id int64, label, color string)
 }
 
 func (f *fakeQueries) AnalyticsForSearch(_ context.Context, filt AnalyticsFilter) (AnalyticsRow, error) {
-	return AnalyticsRow{SearchID: filt.SearchID, WindowDays: filt.WindowDays, TrendEUR: []TrendPoint{}}, nil
+	scope := filt.Scope
+	if scope == "" {
+		scope = "active"
+	}
+	return AnalyticsRow{SearchID: filt.SearchID, WindowDays: filt.WindowDays, Scope: scope, TrendEUR: []TrendPoint{}}, nil
 }
 
 func (f *fakeQueries) GetAppState(_ context.Context, _ string) (string, error) { return "", nil }
