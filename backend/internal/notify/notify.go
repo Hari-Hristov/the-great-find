@@ -112,6 +112,7 @@ func (s *Service) dispatch(e events.Event) {
 		if err := sendOSNotification(title, errMsg); err != nil {
 			s.logger.Warn("os notification failed", "err", err)
 		}
+	case events.TypeListingNew, events.TypeListingUpdated, events.TypePollStarted, events.TypePollFinished:
 	}
 }
 
