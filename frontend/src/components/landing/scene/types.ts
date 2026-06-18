@@ -4,6 +4,7 @@ export type Section =
   | "portal-dive"
   | "switch-emergence"
   | "pivot"
+  | "screen-dive"
   | "steam-deck"
   | "delivery";
 

@@ -21,27 +21,8 @@ const SCROLL_HEIGHT = "700vh";
 export function CinematicLanding() {
   const containerRef = useRef<HTMLDivElement>(null);
   const stateRef = useSceneStateRef();
-  const [glitchActive, setGlitchActive] = useState(false);
   const [deliveryActive, setDeliveryActive] = useState(false);
   const [currentSection, setCurrentSection] = useState<Section>("cold-open");
-  const glitchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (glitchTimerRef.current !== null) clearTimeout(glitchTimerRef.current);
-    };
-  }, []);
-
-  const handleGlitch = useCallback(() => {
-    if (glitchTimerRef.current !== null) clearTimeout(glitchTimerRef.current);
-    stateRef.current.glitchActive = true;
-    setGlitchActive(true);
-    glitchTimerRef.current = setTimeout(() => {
-      stateRef.current.glitchActive = false;
-      setGlitchActive(false);
-      glitchTimerRef.current = null;
-    }, 300);
-  }, [stateRef]);
 
   const handleDelivery = useCallback((active: boolean) => {
     setDeliveryActive(active);
@@ -65,8 +46,6 @@ export function CinematicLanding() {
         }}
       />
 
-      <CharacterBackground />
-
       <div className="pointer-events-none fixed inset-0 z-0">
         <Canvas
           dpr={[1, 1.5]}
@@ -76,13 +55,14 @@ export function CinematicLanding() {
         >
           <Suspense fallback={null}>
             <Environment preset="night" />
+            <CharacterBackground />
             <ConsoleStage stateRef={stateRef} />
           </Suspense>
 
           <ScrollCameraRig stateRef={stateRef} />
 
           <Suspense fallback={null}>
-            <SceneEffects stateRef={stateRef} />
+            <SceneEffects />
           </Suspense>
         </Canvas>
       </div>
@@ -90,13 +70,12 @@ export function CinematicLanding() {
       <ScrollDriverMount
         containerRef={containerRef}
         stateRef={stateRef}
-        onGlitch={handleGlitch}
         onDelivery={handleDelivery}
         onSectionChange={setCurrentSection}
       />
 
       <HeroOverlays section={currentSection} />
-      <FlashOverlay glitchActive={glitchActive} />
+      <FlashOverlay />
       <SkipIntroButton onSkip={handleSkip} />
       <DeliveryCTA visible={deliveryActive} />
     </div>
@@ -106,7 +85,6 @@ export function CinematicLanding() {
 interface DriverProps {
   containerRef: MutableRefObject<HTMLDivElement | null>;
   stateRef: MutableRefObject<SceneState>;
-  onGlitch: () => void;
   onDelivery: (active: boolean) => void;
   onSectionChange: (s: Section) => void;
 }
@@ -114,11 +92,10 @@ interface DriverProps {
 function ScrollDriverMount({
   containerRef,
   stateRef,
-  onGlitch,
   onDelivery,
   onSectionChange,
 }: DriverProps) {
-  useScrollDriver({ containerRef, stateRef, onGlitch, onDelivery });
+  useScrollDriver({ containerRef, stateRef, onDelivery });
 
   const rafRef = useRef<number | null>(null);
   const lastSectionRef = useRef<Section>("cold-open");

@@ -20,8 +20,7 @@ export function ScrollCameraRig({ stateRef }: { stateRef: MutableRefObject<Scene
     _pos.set(cfg.position[0], cfg.position[1], cfg.position[2]);
     _target.set(cfg.target[0], cfg.target[1], cfg.target[2]);
 
-    // 0.05 base gives a snappier, more responsive camera follow than 0.02
-    const lerpFactor = 1 - Math.pow(0.05, delta);
+    const lerpFactor = 1 - Math.pow(0.025, delta);
 
     currentPos.current.lerp(_pos, lerpFactor);
     camera.position.copy(currentPos.current);

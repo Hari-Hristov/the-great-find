@@ -39,9 +39,11 @@ function LandingPage() {
 
   if (can3D && !skipIntro) {
     return (
-      <Suspense fallback={<CinematicSkeleton />}>
-        <Cinematic />
-      </Suspense>
+      <LenisProvider>
+        <Suspense fallback={<CinematicSkeleton />}>
+          <Cinematic />
+        </Suspense>
+      </LenisProvider>
     );
   }
 
