@@ -1,6 +1,7 @@
 import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { EventStreamProvider } from "@/contexts/EventStreamContext";
 
 interface RouterContext {
   queryClient: QueryClient;
@@ -13,7 +14,9 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootLayout() {
   return (
     <ThemeProvider>
-      <Outlet />
+      <EventStreamProvider>
+        <Outlet />
+      </EventStreamProvider>
     </ThemeProvider>
   );
 }

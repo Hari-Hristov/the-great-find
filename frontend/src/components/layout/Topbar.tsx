@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
-import { useEventStream } from "@/api/hooks/useEventStream";
+import { useEventStreamContext } from "@/contexts/EventStreamContext";
 import { cn, relativeTime } from "@/lib/utils";
 
 interface TopbarProps {
@@ -11,7 +11,7 @@ interface TopbarProps {
 }
 
 export function Topbar({ title, subtitle, back, actions }: TopbarProps) {
-  const { connected, last } = useEventStream();
+  const { connected, last } = useEventStreamContext();
 
   return (
     <header className="flex items-center justify-between border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] px-6 py-4">

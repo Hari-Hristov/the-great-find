@@ -1,4 +1,4 @@
-import { createFileRoute, useParams, Link } from "@tanstack/react-router";
+import { createFileRoute, useParams, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { EyeOff, Pencil, Plus, RefreshCw, ShieldAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
@@ -290,6 +290,8 @@ function EditForm({
 function SearchDetailPage() {
   const { id: idParam } = useParams({ from: "/dashboard/searches/$id" });
   const id = Number(idParam);
+  const matchRoute = useMatchRoute();
+  const isChildActive = matchRoute({ to: "/dashboard/searches/$id/analytics", params: { id: idParam }, fuzzy: true });
 
   const search = useSearch(id);
 
@@ -313,7 +315,7 @@ function SearchDetailPage() {
     ? `${search.data.platform} · ${search.data.country} · every ${search.data.poll_interval_min}m`
     : undefined;
 
-  return (
+  return isChildActive ? <Outlet /> : (
     <>
       <Topbar
         title={search.data?.name ?? "Search"}
