@@ -13,7 +13,7 @@ export function useEventStreamContext() {
   return useContext(EventStreamContext);
 }
 
-const EVENT_NAMES: EventName[] = ["alert.fired", "listing.new", "listing.updated", "poll.finished"];
+const EVENT_NAMES: EventName[] = ["alert.fired", "listing.new", "listing.updated", "listing.removed", "poll.finished"];
 
 export function EventStreamProvider({ children }: { children: React.ReactNode }) {
   const qc = useQueryClient();

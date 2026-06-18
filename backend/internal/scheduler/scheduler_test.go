@@ -131,6 +131,14 @@ func (f *fakeQueries) InsertAlertSent(ctx context.Context, in InsertAlertSentInp
 
 func (f *fakeQueries) RecordSearchListing(_ context.Context, _, _ int64) error { return nil }
 
+func (f *fakeQueries) MarkStaleListingsRemoved(_ context.Context, _ int) (int64, error) {
+	return 0, nil
+}
+
+func (f *fakeQueries) MarkUnseenListingsRemoved(_ context.Context, _ int64, _ []string) (int64, error) {
+	return 0, nil
+}
+
 // testParserStore returns a parser.Store seeded from the embedded olx-bg config.
 func testParserStore(t *testing.T) *parser.Store {
 	t.Helper()

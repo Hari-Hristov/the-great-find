@@ -149,13 +149,19 @@ function AlertDetailPage() {
 
   const items = (alerts.data ?? [])
     .filter((a) => a.search_id === searchId && a.listing_status !== "hidden")
-    .sort((a, b) => b.sent_at.localeCompare(a.sent_at));
+    .sort((a, b) => {
+      // Active alerts first, then removed/sold, within each group by date desc.
+      const aRemoved = a.listing_status !== "active";
+      const bRemoved = b.listing_status !== "active";
+      if (aRemoved !== bRemoved) return aRemoved ? 1 : -1;
+      return b.sent_at.localeCompare(a.sent_at);
+    });
 
   return (
     <>
       <Topbar
         title={search?.name ?? `Search #${searchId}`}
-        subtitle={`${items.length} alert${items.length === 1 ? "" : "s"}`}
+        subtitle={`${items.filter((a) => a.listing_status === "active").length} alert${items.filter((a) => a.listing_status === "active").length === 1 ? "" : "s"}`}
         back={{ to: "/dashboard/alerts", label: "Back to alerts" }}
       />
 
@@ -171,7 +177,7 @@ function AlertDetailPage() {
         ) : (
           <ul className="divide-y divide-[var(--color-border-subtle)]">
             {items.map((a: Alert) => (
-              <li key={a.id} className="flex items-center justify-between py-3">
+              <li key={a.id} className={`flex items-center justify-between py-3 ${a.listing_status !== "active" ? "opacity-50" : ""}`}>
                 <div className="min-w-0 flex-1 pr-4">
                   {a.listing_url ? (
                     <a
@@ -192,6 +198,11 @@ function AlertDetailPage() {
                     <Badge variant="secondary" className="font-mono">
                       {formatCriteria(a.criteria)}
                     </Badge>
+                    {a.listing_status !== "active" && (
+                      <Badge variant="secondary" className="text-[var(--color-text-muted)]">
+                        No longer listed
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">

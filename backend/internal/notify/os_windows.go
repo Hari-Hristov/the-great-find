@@ -6,6 +6,8 @@ import (
 	"os/exec"
 )
 
+func osNotifyAvailable() bool { return true }
+
 func sendOSNotification(title, body string) error {
 	// Pass title and body as PowerShell arguments to avoid injection via
 	// quotes, $-expansion, or backticks in untrusted text.
