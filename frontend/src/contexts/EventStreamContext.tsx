@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { BusEvent, EventName } from "@/api/hooks/useEventStream";
+import type { BusEvent, EventName } from "@/api/types";
 
 interface EventStreamState {
   connected: boolean;

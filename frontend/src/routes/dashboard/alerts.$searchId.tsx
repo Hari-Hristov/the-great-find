@@ -6,32 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAlerts, useHideListing, useSearches, useTagAlert } from "@/api/hooks/queries";
 import { formatEUR, relativeTime } from "@/lib/utils";
+import { TAG_COLORS, tagBg, type TagColorName } from "@/lib/tagColors";
 import type { Alert } from "@/api/types";
 
 export const Route = createFileRoute("/dashboard/alerts/$searchId")({
   component: AlertDetailPage,
 });
-
-const TAG_COLORS = [
-  { name: "red",    bg: "bg-red-500" },
-  { name: "orange", bg: "bg-orange-400" },
-  { name: "yellow", bg: "bg-yellow-400" },
-  { name: "green",  bg: "bg-green-500" },
-  { name: "blue",   bg: "bg-blue-500" },
-  { name: "purple", bg: "bg-purple-500" },
-  { name: "pink",   bg: "bg-pink-400" },
-] as const;
-
-type TagColorName = (typeof TAG_COLORS)[number]["name"];
-
-const TAG_BG: Record<TagColorName, string> = Object.fromEntries(
-  TAG_COLORS.map((c) => [c.name, c.bg]),
-) as Record<TagColorName, string>;
-
-function tagBg(color?: string): string {
-  if (!color) return "bg-zinc-500";
-  return TAG_BG[color as TagColorName] ?? "bg-zinc-500";
-}
 
 function formatCriteria(raw: string): string {
   try {

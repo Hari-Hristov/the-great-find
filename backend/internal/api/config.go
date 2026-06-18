@@ -17,17 +17,7 @@ func registerConfig(api huma.API, cfg ConfigProvider) {
 		Method:      "GET",
 		Path:        "/config",
 		Summary:     "Returns parser-derived config for the frontend (e.g. known category slugs)",
-	}, func(_ context.Context, _ *struct{}) (*struct {
-		Body struct {
-			Categories map[string]string `json:"categories"`
-		}
-	}, error) {
-		out := &struct {
-			Body struct {
-				Categories map[string]string `json:"categories"`
-			}
-		}{}
-		out.Body.Categories = cfg.Categories()
-		return out, nil
+	}, func(_ context.Context, _ *struct{}) (*struct{ Body GetConfigResponse }, error) {
+		return &struct{ Body GetConfigResponse }{Body: GetConfigResponse{Categories: cfg.Categories()}}, nil
 	})
 }

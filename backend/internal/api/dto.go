@@ -133,3 +133,49 @@ type TrendPoint struct {
 	AvgEUR float64 `json:"avg_eur"`
 	N      int     `json:"n"`
 }
+
+type ListListingsResponse struct {
+	Items []ListingRow `json:"items"`
+	Total int          `json:"total"`
+}
+
+type GetListingResponse struct {
+	Listing      ListingRow            `json:"listing"`
+	Photos       []Photo               `json:"photos"`
+	Params       []Param               `json:"params"`
+	PriceHistory []PriceObservationRow `json:"price_history"`
+}
+
+type ListSearchesResponse struct {
+	Items []SavedSearchRow `json:"items"`
+}
+
+type PollAllSearchesResponse struct {
+	Count int `json:"count" doc:"Number of polls fired."`
+}
+
+type ListAlertsResponse struct {
+	Items []AlertRow `json:"items"`
+}
+
+type GetConfigResponse struct {
+	Categories map[string]string `json:"categories"`
+}
+
+type ListListingsInput struct {
+	SearchID    int64   `query:"search_id" required:"false" doc:"Filter to listings touched by a saved search via alerts_sent or polls. Optional."`
+	Status      string  `query:"status" required:"false" enum:"active,removed,sold,hidden" doc:"Soft-delete status."`
+	PostedAfter string  `query:"posted_after" required:"false" doc:"RFC-3339 timestamp; only listings posted at/after this time."`
+	PriceEURMin float64 `query:"price_eur_min" required:"false"`
+	PriceEURMax float64 `query:"price_eur_max" required:"false"`
+	Limit       int     `query:"limit" required:"false" minimum:"1" maximum:"500" default:"100"`
+	Offset      int     `query:"offset" required:"false" minimum:"0" default:"0"`
+}
+
+type SearchAnalyticsInput struct {
+	ID          int64   `path:"id"`
+	WindowDays  int     `query:"window_days" required:"false" minimum:"1" maximum:"365" default:"30"`
+	Scope       string  `query:"scope" required:"false" default:"active" enum:"active,inactive"`
+	PriceEURMin float64 `query:"price_eur_min" required:"false"`
+	PriceEURMax float64 `query:"price_eur_max" required:"false"`
+}

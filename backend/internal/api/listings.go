@@ -21,26 +21,33 @@ func enrichEUR(rows []ListingRow) {
 	}
 }
 
+func enrichOneEUR(row *ListingRow) {
+	if row.PriceAmount != nil && row.PriceCurrency != "" {
+		if eur, ok := money.ToEUR(*row.PriceAmount, row.PriceCurrency); ok {
+			v := eur
+			row.PriceEUR = &v
+		}
+	}
+}
+
+func enrichEURPriceHistory(rows []PriceObservationRow) {
+	for i := range rows {
+		if rows[i].PriceAmount != nil && rows[i].PriceCurrency != "" {
+			if eur, ok := money.ToEUR(*rows[i].PriceAmount, rows[i].PriceCurrency); ok {
+				v := eur
+				rows[i].PriceEUR = &v
+			}
+		}
+	}
+}
+
 func registerListings(api huma.API, q Queries) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-listings",
 		Method:      "GET",
 		Path:        "/listings",
 		Summary:     "List listings with optional filters",
-	}, func(ctx context.Context, in *struct {
-		SearchID     int64   `query:"search_id" required:"false" doc:"Filter to listings touched by a saved search via alerts_sent or polls. Optional."`
-		Status       string  `query:"status" required:"false" enum:"active,removed,sold,hidden" doc:"Soft-delete status."`
-		PostedAfter  string  `query:"posted_after" required:"false" doc:"RFC-3339 timestamp; only listings posted at/after this time."`
-		PriceEURMin  float64 `query:"price_eur_min" required:"false"`
-		PriceEURMax  float64 `query:"price_eur_max" required:"false"`
-		Limit        int     `query:"limit" required:"false" minimum:"1" maximum:"500" default:"100"`
-		Offset       int     `query:"offset" required:"false" minimum:"0" default:"0"`
-	}) (*struct {
-		Body struct {
-			Items []ListingRow `json:"items"`
-			Total int          `json:"total"`
-		}
-	}, error) {
+	}, func(ctx context.Context, in *ListListingsInput) (*struct{ Body ListListingsResponse }, error) {
 		f := ListingFilter{
 			Status: in.Status,
 			Limit:  in.Limit,
@@ -75,15 +82,7 @@ func registerListings(api huma.API, q Queries) {
 			return nil, err
 		}
 		enrichEUR(rows)
-		out := &struct {
-			Body struct {
-				Items []ListingRow `json:"items"`
-				Total int          `json:"total"`
-			}
-		}{}
-		out.Body.Items = rows
-		out.Body.Total = total
-		return out, nil
+		return &struct{ Body ListListingsResponse }{Body: ListListingsResponse{Items: rows, Total: total}}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -93,14 +92,7 @@ func registerListings(api huma.API, q Queries) {
 		Summary:     "Get a listing with photos, params, and recent price history",
 	}, func(ctx context.Context, in *struct {
 		ID int64 `path:"id"`
-	}) (*struct {
-		Body struct {
-			Listing      ListingRow            `json:"listing"`
-			Photos       []Photo               `json:"photos"`
-			Params       []Param               `json:"params"`
-			PriceHistory []PriceObservationRow `json:"price_history"`
-		}
-	}, error) {
+	}) (*struct{ Body GetListingResponse }, error) {
 		row, err := q.GetListing(ctx, in.ID)
 		if err != nil {
 			return nil, err
@@ -108,8 +100,7 @@ func registerListings(api huma.API, q Queries) {
 		if row == nil {
 			return nil, huma.Error404NotFound("listing not found")
 		}
-		one := []ListingRow{*row}
-		enrichEUR(one)
+		enrichOneEUR(row)
 
 		photos, err := q.ListListingPhotos(ctx, in.ID)
 		if err != nil {
@@ -123,28 +114,14 @@ func registerListings(api huma.API, q Queries) {
 		if err != nil {
 			return nil, err
 		}
-		for i := range hist {
-			if hist[i].PriceAmount != nil && hist[i].PriceCurrency != "" {
-				if eur, ok := money.ToEUR(*hist[i].PriceAmount, hist[i].PriceCurrency); ok {
-					v := eur
-					hist[i].PriceEUR = &v
-				}
-			}
-		}
+		enrichEURPriceHistory(hist)
 
-		out := &struct {
-			Body struct {
-				Listing      ListingRow            `json:"listing"`
-				Photos       []Photo               `json:"photos"`
-				Params       []Param               `json:"params"`
-				PriceHistory []PriceObservationRow `json:"price_history"`
-			}
-		}{}
-		out.Body.Listing = one[0]
-		out.Body.Photos = photos
-		out.Body.Params = params
-		out.Body.PriceHistory = hist
-		return out, nil
+		return &struct{ Body GetListingResponse }{Body: GetListingResponse{
+			Listing:      *row,
+			Photos:       photos,
+			Params:       params,
+			PriceHistory: hist,
+		}}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -170,8 +147,7 @@ func registerListings(api huma.API, q Queries) {
 		if err != nil {
 			return nil, err
 		}
-		one := []ListingRow{*row}
-		enrichEUR(one)
-		return &struct{ Body ListingRow }{Body: one[0]}, nil
+		enrichOneEUR(row)
+		return &struct{ Body ListingRow }{Body: *row}, nil
 	})
 }

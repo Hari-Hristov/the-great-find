@@ -42,3 +42,10 @@ export function relativeTime(value: string | null | undefined): string {
   const diffDay = Math.round(diffHr / 24);
   return `${diffDay}d ago`;
 }
+
+export function sortByPostedAtDesc<T extends { posted_at?: string }>(a: T, b: T): number {
+  if (!a.posted_at && !b.posted_at) return 0;
+  if (!a.posted_at) return 1;
+  if (!b.posted_at) return -1;
+  return b.posted_at.localeCompare(a.posted_at);
+}

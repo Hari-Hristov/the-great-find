@@ -40,7 +40,7 @@ type Bus struct {
 }
 
 // NewBus returns a Bus where each subscriber gets a channel of the given buffer
-// size. 32 is a reasonable default for an app polling at the minute scale.
+// size. Falls back to 32 if a non-positive buffer is passed; main wires 64.
 func NewBus(subscriberBuffer int) *Bus {
 	if subscriberBuffer <= 0 {
 		subscriberBuffer = 32

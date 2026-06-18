@@ -34,6 +34,8 @@ type ConfigLoader func() (SMTPConfig, error)
 
 // Service dispatches notifications. Construct with New and run with Run.
 type Service struct {
+	// smtp is mutated only from the single Run goroutine via currentSMTPConfig;
+	// no mutex is needed.
 	smtp       SMTPConfig
 	loadConfig ConfigLoader
 	logger     *slog.Logger
@@ -110,9 +112,6 @@ func (s *Service) dispatch(e events.Event) {
 		if err := sendOSNotification(title, errMsg); err != nil {
 			s.logger.Warn("os notification failed", "err", err)
 		}
-
-	case events.TypeListingNew, events.TypeListingUpdated, events.TypePollStarted, events.TypePollFinished:
-		// not acted on yet — reserved for future notification types
 	}
 }
 

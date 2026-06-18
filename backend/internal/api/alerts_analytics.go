@@ -20,11 +20,7 @@ func registerAlerts(api huma.API, q Queries) {
 		Summary:     "List recently fired alerts joined with listing summary",
 	}, func(ctx context.Context, in *struct {
 		Limit int `query:"limit" required:"false" minimum:"1" maximum:"500" default:"100"`
-	}) (*struct {
-		Body struct {
-			Items []AlertRow `json:"items"`
-		}
-	}, error) {
+	}) (*struct{ Body ListAlertsResponse }, error) {
 		limit := in.Limit
 		if limit == 0 {
 			limit = 100
@@ -33,13 +29,7 @@ func registerAlerts(api huma.API, q Queries) {
 		if err != nil {
 			return nil, err
 		}
-		out := &struct {
-			Body struct {
-				Items []AlertRow `json:"items"`
-			}
-		}{}
-		out.Body.Items = rows
-		return out, nil
+		return &struct{ Body ListAlertsResponse }{Body: ListAlertsResponse{Items: rows}}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -84,23 +74,11 @@ func registerAnalytics(api huma.API, q Queries) {
 		Method:      "GET",
 		Path:        "/analytics/searches/{id}",
 		Summary:     "Per-search analytics: min/avg/count plus a daily EUR trend",
-	}, func(ctx context.Context, in *struct {
-		ID          int64    `path:"id"`
-		WindowDays  int      `query:"window_days" required:"false" minimum:"1" maximum:"365" default:"30"`
-		Scope       string   `query:"scope" required:"false" default:"active" enum:"active,inactive"`
-		PriceEURMin float64  `query:"price_eur_min" required:"false"`
-		PriceEURMax float64  `query:"price_eur_max" required:"false"`
-	}) (*struct{ Body AnalyticsRow }, error) {
+	}, func(ctx context.Context, in *SearchAnalyticsInput) (*struct{ Body AnalyticsRow }, error) {
 		f := AnalyticsFilter{
 			SearchID:   in.ID,
 			WindowDays: in.WindowDays,
 			Scope:      in.Scope,
-		}
-		if f.WindowDays == 0 {
-			f.WindowDays = 30
-		}
-		if f.Scope == "" {
-			f.Scope = "active"
 		}
 		if in.PriceEURMin > 0 {
 			v := in.PriceEURMin
