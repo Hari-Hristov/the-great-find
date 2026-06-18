@@ -161,7 +161,7 @@ function AlertDetailPage() {
     <>
       <Topbar
         title={search?.name ?? `Search #${searchId}`}
-        subtitle={`${items.filter((a) => a.listing_status === "active").length} alert${items.filter((a) => a.listing_status === "active").length === 1 ? "" : "s"}`}
+        subtitle={`${items.length} alert${items.length === 1 ? "" : "s"}`}
         back={{ to: "/dashboard/alerts", label: "Back to alerts" }}
       />
 

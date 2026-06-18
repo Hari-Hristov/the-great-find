@@ -438,29 +438,6 @@ func (r *runner) poll(ctx context.Context) error {
 		}
 	}
 
-	// Mark active listings that didn't appear in this cycle as removed.
-	// Skip when the scraper returned nothing — an empty result set most likely
-	// means a transient fetch failure, not that every listing vanished at once.
-	if len(listings) > 0 {
-		seenIDs := make([]string, len(listings))
-		for i, l := range listings {
-			seenIDs[i] = l.ExternalID
-		}
-		if n, err := r.parent.queries.MarkUnseenListingsRemoved(ctx, r.search.ID, seenIDs); err != nil {
-			if ctx.Err() == nil {
-				r.parent.logger.Warn("mark unseen listings removed failed",
-					"search_id", r.search.ID, "err", err)
-			}
-		} else if n > 0 {
-			r.parent.logger.Info("listings marked removed (not seen in poll)",
-				"search_id", r.search.ID, "count", n)
-			r.parent.bus.Publish(events.Event{
-				Type:    events.TypeListingRemoved,
-				Payload: map[string]any{"search_id": r.search.ID, "count": n},
-			})
-		}
-	}
-
 	if err := r.parent.queries.UpdateSavedSearchPolledAt(ctx, r.search.ID, time.Now().UTC()); err != nil {
 		return fmt.Errorf("mark polled: %w", err)
 	}

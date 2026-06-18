@@ -260,6 +260,9 @@ func (s *Store) MarkStaleListingsRemoved(ctx context.Context, staleDays int) (in
 }
 
 func (s *Store) MarkUnseenListingsRemoved(ctx context.Context, searchID int64, seenExternalIDs []string) (int64, error) {
+	if len(seenExternalIDs) == 0 {
+		return 0, nil
+	}
 	placeholders := strings.Repeat("?,", len(seenExternalIDs))
 	placeholders = placeholders[:len(placeholders)-1] // trim trailing comma
 	q := fmt.Sprintf(`
