@@ -438,6 +438,29 @@ func (r *runner) poll(ctx context.Context) error {
 		}
 	}
 
+	// Mark listings previously linked to this search that were NOT seen in this
+	// poll cycle as removed. This catches items that disappear from the platform
+	// between polls (e.g., seller deletes the ad). Only run when the poll returned
+	// at least one listing — an empty result likely signals a fetch issue rather
+	// than all listings being gone.
+	if len(listings) > 0 {
+		seenIDs := make([]string, 0, len(listings))
+		for _, l := range listings {
+			seenIDs = append(seenIDs, l.ExternalID)
+		}
+		n, err := r.parent.queries.MarkUnseenListingsRemoved(ctx, r.search.ID, seenIDs)
+		if err != nil {
+			r.parent.logger.Error("mark unseen listings removed failed",
+				"search_id", r.search.ID, "err", err)
+		} else if n > 0 {
+			r.parent.logger.Info("unseen listings marked removed",
+				"search_id", r.search.ID, "count", n)
+			r.publishListingEvent(events.TypeListingRemoved, map[string]any{
+				"search_id": r.search.ID, "count": n,
+			})
+		}
+	}
+
 	if err := r.parent.queries.UpdateSavedSearchPolledAt(ctx, r.search.ID, time.Now().UTC()); err != nil {
 		return fmt.Errorf("mark polled: %w", err)
 	}
