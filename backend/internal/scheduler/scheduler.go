@@ -137,9 +137,12 @@ type Scheduler struct {
 	mu      sync.Mutex
 	runners map[int64]*runner
 
-	wg     sync.WaitGroup
+	wg sync.WaitGroup
+	// rootCtx is held on the struct so PollSearchByID/PollAll can detach polls
+	// from the request ctx without re-deriving from the parent — a poll must
+	// outlive the HTTP handler that triggered it.
 	rootCtx context.Context
-	cancel context.CancelFunc
+	cancel  context.CancelFunc
 }
 
 // DefaultMaxListingAge is the production recency cutoff — drop anything older.
@@ -261,7 +264,6 @@ func (s *Scheduler) PollSearchByID(ctx context.Context, id int64) error {
 				"search_id", r.search.ID, "name", r.search.Name, "err", err)
 		}
 	}()
-	_ = ctx
 	return nil
 }
 
@@ -284,7 +286,6 @@ func (s *Scheduler) PollAll(ctx context.Context) int {
 			}
 		}()
 	}
-	_ = ctx
 	return len(runners)
 }
 
@@ -326,6 +327,17 @@ func (r *runner) loop(ctx context.Context) {
 	}
 }
 
+func (r *runner) failPoll(err error) {
+	r.parent.bus.Publish(events.Event{
+		Type:    events.TypePollFailed,
+		Payload: map[string]any{"search_id": r.search.ID, "err": err.Error()},
+	})
+}
+
+func (r *runner) publishListingEvent(t events.Type, payload map[string]any) {
+	r.parent.bus.Publish(events.Event{Type: t, Payload: payload})
+}
+
 func (r *runner) poll(ctx context.Context) error {
 	r.parent.bus.Publish(events.Event{
 		Type: events.TypePollStarted,
@@ -341,19 +353,13 @@ func (r *runner) poll(ctx context.Context) error {
 		// Tests that exercise runner lifecycle without polling pass a nil
 		// fetcher — drop the cycle as a soft poll-failure rather than panic.
 		err := errors.New("scheduler: no fetcher configured")
-		r.parent.bus.Publish(events.Event{
-			Type:    events.TypePollFailed,
-			Payload: map[string]any{"search_id": r.search.ID, "err": err.Error()},
-		})
+		r.failPoll(err)
 		return err
 	}
 
 	listings, err := r.fetchAllVariants(ctx)
 	if err != nil {
-		r.parent.bus.Publish(events.Event{
-			Type:    events.TypePollFailed,
-			Payload: map[string]any{"search_id": r.search.ID, "err": err.Error()},
-		})
+		r.failPoll(err)
 		return fmt.Errorf("fetch listings: %w", err)
 	}
 
@@ -466,14 +472,12 @@ func (r *runner) processListing(ctx context.Context, l scraper.Listing, cfg *par
 	}
 
 	if isNew {
-		r.parent.bus.Publish(events.Event{
-			Type:    events.TypeListingNew,
-			Payload: map[string]any{"id": stored.ID, "search_id": r.search.ID, "title": l.Title, "url": l.URL},
+		r.publishListingEvent(events.TypeListingNew, map[string]any{
+			"id": stored.ID, "search_id": r.search.ID, "title": l.Title, "url": l.URL,
 		})
 	} else {
-		r.parent.bus.Publish(events.Event{
-			Type:    events.TypeListingUpdated,
-			Payload: map[string]any{"id": stored.ID, "search_id": r.search.ID},
+		r.publishListingEvent(events.TypeListingUpdated, map[string]any{
+			"id": stored.ID, "search_id": r.search.ID,
 		})
 	}
 

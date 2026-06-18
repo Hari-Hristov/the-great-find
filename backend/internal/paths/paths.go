@@ -25,10 +25,7 @@ import (
 const (
 	appDirName = "the-great-find"
 
-	dbFileName     = "the-great-find.db"
-	configFileName = "config.toml"
-	lockFileName   = "the-great-find.lock"
-	parserCacheFN  = "parser-config-cache.json"
+	dbFileName = "the-great-find.db"
 
 	envDataDirOverride = "THE_GREAT_FIND_DATA_DIR"
 )
@@ -53,13 +50,7 @@ func DataDir() (string, error) {
 	return dir, nil
 }
 
-// DBPath, ConfigPath, LockPath, ParserCachePath all live under DataDir.
-// Each is a thin convenience wrapper — callers should use these instead of joining manually.
-
-func DBPath() (string, error)          { return joinIn(DataDir, dbFileName) }
-func ConfigPath() (string, error)      { return joinIn(DataDir, configFileName) }
-func LockPath() (string, error)        { return joinIn(DataDir, lockFileName) }
-func ParserCachePath() (string, error) { return joinIn(DataDir, parserCacheFN) }
+func DBPath() (string, error) { return joinIn(DataDir, dbFileName) }
 
 func joinIn(dirFn func() (string, error), file string) (string, error) {
 	dir, err := dirFn()

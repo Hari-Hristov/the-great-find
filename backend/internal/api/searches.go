@@ -39,6 +39,13 @@ func (in SavedSearchInput) defaults() SavedSearchInput {
 	return in
 }
 
+func resolveActive(in SavedSearchInput) bool {
+	if in.Active != nil {
+		return *in.Active
+	}
+	return true
+}
+
 func (in SavedSearchInput) validate() error {
 	if len(in.QueryParams) == 0 {
 		return huma.Error400BadRequest("query_params is required")
@@ -62,22 +69,12 @@ func registerSearches(api huma.API, q Queries, sched Reloader) {
 		Method:      "GET",
 		Path:        "/searches",
 		Summary:     "List saved searches",
-	}, func(ctx context.Context, _ *struct{}) (*struct {
-		Body struct {
-			Items []SavedSearchRow `json:"items"`
-		}
-	}, error) {
+	}, func(ctx context.Context, _ *struct{}) (*struct{ Body ListSearchesResponse }, error) {
 		rows, err := q.ListAllSavedSearches(ctx)
 		if err != nil {
 			return nil, err
 		}
-		out := &struct {
-			Body struct {
-				Items []SavedSearchRow `json:"items"`
-			}
-		}{}
-		out.Body.Items = rows
-		return out, nil
+		return &struct{ Body ListSearchesResponse }{Body: ListSearchesResponse{Items: rows}}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -111,10 +108,6 @@ func registerSearches(api huma.API, q Queries, sched Reloader) {
 		if err := body.validate(); err != nil {
 			return nil, err
 		}
-		active := true
-		if body.Active != nil {
-			active = *body.Active
-		}
 		row, err := q.CreateSavedSearch(ctx, CreateSavedSearchInput{
 			Name:              body.Name,
 			Platform:          body.Platform,
@@ -123,7 +116,7 @@ func registerSearches(api huma.API, q Queries, sched Reloader) {
 			AlertCriteria:     string(body.AlertCriteria),
 			PollIntervalMin:   body.PollIntervalMin,
 			MaxListingAgeDays: body.MaxListingAgeDays,
-			Active:            active,
+			Active:            resolveActive(body),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("create saved search: %w", err)
@@ -147,10 +140,6 @@ func registerSearches(api huma.API, q Queries, sched Reloader) {
 		if err := body.validate(); err != nil {
 			return nil, err
 		}
-		active := true
-		if body.Active != nil {
-			active = *body.Active
-		}
 		row, err := q.UpdateSavedSearch(ctx, UpdateSavedSearchInput{
 			ID:                in.ID,
 			Name:              body.Name,
@@ -158,7 +147,7 @@ func registerSearches(api huma.API, q Queries, sched Reloader) {
 			AlertCriteria:     string(body.AlertCriteria),
 			PollIntervalMin:   body.PollIntervalMin,
 			MaxListingAgeDays: body.MaxListingAgeDays,
-			Active:            active,
+			Active:            resolveActive(body),
 		})
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
@@ -217,18 +206,8 @@ func registerSearches(api huma.API, q Queries, sched Reloader) {
 		Path:          "/searches/poll",
 		Summary:       "Trigger an immediate poll for every active saved search",
 		DefaultStatus: 202,
-	}, func(ctx context.Context, _ *struct{}) (*struct {
-		Body struct {
-			Count int `json:"count" doc:"Number of polls fired."`
-		}
-	}, error) {
+	}, func(ctx context.Context, _ *struct{}) (*struct{ Body PollAllSearchesResponse }, error) {
 		count := sched.PollAll(ctx)
-		out := &struct {
-			Body struct {
-				Count int `json:"count" doc:"Number of polls fired."`
-			}
-		}{}
-		out.Body.Count = count
-		return out, nil
+		return &struct{ Body PollAllSearchesResponse }{Body: PollAllSearchesResponse{Count: count}}, nil
 	})
 }

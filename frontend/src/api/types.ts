@@ -110,3 +110,16 @@ export interface Analytics {
   dom_median_days?: number;
   absorption_per_week?: number;
 }
+
+export type EventName =
+  | "alert.fired"
+  | "listing.new"
+  | "listing.updated"
+  | "poll.finished"
+  | string;
+
+export interface BusEvent {
+  name: EventName;
+  data: unknown;
+  receivedAt: number;
+}

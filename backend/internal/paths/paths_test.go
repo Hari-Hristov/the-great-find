@@ -51,9 +51,6 @@ func TestPathHelpers_AllUnderDataDir(t *testing.T) {
 		want string
 	}{
 		{"DBPath", DBPath, dbFileName},
-		{"ConfigPath", ConfigPath, configFileName},
-		{"LockPath", LockPath, lockFileName},
-		{"ParserCachePath", ParserCachePath, parserCacheFN},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

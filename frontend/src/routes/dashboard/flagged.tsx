@@ -4,7 +4,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useListings, useUnhideListing } from "@/api/hooks/queries";
-import { formatEUR, relativeTime } from "@/lib/utils";
+import { formatEUR, relativeTime, sortByPostedAtDesc } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard/flagged")({
   component: FlaggedPage,
@@ -14,12 +14,7 @@ function FlaggedPage() {
   const listings = useListings({ status: "hidden", limit: 500 });
   const unhide = useUnhideListing();
 
-  const items = [...(listings.data?.items ?? [])].sort((a, b) => {
-    if (!a.posted_at && !b.posted_at) return 0;
-    if (!a.posted_at) return 1;
-    if (!b.posted_at) return -1;
-    return b.posted_at.localeCompare(a.posted_at);
-  });
+  const items = [...(listings.data?.items ?? [])].sort(sortByPostedAtDesc);
 
   return (
     <>

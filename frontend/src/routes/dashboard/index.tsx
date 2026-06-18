@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Pagination } from "@/components/ui/pagination";
 import { useAlerts, useListings, useSearches } from "@/api/hooks/queries";
 import { formatEUR, relativeTime } from "@/lib/utils";
+import { tagBg } from "@/lib/tagColors";
 
 export const Route = createFileRoute("/dashboard/")({
   component: OverviewPage,
@@ -12,21 +13,6 @@ export const Route = createFileRoute("/dashboard/")({
 
 const RECENT_PAGE_SIZE = 10;
 const RECENT_TOTAL_CAP = 100;
-
-const TAG_BG: Record<string, string> = {
-  red: "bg-red-500",
-  orange: "bg-orange-400",
-  yellow: "bg-yellow-400",
-  green: "bg-green-500",
-  blue: "bg-blue-500",
-  purple: "bg-purple-500",
-  pink: "bg-pink-400",
-};
-
-function tagBg(color?: string): string {
-  if (!color) return "bg-zinc-500";
-  return TAG_BG[color] ?? "bg-zinc-500";
-}
 
 function OverviewPage() {
   const searches = useSearches();

@@ -35,7 +35,7 @@ func registerNotificationSettings(api huma.API, store AppStateStore) {
 		Path:        "/settings/notifications",
 		Summary:     "Returns current SMTP notification configuration (password redacted if set)",
 	}, func(ctx context.Context, _ *struct{}) (*struct{ Body NotificationSettingsBody }, error) {
-		cfg, err := loadSMTPConfig(ctx, store)
+		cfg, err := LoadSMTPConfig(ctx, store)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("load config", err)
 		}
@@ -63,13 +63,11 @@ func registerNotificationSettings(api huma.API, store AppStateStore) {
 	}, func(ctx context.Context, in *putInput) (*struct{}, error) {
 		b := in.Body
 
-		// If the client sends the redacted placeholder, preserve the existing password.
 		if b.Password == "••••" {
 			existing, err := store.GetAppState(ctx, "smtp_password_enc")
 			if err != nil {
 				return nil, huma.Error500InternalServerError("load existing password", err)
 			}
-			// Put back the already-encrypted value directly — skip re-encrypting.
 			if err := store.SetAppState(ctx, "smtp_password_enc", existing); err != nil {
 				return nil, huma.Error500InternalServerError("save password", err)
 			}
@@ -83,21 +81,19 @@ func registerNotificationSettings(api huma.API, store AppStateStore) {
 			}
 		}
 
-		if err := store.SetAppState(ctx, "smtp_host", b.Host); err != nil {
-			return nil, huma.Error500InternalServerError("save host", err)
+		entries := []struct {
+			key, val, label string
+		}{
+			{"smtp_host", b.Host, "host"},
+			{"smtp_port", strconv.Itoa(b.Port), "port"},
+			{"smtp_username", b.Username, "username"},
+			{"smtp_from", b.FromAddr, "from"},
+			{"smtp_to", b.ToAddr, "to"},
 		}
-		port := strconv.Itoa(b.Port)
-		if err := store.SetAppState(ctx, "smtp_port", port); err != nil {
-			return nil, huma.Error500InternalServerError("save port", err)
-		}
-		if err := store.SetAppState(ctx, "smtp_username", b.Username); err != nil {
-			return nil, huma.Error500InternalServerError("save username", err)
-		}
-		if err := store.SetAppState(ctx, "smtp_from", b.FromAddr); err != nil {
-			return nil, huma.Error500InternalServerError("save from", err)
-		}
-		if err := store.SetAppState(ctx, "smtp_to", b.ToAddr); err != nil {
-			return nil, huma.Error500InternalServerError("save to", err)
+		for _, e := range entries {
+			if err := store.SetAppState(ctx, e.key, e.val); err != nil {
+				return nil, huma.Error500InternalServerError("save "+e.label, err)
+			}
 		}
 		return nil, nil
 	})
@@ -106,10 +102,6 @@ func registerNotificationSettings(api huma.API, store AppStateStore) {
 // LoadSMTPConfig reads and decrypts the SMTP configuration from app_state.
 // Exported so main.go can call it at startup.
 func LoadSMTPConfig(ctx context.Context, store AppStateStore) (notify.SMTPConfig, error) {
-	return loadSMTPConfig(ctx, store)
-}
-
-func loadSMTPConfig(ctx context.Context, store AppStateStore) (notify.SMTPConfig, error) {
 	get := func(key string) (string, error) {
 		return store.GetAppState(ctx, key)
 	}
