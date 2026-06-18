@@ -30,7 +30,7 @@ function ActiveConsoles({ stateRef }: { stateRef: MutableRefObject<SceneState> }
   });
 
   const show3ds = section === "3ds-hero" || section === "portal-dive";
-  const showSwitch = section === "switch-emergence" || section === "pivot";
+  const showSwitch = section === "switch-emergence" || section === "pivot" || section === "screen-dive";
   const showDeck = section === "steam-deck" || section === "delivery";
 
   return (
@@ -45,10 +45,12 @@ function ActiveConsoles({ stateRef }: { stateRef: MutableRefObject<SceneState> }
 export function ConsoleStage({ stateRef }: { stateRef: MutableRefObject<SceneState> }) {
   return (
     <group>
+      <ambientLight intensity={0.6} />
       <DriftLight offset={0} />
       <DriftLight offset={Math.PI} />
       <pointLight position={[5, 5, 5]} intensity={2.2} color="#ffffff" />
       <pointLight position={[-4, -2, 3]} intensity={1.0} color="#8855ff" />
+      <pointLight position={[0, 0, -6]} intensity={1.2} color="#aabbff" />
       {SPARKLE_COLORS.map((color, i) => (
         <Sparkles
           key={color}

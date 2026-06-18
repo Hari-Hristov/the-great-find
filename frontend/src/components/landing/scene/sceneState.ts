@@ -5,14 +5,12 @@ import type { Section } from "./types";
 export interface SceneState {
   section: Section;
   sectionProgress: number;
-  glitchActive: boolean;
 }
 
 function createSceneState(): SceneState {
   return {
     section: "cold-open",
     sectionProgress: 0,
-    glitchActive: false,
   };
 }
 
