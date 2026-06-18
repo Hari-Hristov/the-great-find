@@ -87,15 +87,20 @@ func registerAnalytics(api huma.API, q Queries) {
 	}, func(ctx context.Context, in *struct {
 		ID          int64    `path:"id"`
 		WindowDays  int      `query:"window_days" required:"false" minimum:"1" maximum:"365" default:"30"`
+		Scope       string   `query:"scope" required:"false" default:"active" enum:"active,inactive"`
 		PriceEURMin float64  `query:"price_eur_min" required:"false"`
 		PriceEURMax float64  `query:"price_eur_max" required:"false"`
 	}) (*struct{ Body AnalyticsRow }, error) {
 		f := AnalyticsFilter{
 			SearchID:   in.ID,
 			WindowDays: in.WindowDays,
+			Scope:      in.Scope,
 		}
 		if f.WindowDays == 0 {
 			f.WindowDays = 30
+		}
+		if f.Scope == "" {
+			f.Scope = "active"
 		}
 		if in.PriceEURMin > 0 {
 			v := in.PriceEURMin
