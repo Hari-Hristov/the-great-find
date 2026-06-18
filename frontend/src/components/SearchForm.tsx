@@ -227,11 +227,7 @@ export function SearchForm(props: SearchFormProps) {
           ))}
         </datalist>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          {mode === "create" ? (
-            <>Path from olx.bg URL after the domain — known slugs are suggested as you type.</>
-          ) : (
-            <>Path from olx.bg URL after the domain — known slugs are suggested as you type.</>
-          )}
+          Path from olx.bg URL after the domain — known slugs are suggested as you type.
         </p>
       </div>
       <div>

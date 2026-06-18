@@ -64,7 +64,7 @@ type Reloader interface {
 func New(q Queries, sched Reloader, cfg ConfigProvider) http.Handler {
 	r := chi.NewRouter()
 	humaCfg := huma.DefaultConfig("the-great-find", "0.1.0")
-	humaCfg.Info.Description = "Local-only API for the the-great-find dashboard. Bound to 127.0.0.1; no auth (OS user is the security boundary)."
+	humaCfg.Info.Description = "Local-only API for the-great-find dashboard. Bound to 127.0.0.1; no auth (OS user is the security boundary)."
 	api := humachi.New(r, humaCfg)
 
 	registerSearches(api, q, sched)

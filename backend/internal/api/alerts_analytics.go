@@ -75,10 +75,18 @@ func registerAnalytics(api huma.API, q Queries) {
 		Path:        "/analytics/searches/{id}",
 		Summary:     "Per-search analytics: min/avg/count plus a daily EUR trend",
 	}, func(ctx context.Context, in *SearchAnalyticsInput) (*struct{ Body AnalyticsRow }, error) {
+		windowDays := in.WindowDays
+		if windowDays == 0 {
+			windowDays = 30
+		}
+		scope := in.Scope
+		if scope == "" {
+			scope = "active"
+		}
 		f := AnalyticsFilter{
 			SearchID:   in.ID,
-			WindowDays: in.WindowDays,
-			Scope:      in.Scope,
+			WindowDays: windowDays,
+			Scope:      scope,
 		}
 		if in.PriceEURMin > 0 {
 			v := in.PriceEURMin
