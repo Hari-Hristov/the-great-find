@@ -154,6 +154,9 @@ func (f *fakeQueries) MarkStaleListingsRemoved(_ context.Context, staleDays int)
 }
 
 func (f *fakeQueries) MarkUnseenListingsRemoved(_ context.Context, searchID int64, seenIDs []string) (int64, error) {
+	if len(seenIDs) == 0 {
+		return 0, nil
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.unseenCalls = append(f.unseenCalls, unseenCall{searchID: searchID, seenExternalIDs: seenIDs})
@@ -668,19 +671,18 @@ func TestStaleSweepLoop_NoEventOnZeroUpdates(t *testing.T) {
 
 func TestMarkUnseenListingsRemoved_EmptyInput(t *testing.T) {
 	q := newFakeQueries()
-	q.unseenN = 5 // would return 5 if called
+	q.unseenN = 5 // would return 5 if called without the early-return guard
 
 	bus := events.NewBus(8)
 	defer bus.Close()
 	s := New(q, nil, testParserStore(t), bus, nil)
-	_ = s // just verifying the store function handles empty slice
 
-	// Directly test the store-level guard via the fake — the real Store has
-	// the defensive check, so MarkUnseenListingsRemoved should early-return 0
-	// when called with empty IDs. The fake mirrors that expectation.
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	if len(q.unseenCalls) != 0 {
-		t.Fatalf("expected no unseen calls, got %d", len(q.unseenCalls))
+	// Call with empty slice — must return (0, nil) without panicking.
+	n, err := s.queries.MarkUnseenListingsRemoved(context.Background(), 1, []string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("expected 0 rows affected, got %d", n)
 	}
 }

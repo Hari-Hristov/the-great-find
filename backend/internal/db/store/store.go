@@ -263,8 +263,7 @@ func (s *Store) MarkUnseenListingsRemoved(ctx context.Context, searchID int64, s
 	if len(seenExternalIDs) == 0 {
 		return 0, nil
 	}
-	placeholders := strings.Repeat("?,", len(seenExternalIDs))
-	placeholders = placeholders[:len(placeholders)-1] // trim trailing comma
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(seenExternalIDs)), ",")
 	q := fmt.Sprintf(`
 		UPDATE listings
 		SET status = 'removed', scraped_last_at = strftime('%%Y-%%m-%%dT%%H:%%M:%%fZ','now')
