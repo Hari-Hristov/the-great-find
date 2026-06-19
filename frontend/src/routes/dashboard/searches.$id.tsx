@@ -42,6 +42,14 @@ function SearchDetailPage() {
     price_eur_max: priceMax,
   }, { enabled: !!search.data });
 
+  const inactiveListings = useListings({
+    search_id: id,
+    status: "removed",
+    limit: 200,
+    price_eur_min: priceMin,
+    price_eur_max: priceMax,
+  }, { enabled: !!search.data });
+
   const poll = usePollSearch();
   const hide = useHideListing();
   const [editing, setEditing] = useState(false);
@@ -108,7 +116,7 @@ function SearchDetailPage() {
           <CardHeader>
             <CardTitle>Listings</CardTitle>
             <CardDescription>
-              {listings.data?.total ?? 0} matched
+              {listings.data?.total ?? 0} active · {inactiveListings.data?.total ?? 0} inactive
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -125,9 +133,7 @@ function SearchDetailPage() {
                       {l.title}
                     </a>
                     <div className="mt-1 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-                      <Badge variant={l.status === "active" ? "success" : "secondary"}>
-                        {l.status}
-                      </Badge>
+                      <Badge variant="success">{l.status}</Badge>
                       <span>{l.location_city ?? "—"}</span>
                       <span>·</span>
                       <span>posted {relativeTime(l.posted_at)}</span>
@@ -150,6 +156,43 @@ function SearchDetailPage() {
                   </div>
                 </li>
               ))}
+              {(inactiveListings.data?.items?.length ?? 0) > 0 && (
+                [...(inactiveListings.data?.items ?? [])].sort(sortByPostedAtDesc).map((l) => (
+                  <li key={l.id} className="flex items-center justify-between py-3 opacity-50">
+                    <div className="min-w-0 flex-1 pr-4">
+                      <a
+                        href={l.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block truncate text-sm hover:text-[var(--color-accent)]"
+                      >
+                        {l.title}
+                      </a>
+                      <div className="mt-1 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                        <Badge variant="secondary">inactive</Badge>
+                        <span>{l.location_city ?? "—"}</span>
+                        <span>·</span>
+                        <span>posted {relativeTime(l.posted_at)}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="font-mono text-sm tabular-nums">
+                        {formatEUR(l.price_eur)}
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label="Hide listing"
+                        disabled={hide.isPending}
+                        onClick={() => hide.mutate(l.id)}
+                        className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
+                      >
+                        <EyeOff className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </li>
+                ))
+              )}
             </ul>
           </CardContent>
         </Card>
