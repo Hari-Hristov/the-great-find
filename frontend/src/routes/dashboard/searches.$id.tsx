@@ -1,5 +1,5 @@
 import { createFileRoute, useParams, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { EyeOff, Pencil, RefreshCw, ShieldAlert, X } from "lucide-react";
+import { EyeOff, Loader2, Pencil, RefreshCw, ShieldAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,8 @@ function SearchDetailPage() {
   const poll = usePollSearch();
   const hide = useHideListing();
   const [editing, setEditing] = useState(false);
+
+  const isBusy = poll.isPending || listings.isFetching || inactiveListings.isFetching;
 
   const subtitle = search.data
     ? `${search.data.platform} · ${search.data.country} · every ${search.data.poll_interval_min}m`
@@ -119,7 +121,12 @@ function SearchDetailPage() {
               {listings.data?.total ?? 0} active · {inactiveListings.data?.total ?? 0} inactive
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
+            {isBusy && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded bg-[var(--color-bg-card)]/60 backdrop-blur-[2px] pointer-events-none">
+                <Loader2 className="h-6 w-6 animate-spin text-[var(--color-text-muted)]" />
+              </div>
+            )}
             <ul className="divide-y divide-[var(--color-border-subtle)]">
               {[...(listings.data?.items ?? [])].sort(sortByPostedAtDesc).map((l) => (
                 <li key={l.id} className="flex items-center justify-between py-3">
