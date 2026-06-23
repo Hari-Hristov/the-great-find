@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Menu } from "lucide-react";
 import { useEventStreamContext } from "@/contexts/EventStreamContext";
 import { cn } from "@/lib/utils";
 
@@ -8,14 +8,24 @@ interface TopbarProps {
   subtitle?: string;
   back?: { to: string; label?: string };
   actions?: React.ReactNode;
+  onMenuClick?: () => void;
 }
 
-export function Topbar({ title, subtitle, back, actions }: TopbarProps) {
+export function Topbar({ title, subtitle, back, actions, onMenuClick }: TopbarProps) {
   const { connected } = useEventStreamContext();
 
   return (
     <header className="flex items-center justify-between border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] px-6 py-4">
       <div className="flex items-center gap-3">
+        {onMenuClick && (
+          <button
+            onClick={onMenuClick}
+            aria-label="Open menu"
+            className="grid h-9 w-9 place-items-center rounded-md border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-primary)]"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+        )}
         {back ? (
           <Link
             to={back.to}

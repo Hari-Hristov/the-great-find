@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bell, EyeOff, LayoutDashboard, Search, Settings } from "lucide-react";
+import { Bell, EyeOff, LayoutDashboard, Search, Settings, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -18,20 +18,42 @@ const items: NavItem[] = [
 
 interface SidebarProps {
   emailUnconfigured?: boolean;
+  open?: boolean;
+  onClose?: () => void;
 }
 
-export function Sidebar({ emailUnconfigured }: SidebarProps) {
+export function Sidebar({ emailUnconfigured, open, onClose }: SidebarProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
-    <aside className="flex h-full w-56 shrink-0 flex-col border-r border-[var(--color-border-subtle)] bg-[var(--color-bg-elev)] px-3 py-5">
-      <div className="mb-8 flex items-center gap-2 px-2">
-        <div className="grid h-7 w-7 place-items-center rounded-md bg-[var(--color-accent)] text-[var(--color-bg-base)]">
-          <span className="font-display text-sm font-bold">+</span>
+    <aside
+      className={cn(
+        // base — shared between mobile drawer and desktop static
+        "flex h-full w-56 shrink-0 flex-col border-r border-[var(--color-border-subtle)] bg-[var(--color-bg-elev)] px-3 py-5",
+        // desktop: always visible in the normal flow
+        "lg:relative lg:translate-x-0 lg:shadow-none",
+        // mobile/tablet: fixed drawer, slides in/out
+        "fixed inset-y-0 left-0 z-40 transition-transform duration-200 lg:flex",
+        open ? "translate-x-0 shadow-2xl" : "-translate-x-full",
+      )}
+    >
+      <div className="mb-8 flex items-center justify-between gap-2 px-2">
+        <div className="flex items-center gap-2">
+          <div className="grid h-7 w-7 place-items-center rounded-md bg-[var(--color-accent)] text-[var(--color-bg-base)]">
+            <span className="font-display text-sm font-bold">+</span>
+          </div>
+          <span className="font-display text-sm font-semibold tracking-tight">
+            the great find
+          </span>
         </div>
-        <span className="font-display text-sm font-semibold tracking-tight">
-          the great find
-        </span>
+        {/* Close button — only visible on mobile/tablet */}
+        <button
+          onClick={onClose}
+          aria-label="Close menu"
+          className="grid h-7 w-7 place-items-center rounded-md text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-primary)] lg:hidden"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
       <nav className="flex flex-col gap-1">
@@ -46,6 +68,7 @@ export function Sidebar({ emailUnconfigured }: SidebarProps) {
             <Link
               key={item.to}
               to={item.to}
+              onClick={onClose}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
                 active

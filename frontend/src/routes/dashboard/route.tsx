@@ -2,6 +2,7 @@ import { Outlet, createFileRoute, useRouterState, Link } from "@tanstack/react-r
 import { useState } from "react";
 import { X } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { Topbar } from "@/components/layout/Topbar";
 import { useNotificationSettings } from "@/api/hooks/queries";
 
 const EMAIL_DISMISSED_KEY = "email_setup_dismissed_until";
@@ -21,6 +22,7 @@ function DashboardLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const hideSidebar = pathname === "/dashboard/searches/new";
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dismissed, setDismissed] = useState(() => isDismissed());
   const { data: notifSettings, isSuccess } = useNotificationSettings();
 
@@ -33,8 +35,33 @@ function DashboardLayout() {
 
   return (
     <div className="flex h-full w-full bg-[var(--color-bg-base)]">
-      {!hideSidebar && <Sidebar emailUnconfigured={isSuccess && !notifSettings?.smtp_host} />}
+      {!hideSidebar && (
+        <>
+          {/* Backdrop — mobile/tablet only */}
+          {sidebarOpen && (
+            <div
+              className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+          <Sidebar
+            emailUnconfigured={isSuccess && !notifSettings?.smtp_host}
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+          />
+        </>
+      )}
+
       <main className="flex flex-1 flex-col overflow-hidden">
+        {/* Mobile topbar — only rendered on small screens, provides the hamburger */}
+        {!hideSidebar && (
+          <div className="lg:hidden">
+            <Topbar
+              title="the great find"
+              onMenuClick={() => setSidebarOpen(true)}
+            />
+          </div>
+        )}
         <Outlet />
       </main>
 
