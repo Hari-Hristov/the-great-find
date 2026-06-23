@@ -1,17 +1,29 @@
 import { useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import type { SceneState } from "./sceneState";
 import { CAMERA_BY_SECTION } from "./scrollDriver";
 
+// The FOV values in CAMERA_BY_SECTION were tuned at this viewport height.
+// We scale the target FOV so the vertical composition is identical at any screen size.
+const REFERENCE_HEIGHT = 900;
+
 const _pos = new THREE.Vector3();
 const _target = new THREE.Vector3();
+
+function scaledFov(designFovDeg: number, viewportHeight: number): number {
+  if (viewportHeight <= 0) return designFovDeg;
+  const halfFovRad = (designFovDeg * Math.PI) / 360;
+  const scaledHalfRad = Math.atan(Math.tan(halfFovRad) * (REFERENCE_HEIGHT / viewportHeight));
+  return (scaledHalfRad * 360) / Math.PI;
+}
 
 export function ScrollCameraRig({ stateRef }: { stateRef: MutableRefObject<SceneState> }) {
   const currentPos = useRef(new THREE.Vector3(0, 0, 6));
   const currentTarget = useRef(new THREE.Vector3(0, 0, 0));
   const currentFov = useRef(45);
+  const { size } = useThree();
 
   useFrame(({ camera }, delta) => {
     const { section, sectionProgress } = stateRef.current;
@@ -29,7 +41,8 @@ export function ScrollCameraRig({ stateRef }: { stateRef: MutableRefObject<Scene
     camera.lookAt(currentTarget.current);
 
     const cam = camera as THREE.PerspectiveCamera;
-    currentFov.current += (cfg.fov - currentFov.current) * lerpFactor;
+    const targetFov = scaledFov(cfg.fov, size.height);
+    currentFov.current += (targetFov - currentFov.current) * lerpFactor;
     cam.fov = currentFov.current;
     cam.updateProjectionMatrix();
 

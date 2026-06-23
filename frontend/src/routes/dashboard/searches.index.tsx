@@ -53,7 +53,7 @@ function SearchesPage() {
           </Link>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {(searches.data ?? []).map((s) => (
             <SearchCard key={s.id} search={s} />
           ))}

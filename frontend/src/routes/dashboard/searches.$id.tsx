@@ -1,5 +1,5 @@
 import { createFileRoute, useParams, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { EyeOff, Loader2, Pencil, RefreshCw, ShieldAlert, X } from "lucide-react";
+import { EyeOff, Loader2, MoreHorizontal, Pencil, RefreshCw, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { SearchForm } from "@/components/SearchForm";
 import { useHideListing, useListings, usePollSearch, useSearch } from "@/api/hooks/queries";
 import { formatEUR, relativeTime, sortByPostedAtDesc } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { SavedSearch } from "@/api/types";
 
 export const Route = createFileRoute("/dashboard/searches/$id")({
@@ -66,36 +67,42 @@ function SearchDetailPage() {
         title={search.data?.name ?? "Search"}
         subtitle={subtitle}
         back={{ to: "/dashboard/searches", label: "Back to searches" }}
-        actions={
-          <div className="flex items-center gap-2">
-            {search.data && <DetailsPopover search={search.data} />}
-            <Link
-              to="/dashboard/searches/$id/analytics"
-              params={{ id: idParam }}
-              className="inline-flex h-8 items-center gap-2 rounded-[var(--radius-button)] border border-[var(--color-border-subtle)] px-3 text-sm font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-base)]"
-            >
-              Analytics
-            </Link>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setEditing((v) => !v)}
-            >
-              <Pencil className="h-4 w-4" />
-              {editing ? "Cancel edit" : "Edit"}
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={poll.isPending}
-              onClick={() => poll.mutate(id)}
-            >
-              <RefreshCw className={`h-4 w-4 ${poll.isPending ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-          </div>
-        }
+        actions={search.data ? <DetailsOverflow search={search.data} /> : undefined}
       />
+
+      {/* Action strip — sits between topbar and content, always visible */}
+      <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] px-6 py-2">
+        <div className="flex items-center gap-1">
+          <Link
+            to="/dashboard/searches/$id/analytics"
+            params={{ id: idParam }}
+            className="inline-flex h-8 items-center gap-2 rounded-[var(--radius-button)] px-3 text-sm font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-primary)]"
+          >
+            Analytics
+          </Link>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setEditing((v) => !v)}
+            aria-label={editing ? "Cancel editing" : "Edit"}
+          >
+            <Pencil className="h-4 w-4" />
+            <span className="hidden sm:inline">{editing ? "Cancel" : "Edit"}</span>
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={poll.isPending}
+            onClick={() => poll.mutate(id)}
+            aria-label="Refresh"
+          >
+            <RefreshCw className={`h-4 w-4 ${poll.isPending ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </Button>
+        </div>
+      </div>
 
       <div className="flex-1 overflow-auto px-6 py-6">
         {editing && search.data ? (
@@ -208,7 +215,7 @@ function SearchDetailPage() {
   );
 }
 
-function DetailsPopover({ search }: { search: SavedSearch }) {
+function DetailsOverflow({ search }: { search: SavedSearch }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -228,14 +235,17 @@ function DetailsPopover({ search }: { search: SavedSearch }) {
 
   return (
     <div ref={ref} className="relative">
-      <Button
-        size="sm"
-        variant={open ? "secondary" : "ghost"}
+      <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
+        aria-label="More details"
+        className={cn(
+          "grid h-9 w-9 place-items-center rounded-md border border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-primary)]",
+          open ? "bg-[var(--color-bg-card)] text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)]",
+        )}
       >
-        <ShieldAlert className="h-4 w-4" />
-        Details
-      </Button>
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
 
       {open && (
         <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded border border-[var(--color-terminal-border)] bg-[var(--color-terminal-bg)] shadow-lg" style={{ boxShadow: `0 0 24px var(--color-terminal-shadow), 0 4px 24px rgba(0,0,0,0.6)` }}>
