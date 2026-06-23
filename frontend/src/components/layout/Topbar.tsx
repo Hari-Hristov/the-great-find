@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Menu } from "lucide-react";
 import { useEventStreamContext } from "@/contexts/EventStreamContext";
+import { useSidebarContext } from "@/contexts/SidebarContext";
 import { cn } from "@/lib/utils";
 
 interface TopbarProps {
@@ -13,15 +14,18 @@ interface TopbarProps {
 
 export function Topbar({ title, subtitle, back, actions, onMenuClick }: TopbarProps) {
   const { connected } = useEventStreamContext();
+  const sidebarCtx = useSidebarContext();
+  const menuClick = onMenuClick ?? sidebarCtx?.openSidebar;
 
   return (
     <header className="flex items-center justify-between border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] px-6 py-4">
       <div className="flex items-center gap-3">
-        {onMenuClick && (
+        {menuClick && (
           <button
-            onClick={onMenuClick}
+            type="button"
+            onClick={menuClick}
             aria-label="Open menu"
-            className="grid h-9 w-9 place-items-center rounded-md border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-primary)]"
+            className="grid h-9 w-9 place-items-center rounded-md border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-primary)] lg:hidden"
           >
             <Menu className="h-4 w-4" />
           </button>

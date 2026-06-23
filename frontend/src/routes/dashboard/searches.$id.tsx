@@ -86,6 +86,7 @@ function SearchDetailPage() {
             size="sm"
             variant="ghost"
             onClick={() => setEditing((v) => !v)}
+            aria-label={editing ? "Cancel editing" : "Edit"}
           >
             <Pencil className="h-4 w-4" />
             <span className="hidden sm:inline">{editing ? "Cancel" : "Edit"}</span>
@@ -95,6 +96,7 @@ function SearchDetailPage() {
             variant="secondary"
             disabled={poll.isPending}
             onClick={() => poll.mutate(id)}
+            aria-label="Refresh"
           >
             <RefreshCw className={`h-4 w-4 ${poll.isPending ? "animate-spin" : ""}`} />
             <span className="hidden sm:inline">Refresh</span>
@@ -234,6 +236,7 @@ function DetailsOverflow({ search }: { search: SavedSearch }) {
   return (
     <div ref={ref} className="relative">
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="More details"
         className={cn(

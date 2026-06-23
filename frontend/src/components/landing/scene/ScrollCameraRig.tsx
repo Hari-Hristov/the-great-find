@@ -13,6 +13,7 @@ const _pos = new THREE.Vector3();
 const _target = new THREE.Vector3();
 
 function scaledFov(designFovDeg: number, viewportHeight: number): number {
+  if (viewportHeight <= 0) return designFovDeg;
   const halfFovRad = (designFovDeg * Math.PI) / 360;
   const scaledHalfRad = Math.atan(Math.tan(halfFovRad) * (REFERENCE_HEIGHT / viewportHeight));
   return (scaledHalfRad * 360) / Math.PI;

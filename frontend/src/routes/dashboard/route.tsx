@@ -1,8 +1,8 @@
 import { Outlet, createFileRoute, useRouterState, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { Topbar } from "@/components/layout/Topbar";
+import { SidebarContext } from "@/contexts/SidebarContext";
 import { useNotificationSettings } from "@/api/hooks/queries";
 
 const EMAIL_DISMISSED_KEY = "email_setup_dismissed_until";
@@ -25,6 +25,8 @@ function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dismissed, setDismissed] = useState(() => isDismissed());
   const { data: notifSettings, isSuccess } = useNotificationSettings();
+
+  const sidebarCtx = useMemo(() => ({ openSidebar: () => setSidebarOpen(true) }), []);
 
   const showPopup = isSuccess && !dismissed && !notifSettings?.smtp_host;
 
@@ -53,16 +55,9 @@ function DashboardLayout() {
       )}
 
       <main className="flex flex-1 flex-col overflow-hidden">
-        {/* Mobile topbar — only rendered on small screens, provides the hamburger */}
-        {!hideSidebar && (
-          <div className="lg:hidden">
-            <Topbar
-              title="the great find"
-              onMenuClick={() => setSidebarOpen(true)}
-            />
-          </div>
-        )}
-        <Outlet />
+        <SidebarContext.Provider value={sidebarCtx}>
+          <Outlet />
+        </SidebarContext.Provider>
       </main>
 
       {showPopup && (
