@@ -68,7 +68,7 @@ func sendWSLNotification(title, body, url string) error {
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 
 	xmlPath := filepath.Join(dir, "toast.xml")
 	if err := os.WriteFile(xmlPath, []byte(xml), 0o600); err != nil {
@@ -91,7 +91,7 @@ $toast = New-Object Windows.UI.Notifications.ToastNotification $doc
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("the-great-find").Show($toast)
 `
 	var stderr bytes.Buffer
-	cmd := exec.Command(ps, "-NoProfile", "-NonInteractive", "-Command", script)
+	cmd := exec.CommandContext(context.Background(), ps, "-NoProfile", "-NonInteractive", "-Command", script)
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("windows toast failed: %w — %s", err, stderr.String())
@@ -102,7 +102,7 @@ $toast = New-Object Windows.UI.Notifications.ToastNotification $doc
 // wslToWindowsPath turns "/mnt/c/Windows/Temp/foo" into "C:\Windows\Temp\foo"
 // using wslpath, which is part of the standard WSL2 distro.
 func wslToWindowsPath(p string) (string, error) {
-	out, err := exec.Command("wslpath", "-w", p).Output()
+	out, err := exec.CommandContext(context.Background(), "wslpath", "-w", p).Output()
 	if err != nil {
 		return "", err
 	}
