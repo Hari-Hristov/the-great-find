@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/Hari-Hristov/the-great-find/backend/internal/events"
 )
@@ -90,10 +91,10 @@ func (s *Service) dispatch(e events.Event) {
 	switch e.Type {
 	case events.TypeAlertFired:
 		title, url, kind := extractAlertFields(e.Payload)
-		subject := fmt.Sprintf("Alert: %s", title)
+		subject := alertKindLabel(kind)
 
 		if osNotifyAvailable() {
-			if err := sendOSNotification(subject, kind); err != nil {
+			if err := sendOSNotification(subject, title, url); err != nil {
 				s.logger.Warn("os notification failed", "err", err)
 			}
 		}
@@ -112,7 +113,7 @@ func (s *Service) dispatch(e events.Event) {
 
 		title := fmt.Sprintf("Poll failed — %s", name)
 		if osNotifyAvailable() {
-			if err := sendOSNotification(title, errMsg); err != nil {
+			if err := sendOSNotification(title, errMsg, ""); err != nil {
 				s.logger.Warn("os notification failed", "err", err)
 			}
 		}
@@ -131,4 +132,30 @@ func extractAlertFields(payload map[string]any) (title, url, kind string) {
 		kind = v
 	}
 	return
+}
+
+func alertKindLabel(kind string) string {
+	switch kind {
+	case "new_match":
+		return "New listing found"
+	case "keyword":
+		return "Keyword match"
+	case "price_drop":
+		return "Price dropped"
+	case "price_below":
+		return "Price below target"
+	default:
+		return "Alert triggered"
+	}
+}
+
+// xmlEscape escapes the five XML special characters so user-supplied strings
+// (listing titles, URLs) are safe to embed in toast XML payloads.
+func xmlEscape(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, `"`, "&quot;")
+	s = strings.ReplaceAll(s, "'", "&apos;")
+	return s
 }

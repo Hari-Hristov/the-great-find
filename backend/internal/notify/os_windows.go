@@ -3,22 +3,32 @@
 package notify
 
 import (
+	"os"
 	"os/exec"
 )
 
 func osNotifyAvailable() bool { return true }
 
-func sendOSNotification(title, body string) error {
-	// Pass title and body as PowerShell arguments to avoid injection via
-	// quotes, $-expansion, or backticks in untrusted text.
+func sendOSNotification(title, body, url string) error {
+	actionsBlock := ""
+	launchAttr := ""
+	if url != "" {
+		launchAttr = ` launch="` + xmlEscape(url) + `"`
+		actionsBlock = `<actions><action content="View Listing" activationType="protocol" arguments="` + xmlEscape(url) + `"/></actions>`
+	}
+	xml := `<toast` + launchAttr + `><visual><binding template="ToastGeneric"><text>` +
+		xmlEscape(title) + `</text><text>` + xmlEscape(body) + `</text></binding></visual>` + actionsBlock + `</toast>`
+
 	script := `
+$xml = $env:TOAST_XML
 $null = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType=WindowsRuntime]
-$template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
-$textNodes = $template.GetElementsByTagName("text")
-$textNodes.Item(0).AppendChild($template.CreateTextNode($args[0])) | Out-Null
-$textNodes.Item(1).AppendChild($template.CreateTextNode($args[1])) | Out-Null
-$toast = [Windows.UI.Notifications.ToastNotification]::new($template)
+$null = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType=WindowsRuntime]
+$doc = [Windows.Data.Xml.Dom.XmlDocument]::new()
+$doc.LoadXml($xml)
+$toast = [Windows.UI.Notifications.ToastNotification]::new($doc)
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("the-great-find").Show($toast)
 `
-	return exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script, title, body).Run()
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
+	cmd.Env = append(os.Environ(), "TOAST_XML="+xml)
+	return cmd.Run()
 }

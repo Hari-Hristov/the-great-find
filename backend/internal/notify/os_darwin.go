@@ -9,7 +9,7 @@ import (
 
 func osNotifyAvailable() bool { return true }
 
-func sendOSNotification(title, body string) error {
+func sendOSNotification(title, body, _ string) error {
 	script := fmt.Sprintf(`display notification %q with title %q`, body, title)
 	return exec.Command("osascript", "-e", script).Run()
 }
