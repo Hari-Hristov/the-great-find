@@ -137,7 +137,7 @@ function TagPopover({
   );
 }
 
-function AlertDetailPage() {
+export function AlertDetailPage() {
   const { searchId: searchIdParam } = useParams({ from: "/dashboard/alerts/$searchId" });
   const searchId = Number(searchIdParam);
 

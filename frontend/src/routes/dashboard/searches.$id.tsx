@@ -23,7 +23,7 @@ function parseQueryParams(raw: string): Record<string, string | string[]> {
   }
 }
 
-function SearchDetailPage() {
+export function SearchDetailPage() {
   const { id: idParam } = useParams({ from: "/dashboard/searches/$id" });
   const id = Number(idParam);
   const matchRoute = useMatchRoute();

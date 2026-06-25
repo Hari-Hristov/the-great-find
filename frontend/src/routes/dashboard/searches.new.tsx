@@ -7,7 +7,7 @@ export const Route = createFileRoute("/dashboard/searches/new")({
   component: NewSearchPage,
 });
 
-function NewSearchPage() {
+export function NewSearchPage() {
   const navigate = useNavigate();
   const goBack = () => navigate({ to: "/dashboard/searches" });
 

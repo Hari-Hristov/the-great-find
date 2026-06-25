@@ -53,7 +53,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SearchAnalyticsPage() {
+export function SearchAnalyticsPage() {
   const { id: idParam } = useParams({ from: "/dashboard/searches/$id/analytics" });
   const id = Number(idParam);
 

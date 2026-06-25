@@ -34,6 +34,7 @@ export interface WindowState {
   lastPosition: { x: number; y: number } | null;
   lastSize: { w: number; h: number } | null;
   resetOnNextOpen: boolean;
+  activeRoute: string;
 }
 
 function defaultSize() {
@@ -64,6 +65,7 @@ function buildInitial(): WindowState[] {
     lastPosition: null,
     lastSize: null,
     resetOnNextOpen: false,
+    activeRoute: def.route,
   }));
 }
 
@@ -75,6 +77,7 @@ interface DesktopContextValue {
   moveWindow: (id: WindowId, pos: { x: number; y: number }) => void;
   toggleMinimize: (id: WindowId) => void;
   toggleFullscreen: (id: WindowId) => void;
+  setActiveRoute: (id: WindowId, route: string) => void;
   maxZ: () => number;
 }
 
@@ -98,8 +101,8 @@ export function DesktopProvider({ children }: { children: React.ReactNode }) {
       const useDefault = !target || target.resetOnNextOpen || !target.lastPosition;
       const size = useDefault ? defaultSize() : target.lastSize!;
       const pos = useDefault ? defaultPosition() : target.lastPosition!;
-      const openCount = prev.filter((w) => w.open).length;
-      const z = openCount + 1;
+      const maxCurrent = Math.max(0, ...prev.filter((w) => w.open).map((w) => w.zIndex));
+      const z = maxCurrent + 1;
       zCounter.current = z;
       return prev.map((w) =>
         w.id === id
@@ -164,9 +167,13 @@ export function DesktopProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const setActiveRoute = useCallback((id: WindowId, route: string) => {
+    setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, activeRoute: route } : w)));
+  }, []);
+
   const value = useMemo(
-    () => ({ windows, openWindow, closeWindow, focusWindow, moveWindow, toggleMinimize, toggleFullscreen, maxZ }),
-    [windows, openWindow, closeWindow, focusWindow, moveWindow, toggleMinimize, toggleFullscreen, maxZ],
+    () => ({ windows, openWindow, closeWindow, focusWindow, moveWindow, toggleMinimize, toggleFullscreen, setActiveRoute, maxZ }),
+    [windows, openWindow, closeWindow, focusWindow, moveWindow, toggleMinimize, toggleFullscreen, setActiveRoute, maxZ],
   );
 
   return <DesktopContext.Provider value={value}>{children}</DesktopContext.Provider>;

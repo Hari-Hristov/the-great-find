@@ -13,11 +13,42 @@ import { DesktopIcon } from "./DesktopIcon";
 import { AppWindow } from "./AppWindow";
 import { Taskbar } from "./Taskbar";
 import { CrtOverlay } from "./CrtOverlay";
+import { OverviewPage } from "@/routes/dashboard/index";
+import { SearchesPage } from "@/routes/dashboard/searches.index";
+import { NewSearchPage } from "@/routes/dashboard/searches.new";
+import { SearchDetailPage } from "@/routes/dashboard/searches.$id";
+import { SearchAnalyticsPage } from "@/routes/dashboard/searches.$id.analytics";
+import { AlertsPage } from "@/routes/dashboard/alerts.index";
+import { AlertDetailPage } from "@/routes/dashboard/alerts.$searchId";
+import { FlaggedPage } from "@/routes/dashboard/flagged";
+import { SettingsPage } from "@/routes/dashboard/settings";
+
+function WindowContent({ id, windowRoute, globalPathname }: { id: WindowId; windowRoute: string; globalPathname: string }) {
+  if (id === "searches") {
+    const active = globalPathname.startsWith("/dashboard/searches/") ? globalPathname : windowRoute;
+    const isGloballyActive = globalPathname.startsWith("/dashboard/searches/");
+    if (isGloballyActive) {
+      if (active.endsWith("/analytics") || active.includes("/analytics")) return <SearchAnalyticsPage />;
+      if (active === "/dashboard/searches/new") return <NewSearchPage />;
+      return <SearchDetailPage />;
+    }
+    if (windowRoute.startsWith("/dashboard/searches/")) return <SearchesPage />;
+    return <SearchesPage />;
+  }
+  if (id === "alerts") {
+    if (globalPathname.startsWith("/dashboard/alerts/")) return <AlertDetailPage />;
+    return <AlertsPage />;
+  }
+  if (id === "overview") return <OverviewPage />;
+  if (id === "flagged") return <FlaggedPage />;
+  if (id === "settings") return <SettingsPage />;
+  return null;
+}
 
 function DesktopInner({ entered }: { entered: boolean }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { windows, openWindow, closeWindow, focusWindow, toggleMinimize } = useDesktop();
+  const { windows, openWindow, closeWindow, focusWindow, toggleMinimize, setActiveRoute } = useDesktop();
 
   useEffect(() => {
     const id = windowIdForRoute(pathname);
@@ -26,9 +57,19 @@ function DesktopInner({ entered }: { entered: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const id = windowIdForRoute(pathname);
+    if (id) setActiveRoute(id, pathname);
+  }, [pathname, setActiveRoute]);
+
   function navigateToWindow(id: WindowId) {
     const def = windowDefById(id);
     navigate({ to: def.route as never });
+  }
+
+  function navigateToActiveRoute(id: WindowId) {
+    const win = windows.find((w) => w.id === id)!;
+    navigate({ to: win.activeRoute as never });
   }
 
   function navigateAfterClose(id: WindowId) {
@@ -41,8 +82,9 @@ function DesktopInner({ entered }: { entered: boolean }) {
 
   function handleIconClick(id: WindowId) {
     const win = windows.find((w) => w.id === id)!;
-    if (win.open && !win.minimized) {
-      toggleMinimize(id);
+    if (win.open) {
+      focusWindow(id);
+      if (win.minimized) navigateToActiveRoute(id);
       return;
     }
     openWindow(id);
@@ -55,7 +97,7 @@ function DesktopInner({ entered }: { entered: boolean }) {
       toggleMinimize(id);
     } else {
       focusWindow(id);
-      navigateToWindow(id);
+      navigateToActiveRoute(id);
     }
   }
 
@@ -127,8 +169,13 @@ function DesktopInner({ entered }: { entered: boolean }) {
         const win = windows.find((w) => w.id === def.id)!;
         if (!win.open) return null;
         return (
-          <AppWindow key={def.id} id={def.id} onClose={() => handleTitlebarClose(def.id)} onFocus={() => navigateToWindow(def.id)}>
-            <def.component />
+          <AppWindow
+            key={def.id}
+            id={def.id}
+            onClose={() => handleTitlebarClose(def.id)}
+            onFocus={() => { if (windowIdForRoute(pathname) !== def.id) navigateToActiveRoute(def.id); }}
+          >
+            <WindowContent id={def.id} windowRoute={win.activeRoute} globalPathname={pathname} />
           </AppWindow>
         );
       })}
