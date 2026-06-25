@@ -29,6 +29,7 @@ export interface WindowState {
   size: { w: number; h: number };
   zIndex: number;
   minimized: boolean;
+  fullscreen: boolean;
   open: boolean;
   lastPosition: { x: number; y: number } | null;
   lastSize: { w: number; h: number } | null;
@@ -58,6 +59,7 @@ function buildInitial(): WindowState[] {
     size: { w: 0, h: 0 },
     zIndex: 10,
     minimized: false,
+    fullscreen: false,
     open: false,
     lastPosition: null,
     lastSize: null,
@@ -72,6 +74,7 @@ interface DesktopContextValue {
   focusWindow: (id: WindowId) => void;
   moveWindow: (id: WindowId, pos: { x: number; y: number }) => void;
   toggleMinimize: (id: WindowId) => void;
+  toggleFullscreen: (id: WindowId) => void;
   maxZ: () => number;
 }
 
@@ -155,9 +158,15 @@ export function DesktopProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const toggleFullscreen = useCallback((id: WindowId) => {
+    setWindows((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, fullscreen: !w.fullscreen, minimized: false } : w)),
+    );
+  }, []);
+
   const value = useMemo(
-    () => ({ windows, openWindow, closeWindow, focusWindow, moveWindow, toggleMinimize, maxZ }),
-    [windows, openWindow, closeWindow, focusWindow, moveWindow, toggleMinimize, maxZ],
+    () => ({ windows, openWindow, closeWindow, focusWindow, moveWindow, toggleMinimize, toggleFullscreen, maxZ }),
+    [windows, openWindow, closeWindow, focusWindow, moveWindow, toggleMinimize, toggleFullscreen, maxZ],
   );
 
   return <DesktopContext.Provider value={value}>{children}</DesktopContext.Provider>;

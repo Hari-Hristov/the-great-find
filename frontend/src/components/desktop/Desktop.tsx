@@ -17,7 +17,7 @@ import { CrtOverlay } from "./CrtOverlay";
 function DesktopInner({ entered }: { entered: boolean }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { windows, openWindow, closeWindow, focusWindow } = useDesktop();
+  const { windows, openWindow, closeWindow, focusWindow, toggleMinimize } = useDesktop();
 
   useEffect(() => {
     const id = windowIdForRoute(pathname);
@@ -42,8 +42,7 @@ function DesktopInner({ entered }: { entered: boolean }) {
   function handleIconClick(id: WindowId) {
     const win = windows.find((w) => w.id === id)!;
     if (win.open && !win.minimized) {
-      closeWindow(id);
-      navigateAfterClose(id);
+      toggleMinimize(id);
       return;
     }
     openWindow(id);
@@ -52,8 +51,12 @@ function DesktopInner({ entered }: { entered: boolean }) {
 
   function handleTaskbarClick(id: WindowId) {
     const win = windows.find((w) => w.id === id)!;
-    focusWindow(id);
-    if (!win.minimized) navigateToWindow(id);
+    if (win.open && !win.minimized) {
+      toggleMinimize(id);
+    } else {
+      focusWindow(id);
+      navigateToWindow(id);
+    }
   }
 
   function handleTitlebarClose(id: WindowId) {
@@ -124,7 +127,7 @@ function DesktopInner({ entered }: { entered: boolean }) {
         const win = windows.find((w) => w.id === def.id)!;
         if (!win.open) return null;
         return (
-          <AppWindow key={def.id} id={def.id} onClose={() => handleTitlebarClose(def.id)}>
+          <AppWindow key={def.id} id={def.id} onClose={() => handleTitlebarClose(def.id)} onFocus={() => navigateToWindow(def.id)}>
             <def.component />
           </AppWindow>
         );

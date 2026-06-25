@@ -5,10 +5,11 @@ import { useDesktop, useWindow, windowDefById, type WindowId } from "@/contexts/
 interface TitlebarButtonProps {
   color: string;
   label: string;
+  hoverSymbol: string;
   onClick: (e: React.MouseEvent) => void;
 }
 
-function TitlebarButton({ color, label, onClick }: TitlebarButtonProps) {
+function TitlebarButton({ color, label, hoverSymbol, onClick }: TitlebarButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -17,7 +18,7 @@ function TitlebarButton({ color, label, onClick }: TitlebarButtonProps) {
       style={{ background: color }}
     >
       <span className="absolute inset-0 flex items-center justify-center font-mono text-[7px] font-bold opacity-0 group-hover:opacity-100" style={{ color: "rgba(0,0,0,0.6)" }}>
-        {label === "Close" ? "×" : "−"}
+        {hoverSymbol}
       </span>
     </button>
   );
@@ -26,11 +27,12 @@ function TitlebarButton({ color, label, onClick }: TitlebarButtonProps) {
 interface AppWindowProps {
   id: WindowId;
   onClose: () => void;
+  onFocus: () => void;
   children: React.ReactNode;
 }
 
-export function AppWindow({ id, onClose, children }: AppWindowProps) {
-  const { focusWindow, moveWindow, toggleMinimize } = useDesktop();
+export function AppWindow({ id, onClose, onFocus, children }: AppWindowProps) {
+  const { focusWindow, moveWindow, toggleMinimize, toggleFullscreen } = useDesktop();
   const win = useWindow(id);
   const def = windowDefById(id);
 
@@ -42,6 +44,7 @@ export function AppWindow({ id, onClose, children }: AppWindowProps) {
   const onTitlebarPointerDown = useCallback(
     (e: React.PointerEvent) => {
       if ((e.target as HTMLElement).closest("button")) return;
+      if (win.fullscreen) return;
       e.preventDefault();
       focusWindow(id);
       dragging.current = true;
@@ -53,7 +56,7 @@ export function AppWindow({ id, onClose, children }: AppWindowProps) {
       };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     },
-    [id, focusWindow, win.position],
+    [id, focusWindow, win.position, win.fullscreen],
   );
 
   const onPointerMove = useCallback(
@@ -82,6 +85,17 @@ export function AppWindow({ id, onClose, children }: AppWindowProps) {
     };
   }, []);
 
+  const fsStyle = win.fullscreen
+    ? { position: "fixed" as const, left: 0, top: 0, width: "100vw", height: "100vh", zIndex: 9000 }
+    : {
+        position: "absolute" as const,
+        left: win.position.x,
+        top: win.position.y,
+        width: win.size.w,
+        height: win.size.h,
+        zIndex: win.zIndex,
+      };
+
   return (
     <AnimatePresence>
       {win.open && (
@@ -96,14 +110,9 @@ export function AppWindow({ id, onClose, children }: AppWindowProps) {
           }
           exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.12 } }}
           transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
-          onPointerDown={() => focusWindow(id)}
+          onPointerDown={() => { focusWindow(id); onFocus(); }}
           style={{
-            position: "absolute",
-            left: win.position.x,
-            top: win.position.y,
-            width: win.size.w,
-            height: win.size.h,
-            zIndex: win.zIndex,
+            ...fsStyle,
             pointerEvents: win.minimized ? "none" : "auto",
             borderColor: "var(--color-win-border)",
             boxShadow: "0 8px 48px var(--color-win-glow), 0 2px 8px rgba(0,0,0,0.5)",
@@ -119,14 +128,21 @@ export function AppWindow({ id, onClose, children }: AppWindowProps) {
             style={{
               background: "var(--color-win-titlebar)",
               borderColor: "var(--color-win-border)",
+              cursor: win.fullscreen ? "default" : undefined,
             }}
             onPointerDown={onTitlebarPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
           >
             <div className="flex items-center gap-1.5">
-              <TitlebarButton color="#ff5f57" label="Close" onClick={(e) => { e.stopPropagation(); onClose(); }} />
-              <TitlebarButton color="#febc2e" label="Minimize" onClick={(e) => { e.stopPropagation(); toggleMinimize(id); }} />
+              <TitlebarButton color="#ff5f57" label="Close" hoverSymbol="×" onClick={(e) => { e.stopPropagation(); onClose(); }} />
+              <TitlebarButton color="#febc2e" label="Minimize" hoverSymbol="−" onClick={(e) => { e.stopPropagation(); toggleMinimize(id); }} />
+              <TitlebarButton
+                color="#28c840"
+                label={win.fullscreen ? "Exit fullscreen" : "Fullscreen"}
+                hoverSymbol={win.fullscreen ? "⤡" : "+"}
+                onClick={(e) => { e.stopPropagation(); toggleFullscreen(id); }}
+              />
             </div>
 
             <span
@@ -136,7 +152,6 @@ export function AppWindow({ id, onClose, children }: AppWindowProps) {
               {def.title}
             </span>
 
-            {/* Spacer to balance titlebar buttons */}
             <div className="w-[38px]" />
           </div>
 
