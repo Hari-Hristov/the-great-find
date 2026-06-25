@@ -31,6 +31,17 @@
   --color-chart-grid: oklch(0.32 0.012 264);
   --color-chart-bg: oklch(0.25 0.012 264);
   --color-chart-text: oklch(0.72 0.015 264);
+
+  --color-desktop-bg: #090d1c;
+  --color-win-titlebar: oklch(0.17 0.016 240);
+  --color-win-titlebar-text: oklch(0.88 0.010 240);
+  --color-win-border: oklch(0.33 0.028 240);
+  --color-win-glow: rgba(80, 130, 255, 0.10);
+  --color-scanline: rgba(0, 0, 0, 0.16);
+  --color-icon-bg: oklch(0.20 0.018 240);
+  --color-icon-hover: oklch(0.26 0.024 240);
+  --color-taskbar-bg: oklch(0.12 0.014 240);
+  --color-taskbar-border: oklch(0.28 0.022 240);
 }
 
 [data-theme="military"] {

@@ -11,7 +11,7 @@ export const Route = createFileRoute("/dashboard/searches/")({
   component: SearchesPage,
 });
 
-function SearchesPage() {
+export function SearchesPage() {
   const searches = useSearches();
   const pollAll = usePollAllSearches();
 

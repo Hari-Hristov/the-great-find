@@ -1,8 +1,7 @@
-import { Outlet, createFileRoute, useRouterState, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { X } from "lucide-react";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { SidebarContext } from "@/contexts/SidebarContext";
+import { Desktop } from "@/components/desktop/Desktop";
 import { useNotificationSettings } from "@/api/hooks/queries";
 
 const EMAIL_DISMISSED_KEY = "email_setup_dismissed_until";
@@ -19,14 +18,14 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function DashboardLayout() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const hideSidebar = pathname === "/dashboard/searches/new";
-
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dismissed, setDismissed] = useState(() => isDismissed());
   const { data: notifSettings, isSuccess } = useNotificationSettings();
 
-  const sidebarCtx = useMemo(() => ({ openSidebar: () => setSidebarOpen(true) }), []);
+  const [entered] = useState(() => {
+    const flag = sessionStorage.getItem("desktop-entered") === "1";
+    if (flag) sessionStorage.removeItem("desktop-entered");
+    return flag;
+  });
 
   const showPopup = isSuccess && !dismissed && !notifSettings?.smtp_host;
 
@@ -36,32 +35,11 @@ function DashboardLayout() {
   }
 
   return (
-    <div className="flex h-full w-full bg-[var(--color-bg-base)]">
-      {!hideSidebar && (
-        <>
-          {/* Backdrop — mobile/tablet only */}
-          {sidebarOpen && (
-            <div
-              className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            />
-          )}
-          <Sidebar
-            emailUnconfigured={isSuccess && !notifSettings?.smtp_host}
-            open={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
-          />
-        </>
-      )}
-
-      <main className="flex flex-1 flex-col overflow-hidden">
-        <SidebarContext.Provider value={sidebarCtx}>
-          <Outlet />
-        </SidebarContext.Provider>
-      </main>
+    <>
+      <Desktop entered={entered} />
 
       {showPopup && (
-        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full border border-amber-500/30 bg-[var(--color-bg-elev)]/90 px-3 py-1.5 shadow-lg backdrop-blur-sm">
+        <div className="fixed bottom-14 right-5 z-[9990] flex items-center gap-2 rounded-full border border-amber-500/30 bg-[var(--color-bg-elev)]/90 px-3 py-1.5 shadow-lg backdrop-blur-sm">
           <Link
             to="/dashboard/settings"
             onClick={dismiss}
@@ -79,6 +57,6 @@ function DashboardLayout() {
           </button>
         </div>
       )}
-    </div>
+    </>
   );
 }

@@ -9,7 +9,7 @@ export const Route = createFileRoute("/dashboard/alerts/")({
   component: AlertsPage,
 });
 
-function AlertsPage() {
+export function AlertsPage() {
   const alerts = useAlerts(200);
   const searches = useSearches();
 

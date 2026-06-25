@@ -28,7 +28,7 @@ const THEMES: { id: ThemeId; label: string; description: string; swatches: strin
   },
 ];
 
-function SettingsPage() {
+export function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { data: notifSettings } = useNotificationSettings();
   const saveNotif = useSaveNotificationSettings();
