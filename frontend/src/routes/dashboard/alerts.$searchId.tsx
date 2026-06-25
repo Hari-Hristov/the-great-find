@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAlerts, useHideListing, useSearches, useTagAlert } from "@/api/hooks/queries";
-import { formatEUR, relativeTime } from "@/lib/utils";
+import { formatEUR, relativeTime, safeJSONParse } from "@/lib/utils";
 import { TAG_COLORS, tagBg, type TagColorName } from "@/lib/tagColors";
 import type { Alert } from "@/api/types";
 
@@ -14,12 +15,10 @@ export const Route = createFileRoute("/dashboard/alerts/$searchId")({
 });
 
 function formatCriteria(raw: string): string {
-  try {
-    const c = JSON.parse(raw) as { kind?: string; price_eur?: number };
-    if (c.kind === "price_below" && c.price_eur != null) {
-      return `≤ ${formatEUR(c.price_eur)}`;
-    }
-  } catch { /* ignore */ }
+  const c = safeJSONParse<{ kind?: string; price_eur?: number }>(raw, {});
+  if (c.kind === "price_below" && c.price_eur != null) {
+    return `≤ ${formatEUR(c.price_eur)}`;
+  }
   return raw;
 }
 
@@ -37,13 +36,14 @@ function TagPopover({
   const [draftColor, setDraftColor] = useState<TagColorName>(
     (currentColor as TagColorName | undefined) ?? "blue",
   );
-  const popoverRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const panelRef = useFocusTrap<HTMLDivElement>(open, () => setOpen(false));
   const tag = useTagAlert();
 
   useEffect(() => {
     if (!open) return;
     function onDown(e: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
@@ -62,17 +62,18 @@ function TagPopover({
   }
 
   return (
-    <div className="relative flex items-center gap-1">
+    <div ref={wrapperRef} className="relative flex items-center gap-1">
       {currentLabel ? (
         <span
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white ${tagBg(currentColor)}`}
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-[var(--color-bg-base)] ${tagBg(currentColor)}`}
         >
           {currentLabel}
           <button
+            type="button"
             aria-label="Remove tag"
             disabled={tag.isPending}
             onClick={clear}
-            className="ml-0.5 opacity-70 hover:opacity-100"
+            className="ml-0.5 opacity-70 transition-opacity hover:opacity-100"
           >
             <X className="h-3 w-3" />
           </button>
@@ -80,54 +81,62 @@ function TagPopover({
       ) : null}
 
       <Button
+        type="button"
         size="icon"
         variant="ghost"
         aria-label="Add tag"
+        aria-expanded={open}
+        aria-haspopup="dialog"
         onClick={() => {
           setDraft(currentLabel ?? "");
           setDraftColor((currentColor as TagColorName | undefined) ?? "blue");
           setOpen((v) => !v);
         }}
-        className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
+        className="text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
       >
         <Tag className="h-4 w-4" />
       </Button>
 
       {open ? (
         <div
-          ref={popoverRef}
-          className="absolute right-0 top-9 z-50 w-56 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-3 shadow-lg"
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Tag this alert"
+          className="absolute right-0 top-9 z-50 w-56 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] p-3 shadow-lg"
         >
           <input
-            autoFocus
             type="text"
             maxLength={100}
             placeholder="Label…"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setOpen(false); }}
-            className="w-full rounded border border-[var(--color-border-subtle)] bg-transparent px-2 py-1 text-sm outline-none focus:border-[var(--color-accent)]"
+            onKeyDown={(e) => { if (e.key === "Enter") save(); }}
+            className="w-full rounded-[var(--radius-button)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] px-2 py-1 text-sm text-[var(--color-text-primary)] outline-none transition-colors focus:border-[var(--color-accent)]"
           />
           <div className="mt-2 flex gap-1.5">
             {TAG_COLORS.map((c) => (
               <button
                 key={c.name}
+                type="button"
                 aria-label={c.name}
+                aria-pressed={draftColor === c.name}
                 onClick={() => setDraftColor(c.name)}
-                className={`h-5 w-5 rounded-full ${c.bg} ring-offset-1 transition-all ${draftColor === c.name ? "ring-2 ring-white" : "opacity-70 hover:opacity-100"}`}
+                className={`h-5 w-5 rounded-full ${c.bg} ring-offset-1 transition-opacity ${draftColor === c.name ? "ring-2 ring-[var(--color-text-primary)]" : "opacity-70 hover:opacity-100"}`}
               />
             ))}
           </div>
           <div className="mt-2 flex gap-2">
             <Button
               size="sm"
+              type="button"
               disabled={!draft.trim() || tag.isPending}
               onClick={save}
               className="flex-1"
             >
               Save
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+            <Button size="sm" type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
           </div>
@@ -184,7 +193,8 @@ function AlertDetailPage() {
                       href={a.listing_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block truncate text-sm hover:text-[var(--color-accent)]"
+                      title={a.listing_title ?? a.listing_url}
+                      className="listing-link block truncate text-sm hover:text-[var(--color-accent)]"
                     >
                       {a.listing_title ?? a.listing_url}
                     </a>
@@ -217,7 +227,7 @@ function AlertDetailPage() {
                     aria-label="Hide listing"
                     disabled={hide.isPending}
                     onClick={() => hide.mutate(a.listing_id)}
-                    className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
+                    className="text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
                   >
                     <EyeOff className="h-4 w-4" />
                   </Button>

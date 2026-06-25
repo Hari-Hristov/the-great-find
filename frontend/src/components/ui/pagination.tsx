@@ -9,9 +9,11 @@ interface PaginationProps {
 
 // pageWindow returns the slot list to render: numbers and "ellipsis" markers.
 // Always shows first + last; up to 3 around the current page; ellipsis fills
-// any gap > 1. Caps total visible slots at 7 so the bar never wraps.
+// any gap > 1. Caps total visible slots so the bar never wraps.
+const MAX_VISIBLE_SLOTS = 7;
+
 function pageWindow(page: number, total: number): (number | "ellipsis")[] {
-  if (total <= 7) {
+  if (total <= MAX_VISIBLE_SLOTS) {
     return Array.from({ length: total }, (_, i) => i + 1);
   }
   const slots: (number | "ellipsis")[] = [1];

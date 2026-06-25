@@ -44,7 +44,8 @@ function FlaggedPage() {
                         href={l.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block truncate text-sm opacity-50 hover:opacity-100 hover:text-[var(--color-accent)]"
+                        title={l.title}
+                        className="listing-link block truncate text-sm opacity-50 hover:opacity-100 hover:text-[var(--color-accent)]"
                       >
                         {l.title}
                       </a>
@@ -62,7 +63,7 @@ function FlaggedPage() {
                         aria-label="Unhide listing"
                         disabled={unhide.isPending}
                         onClick={() => unhide.mutate(l.id)}
-                        className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
+                        className="text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>

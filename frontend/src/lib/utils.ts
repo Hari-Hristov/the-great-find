@@ -49,3 +49,19 @@ export function sortByPostedAtDesc<T extends { posted_at?: string }>(a: T, b: T)
   if (!b.posted_at) return -1;
   return b.posted_at.localeCompare(a.posted_at);
 }
+
+/**
+ * Parse a JSON string with a fallback. The backend serializes saved-search
+ * query params and alert criteria as JSON strings inside SQL TEXT columns;
+ * the frontend reads them back per-row. This helper is used everywhere those
+ * blobs are unpacked, so the try/catch boilerplate doesn't drift across
+ * components.
+ */
+export function safeJSONParse<T>(raw: string | undefined | null, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}

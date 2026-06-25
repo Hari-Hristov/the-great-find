@@ -20,36 +20,31 @@ const WINDOWS = [
 function WindowSelector({
   value,
   onChange,
+  label,
 }: {
   value: number;
   onChange: (v: number) => void;
+  label: string;
 }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1" role="radiogroup" aria-label={label}>
       {WINDOWS.map((w) => (
         <button
           key={w.value}
           type="button"
-          aria-pressed={value === w.value}
+          role="radio"
+          aria-checked={value === w.value}
           onClick={() => onChange(w.value)}
-          className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+          className={`rounded-[var(--radius-button)] px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-base)] ${
             value === w.value
               ? "bg-[var(--color-accent)] text-[var(--color-bg-base)]"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-base)]"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-card)]"
           }`}
         >
           {w.label}
         </button>
       ))}
     </div>
-  );
-}
-
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
-      {children}
-    </h2>
   );
 }
 
@@ -93,8 +88,10 @@ function SearchAnalyticsPage() {
       <div className="flex-1 overflow-auto px-6 py-6 space-y-8">
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <SectionHeading>Active market</SectionHeading>
-            <WindowSelector value={activeWindow} onChange={setActiveWindow} />
+            <h2 className="font-display text-lg font-semibold tracking-tight">
+              Active market
+            </h2>
+            <WindowSelector value={activeWindow} onChange={setActiveWindow} label="Active market window" />
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
@@ -126,8 +123,10 @@ function SearchAnalyticsPage() {
 
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <SectionHeading>Sold / inactive prices</SectionHeading>
-            <WindowSelector value={inactiveWindow} onChange={setInactiveWindow} />
+            <h2 className="font-display text-lg font-semibold tracking-tight">
+              Sold / inactive prices
+            </h2>
+            <WindowSelector value={inactiveWindow} onChange={setInactiveWindow} label="Sold window" />
           </div>
           <p className="text-xs text-[var(--color-text-muted)]">
             Listings that left the market — likely sold. Their last known price reflects what buyers actually paid.

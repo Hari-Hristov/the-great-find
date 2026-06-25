@@ -1,9 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useDeleteSearch, usePollAllSearches, usePollSearch, useSearches } from "@/api/hooks/queries";
 import type { SavedSearch } from "@/api/types";
 import { relativeTime } from "@/lib/utils";
@@ -13,13 +16,22 @@ export const Route = createFileRoute("/dashboard/searches/")({
 
 function SearchesPage() {
   const searches = useSearches();
-  const pollAll = usePollAllSearches();
+  const [refreshFlash, setRefreshFlash] = useState<string | null>(null);
+  const flashTimer = useRef<number | null>(null);
 
-  const refreshLabel = pollAll.isPending
-    ? "Refreshing…"
-    : pollAll.data
-      ? `Refreshed ${pollAll.data.count} search${pollAll.data.count === 1 ? "" : "es"}`
-      : "Refresh all";
+  // Show a transient "Refreshed N searches" pill that fades after 2.5s, so the
+  // fleet-refresh confirmation doesn't mutate the button label permanently.
+  const pollAll = usePollAllSearches();
+  const onRefreshAll = () => {
+    pollAll.mutate(undefined, {
+      onSuccess: (data) => {
+        if (flashTimer.current) window.clearTimeout(flashTimer.current);
+        const count = data.count;
+        setRefreshFlash(`Refreshed ${count} search${count === 1 ? "" : "es"}`);
+        flashTimer.current = window.setTimeout(() => setRefreshFlash(null), 2500);
+      },
+    });
+  };
 
   return (
     <>
@@ -27,15 +39,22 @@ function SearchesPage() {
         title="Searches"
         subtitle="Saved olx.bg queries the scheduler is monitoring"
         actions={
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={pollAll.isPending}
-            onClick={() => pollAll.mutate()}
-          >
-            <RefreshCw className={`h-4 w-4 ${pollAll.isPending ? "animate-spin" : ""}`} />
-            {refreshLabel}
-          </Button>
+          <div className="flex items-center gap-3">
+            {refreshFlash ? (
+              <span className="text-xs text-[var(--color-success)]" aria-live="polite">
+                {refreshFlash}
+              </span>
+            ) : null}
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={pollAll.isPending}
+              onClick={onRefreshAll}
+            >
+              <RefreshCw className={`h-4 w-4 ${pollAll.isPending ? "animate-spin" : ""}`} />
+              {pollAll.isPending ? "Refreshing…" : "Refresh all"}
+            </Button>
+          </div>
         }
       />
 
@@ -46,7 +65,7 @@ function SearchesPage() {
           </div>
           <Link
             to="/dashboard/searches/new"
-            className="inline-flex h-8 items-center gap-2 rounded-[var(--radius-button)] bg-[var(--color-accent)] px-3 text-sm font-medium text-[var(--color-bg-base)] transition-colors hover:bg-[var(--color-accent-hover)]"
+            className={buttonVariants({ size: "sm", variant: "default" })}
           >
             <Plus className="h-4 w-4" />
             New search
@@ -66,6 +85,8 @@ function SearchesPage() {
 function SearchCard({ search }: { search: SavedSearch }) {
   const del = useDeleteSearch();
   const poll = usePollSearch();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   return (
     <Card className="transition-colors hover:border-[var(--color-accent)]">
       <CardContent className="p-5">
@@ -88,6 +109,7 @@ function SearchCard({ search }: { search: SavedSearch }) {
               {search.active ? "active" : "paused"}
             </Badge>
             <Button
+              type="button"
               variant="ghost"
               size="icon"
               aria-label="Refresh search"
@@ -97,18 +119,44 @@ function SearchCard({ search }: { search: SavedSearch }) {
               <RefreshCw className={`h-4 w-4 ${poll.isPending && poll.variables === search.id ? "animate-spin" : ""}`} />
             </Button>
             <Button
+              type="button"
               variant="ghost"
               size="icon"
               aria-label="Delete search"
-              onClick={() => {
-                if (confirm(`Delete "${search.name}"?`)) del.mutate(search.id);
-              }}
+              onClick={() => setConfirmOpen(true)}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </CardContent>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={() =>
+          del.mutate(search.id, {
+            onSuccess: () => setConfirmOpen(false),
+          })
+        }
+        title={`Delete "${search.name}"`}
+        description={
+          <>
+            <p>
+              This removes the saved search and every listing, alert, and price-history
+              row that belongs to it. It cannot be undone — the data only lives on this
+              machine.
+            </p>
+            <p className="mt-2">
+              Type the search name to confirm.
+            </p>
+          </>
+        }
+        requireTyping={search.name}
+        confirmLabel="Delete search"
+        tone="destructive"
+        pending={del.isPending}
+      />
     </Card>
   );
 }

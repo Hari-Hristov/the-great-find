@@ -1,27 +1,19 @@
 import { createFileRoute, useParams, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { EyeOff, Loader2, MoreHorizontal, Pencil, RefreshCw, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { EyeOff, Loader2, Pencil, RefreshCw } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SearchForm } from "@/components/SearchForm";
 import { useHideListing, useListings, usePollSearch, useSearch } from "@/api/hooks/queries";
-import { formatEUR, relativeTime, sortByPostedAtDesc } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatEUR, relativeTime, safeJSONParse, sortByPostedAtDesc } from "@/lib/utils";
 import type { SavedSearch } from "@/api/types";
 
 export const Route = createFileRoute("/dashboard/searches/$id")({
   component: SearchDetailPage,
 });
-
-function parseQueryParams(raw: string): Record<string, string | string[]> {
-  try {
-    return JSON.parse(raw) as Record<string, string | string[]>;
-  } catch {
-    return {};
-  }
-}
 
 function SearchDetailPage() {
   const { id: idParam } = useParams({ from: "/dashboard/searches/$id" });
@@ -31,9 +23,16 @@ function SearchDetailPage() {
 
   const search = useSearch(id);
 
-  const qp = search.data ? parseQueryParams(search.data.query_params) : null;
-  const priceMin = qp ? Number(qp.price_min ?? 0) || undefined : undefined;
-  const priceMax = qp ? Number(qp.price_max ?? 0) || undefined : undefined;
+  // Stable price-range derived from query_params — JSON.parse is otherwise
+  // re-run on every render, which fuzzes the listings query inputs.
+  const { priceMin, priceMax } = useMemo(() => {
+    if (!search.data) return { priceMin: undefined, priceMax: undefined };
+    const qp = safeJSONParse<Record<string, string | string[]>>(search.data.query_params, {});
+    return {
+      priceMin: Number(qp.price_min ?? 0) || undefined,
+      priceMax: Number(qp.price_max ?? 0) || undefined,
+    };
+  }, [search.data]);
 
   const listings = useListings({
     search_id: id,
@@ -67,7 +66,6 @@ function SearchDetailPage() {
         title={search.data?.name ?? "Search"}
         subtitle={subtitle}
         back={{ to: "/dashboard/searches", label: "Back to searches" }}
-        actions={search.data ? <DetailsOverflow search={search.data} /> : undefined}
       />
 
       {/* Action strip — sits between topbar and content, always visible */}
@@ -76,7 +74,7 @@ function SearchDetailPage() {
           <Link
             to="/dashboard/searches/$id/analytics"
             params={{ id: idParam }}
-            className="inline-flex h-8 items-center gap-2 rounded-[var(--radius-button)] px-3 text-sm font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-primary)]"
+            className={buttonVariants({ size: "sm", variant: "ghost" })}
           >
             Analytics
           </Link>
@@ -104,13 +102,20 @@ function SearchDetailPage() {
         </div>
       </div>
 
+      {/* Watching strip — one-line summary of the saved-search params */}
+      {search.data ? (
+        <div className="border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] px-6 py-2">
+          <ParamsStrip search={search.data} />
+        </div>
+      ) : null}
+
       <div className="flex-1 overflow-auto px-6 py-6">
         {editing && search.data ? (
-          <Card className="mt-6">
+          <Card>
             <CardHeader>
               <CardTitle>Edit search</CardTitle>
             </CardHeader>
-            <CardContent className="p-5">
+            <CardContent>
               <SearchForm
                 mode="edit"
                 search={search.data}
@@ -142,7 +147,8 @@ function SearchDetailPage() {
                       href={l.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block truncate text-sm hover:text-[var(--color-accent)]"
+                      title={l.title}
+                      className="listing-link block truncate text-sm hover:text-[var(--color-accent)]"
                     >
                       {l.title}
                     </a>
@@ -163,7 +169,7 @@ function SearchDetailPage() {
                       aria-label="Hide listing"
                       disabled={hide.isPending}
                       onClick={() => hide.mutate(l.id)}
-                      className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
+                      className="text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
                     >
                       <EyeOff className="h-4 w-4" />
                     </Button>
@@ -178,7 +184,8 @@ function SearchDetailPage() {
                         href={l.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block truncate text-sm hover:text-[var(--color-accent)]"
+                        title={l.title}
+                        className="listing-link block truncate text-sm hover:text-[var(--color-accent)]"
                       >
                         {l.title}
                       </a>
@@ -199,7 +206,7 @@ function SearchDetailPage() {
                         aria-label="Hide listing"
                         disabled={hide.isPending}
                         onClick={() => hide.mutate(l.id)}
-                        className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
+                        className="text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
                       >
                         <EyeOff className="h-4 w-4" />
                       </Button>
@@ -215,69 +222,56 @@ function SearchDetailPage() {
   );
 }
 
-function DetailsOverflow({ search }: { search: SavedSearch }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+/**
+ * One-line summary of the saved-search parameters, sitting under the action
+ * strip on the detail page. Answers the operator's "is this still set the
+ * way I want?" check without eating the top of the page with a full JSON
+ * read-out. The Edit affordance handles the deeper "let me re-tune this."
+ */
+function ParamsStrip({ search }: { search: SavedSearch }) {
+  const queryFields = useMemo(
+    () => safeJSONParse<Record<string, unknown>>(search.query_params, {}),
+    [search.query_params],
+  );
+  const criteriaFields = useMemo(
+    () => safeJSONParse<Record<string, unknown>>(search.alert_criteria, {}),
+    [search.alert_criteria],
+  );
 
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  const parts: string[] = [];
 
-  let queryFields: Record<string, unknown> = {};
-  let criteriaFields: Record<string, unknown> = {};
-  try { queryFields = JSON.parse(search.query_params); } catch { /* invalid JSON — keep defaults */ }
-  try { if (search.alert_criteria) criteriaFields = JSON.parse(search.alert_criteria); } catch { /* invalid JSON — keep defaults */ }
+  const keyword = queryFields.keyword;
+  if (typeof keyword === "string" && keyword) parts.push(`"${keyword}"`);
+
+  const category = queryFields.category;
+  if (typeof category === "string" && category) parts.push(category);
+
+  const location = queryFields.location;
+  parts.push(typeof location === "string" && location ? location : "anywhere in BG");
+
+  const priceMin = queryFields.price_min;
+  const priceMax = queryFields.price_max;
+  if (priceMin && priceMax) parts.push(`€${priceMin} – €${priceMax}`);
+  else if (priceMax) parts.push(`≤ €${priceMax}`);
+  else if (priceMin) parts.push(`≥ €${priceMin}`);
+
+  const condition = queryFields.condition;
+  if (typeof condition === "string" && condition) parts.push(condition);
+
+  const sellerType = queryFields.seller_type;
+  if (typeof sellerType === "string" && sellerType) parts.push(sellerType);
+
+  parts.push(`every ${search.poll_interval_min}m`);
+
+  const alertPrice = (criteriaFields.kind === "price_below" ? criteriaFields.price_eur : undefined);
+  if (typeof alertPrice === "number") parts.push(`alert ≤ €${alertPrice}`);
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label="More details"
-        className={cn(
-          "grid h-9 w-9 place-items-center rounded-md border border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-primary)]",
-          open ? "bg-[var(--color-bg-card)] text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)]",
-        )}
-      >
-        <MoreHorizontal className="h-4 w-4" />
-      </button>
-
-      {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded border border-[var(--color-terminal-border)] bg-[var(--color-terminal-bg)] shadow-lg" style={{ boxShadow: `0 0 24px var(--color-terminal-shadow), 0 4px 24px rgba(0,0,0,0.6)` }}>
-          <div className="flex items-center justify-between border-b border-[var(--color-terminal-border)] px-3 py-1.5">
-            <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-[var(--color-terminal-text-dim)]">
-              ████ clearance lv-2 · {search.id.toString().padStart(6, "0")} ████
-            </span>
-            <button onClick={() => setOpen(false)} className="text-[var(--color-terminal-text-dim)] hover:text-[var(--color-terminal-text-bright)]">
-              <X className="h-3 w-3" />
-            </button>
-          </div>
-          <div className="divide-y divide-[var(--color-terminal-border)] p-3 font-mono text-xs">
-            {Object.entries(queryFields).map(([k, v]) => (
-              <div key={k} className="flex gap-3 py-1.5">
-                <span className="w-28 shrink-0 text-[10px] uppercase tracking-wider text-[var(--color-terminal-text-dim)]">{k.replace(/_/g, " ")}</span>
-                <span className="break-all text-[var(--color-terminal-text-bright)]">{Array.isArray(v) ? v.join(", ") : String(v)}</span>
-              </div>
-            ))}
-            {Object.keys(criteriaFields).length > 0 && (
-              <>
-                <div className="pb-1 pt-2 text-[9px] uppercase tracking-[0.25em] text-[var(--color-terminal-text-dim)]">▸ alert criteria</div>
-                {Object.entries(criteriaFields).map(([k, v]) => (
-                  <div key={k} className="flex gap-3 py-1.5">
-                    <span className="w-28 shrink-0 text-[10px] uppercase tracking-wider text-[var(--color-terminal-text-dim)]">{k.replace(/_/g, " ")}</span>
-                    <span className="break-all text-[var(--color-terminal-text-bright)]">{String(v)}</span>
-                  </div>
-                ))}
-              </>
-            )}
-          </div>
-        </div>
-      )}
+    <div className="text-xs text-[var(--color-text-muted)]">
+      <span className="text-xs font-medium uppercase tracking-wide">Watching</span>
+      <span className="ml-2 font-mono text-[var(--color-text-primary)]">
+        {parts.join(" · ")}
+      </span>
     </div>
   );
 }
