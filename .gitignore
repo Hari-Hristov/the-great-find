@@ -37,6 +37,9 @@ frontend/openapi.json
 # Claude / AI tooling
 CLAUDE.md
 .claude/
+.impeccable
+PRODUCT.md
+DESIGN.md
 
 # Editors / OS
 .DS_Store
