@@ -34,7 +34,7 @@ export interface WindowState {
   lastPosition: { x: number; y: number } | null;
   lastSize: { w: number; h: number } | null;
   resetOnNextOpen: boolean;
-  activeRoute: string;
+  history: string[];
 }
 
 function defaultSize() {
@@ -65,7 +65,7 @@ function buildInitial(): WindowState[] {
     lastPosition: null,
     lastSize: null,
     resetOnNextOpen: false,
-    activeRoute: def.route,
+    history: [def.route],
   }));
 }
 
@@ -77,7 +77,10 @@ interface DesktopContextValue {
   moveWindow: (id: WindowId, pos: { x: number; y: number }) => void;
   toggleMinimize: (id: WindowId) => void;
   toggleFullscreen: (id: WindowId) => void;
-  setActiveRoute: (id: WindowId, route: string) => void;
+  pushRoute: (id: WindowId, route: string) => void;
+  popRoute: (id: WindowId) => void;
+  replaceRoute: (id: WindowId, route: string) => void;
+  resetHistory: (id: WindowId) => void;
   maxZ: () => number;
 }
 
@@ -167,13 +170,78 @@ export function DesktopProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const setActiveRoute = useCallback((id: WindowId, route: string) => {
-    setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, activeRoute: route } : w)));
-  }, []);
+  const setActiveRouteHelper = useCallback(
+    (id: WindowId, mutator: (h: string[]) => string[]) => {
+      setWindows((prev) =>
+        prev.map((w) => (w.id === id ? { ...w, history: mutator(w.history) } : w)),
+      );
+    },
+    [],
+  );
+
+  const pushRoute = useCallback(
+    (id: WindowId, route: string) => {
+      setActiveRouteHelper(id, (h) => (h[h.length - 1] === route ? h : [...h, route]));
+    },
+    [setActiveRouteHelper],
+  );
+
+  const popRoute = useCallback(
+    (id: WindowId) => {
+      setActiveRouteHelper(id, (h) => (h.length > 1 ? h.slice(0, -1) : h));
+    },
+    [setActiveRouteHelper],
+  );
+
+  const replaceRoute = useCallback(
+    (id: WindowId, route: string) => {
+      setActiveRouteHelper(id, (h) => {
+        if (h[h.length - 1] === route) return h;
+        const next = [...h];
+        next[next.length - 1] = route;
+        return next;
+      });
+    },
+    [setActiveRouteHelper],
+  );
+
+  const resetHistory = useCallback(
+    (id: WindowId) => {
+      const def = windowDefById(id);
+      setActiveRouteHelper(id, () => [def.route]);
+    },
+    [setActiveRouteHelper],
+  );
 
   const value = useMemo(
-    () => ({ windows, openWindow, closeWindow, focusWindow, moveWindow, toggleMinimize, toggleFullscreen, setActiveRoute, maxZ }),
-    [windows, openWindow, closeWindow, focusWindow, moveWindow, toggleMinimize, toggleFullscreen, setActiveRoute, maxZ],
+    () => ({
+      windows,
+      openWindow,
+      closeWindow,
+      focusWindow,
+      moveWindow,
+      toggleMinimize,
+      toggleFullscreen,
+      pushRoute,
+      popRoute,
+      replaceRoute,
+      resetHistory,
+      maxZ,
+    }),
+    [
+      windows,
+      openWindow,
+      closeWindow,
+      focusWindow,
+      moveWindow,
+      toggleMinimize,
+      toggleFullscreen,
+      pushRoute,
+      popRoute,
+      replaceRoute,
+      resetHistory,
+      maxZ,
+    ],
   );
 
   return <DesktopContext.Provider value={value}>{children}</DesktopContext.Provider>;
@@ -188,6 +256,20 @@ export function useDesktop() {
 export function useWindow(id: WindowId) {
   const { windows } = useDesktop();
   return windows.find((w) => w.id === id)!;
+}
+
+export function useWindowNav(id: WindowId) {
+  const { windows, pushRoute, popRoute, replaceRoute, resetHistory } = useDesktop();
+  const win = windows.find((w) => w.id === id)!;
+  const current = win.history[win.history.length - 1];
+  return {
+    current,
+    canGoBack: win.history.length > 1,
+    push: (route: string) => pushRoute(id, route),
+    pop: () => popRoute(id),
+    replace: (route: string) => replaceRoute(id, route),
+    reset: () => resetHistory(id),
+  };
 }
 
 export function windowDefById(id: WindowId): WindowDef {

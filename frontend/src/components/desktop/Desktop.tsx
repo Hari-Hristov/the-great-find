@@ -1,8 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
-  DesktopProvider,
   WINDOW_DEFS,
   windowIdForRoute,
   windowDefById,
@@ -23,20 +22,15 @@ import { AlertDetailPage } from "@/routes/dashboard/alerts.$searchId";
 import { FlaggedPage } from "@/routes/dashboard/flagged";
 import { SettingsPage } from "@/routes/dashboard/settings";
 
-function WindowContent({ id, windowRoute, globalPathname }: { id: WindowId; windowRoute: string; globalPathname: string }) {
+function WindowContent({ id, route }: { id: WindowId; route: string }) {
   if (id === "searches") {
-    const active = globalPathname.startsWith("/dashboard/searches/") ? globalPathname : windowRoute;
-    const isGloballyActive = globalPathname.startsWith("/dashboard/searches/");
-    if (isGloballyActive) {
-      if (active.endsWith("/analytics") || active.includes("/analytics")) return <SearchAnalyticsPage />;
-      if (active === "/dashboard/searches/new") return <NewSearchPage />;
-      return <SearchDetailPage />;
-    }
-    if (windowRoute.startsWith("/dashboard/searches/")) return <SearchesPage />;
+    if (/^\/dashboard\/searches\/\d+\/analytics$/.test(route)) return <SearchAnalyticsPage />;
+    if (route === "/dashboard/searches/new") return <NewSearchPage />;
+    if (/^\/dashboard\/searches\/\d+$/.test(route)) return <SearchDetailPage />;
     return <SearchesPage />;
   }
   if (id === "alerts") {
-    if (globalPathname.startsWith("/dashboard/alerts/")) return <AlertDetailPage />;
+    if (/^\/dashboard\/alerts\/\d+$/.test(route)) return <AlertDetailPage />;
     return <AlertsPage />;
   }
   if (id === "overview") return <OverviewPage />;
@@ -48,47 +42,41 @@ function WindowContent({ id, windowRoute, globalPathname }: { id: WindowId; wind
 function DesktopInner({ entered }: { entered: boolean }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { windows, openWindow, closeWindow, focusWindow, toggleMinimize, setActiveRoute } = useDesktop();
+  const { windows, openWindow, closeWindow, focusWindow, toggleMinimize, pushRoute } = useDesktop();
+  const hydratedRef = useRef(false);
 
+  // One-time hydration from URL on first mount: if the user landed on /dashboard/searches/123
+  // directly, seed the searches window's history with the matching stack.
   useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
     const id = windowIdForRoute(pathname);
-    if (id) openWindow(id);
-    // Only run on mount to restore from direct URL
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const id = windowIdForRoute(pathname);
-    if (id) setActiveRoute(id, pathname);
-  }, [pathname, setActiveRoute]);
-
-  function navigateToWindow(id: WindowId) {
+    if (!id) return;
+    openWindow(id);
     const def = windowDefById(id);
-    navigate({ to: def.route as never });
-  }
+    if (pathname !== def.route) {
+      pushRoute(id, pathname);
+    }
+  }, [pathname, openWindow, pushRoute]);
 
-  function navigateToActiveRoute(id: WindowId) {
-    const win = windows.find((w) => w.id === id)!;
-    navigate({ to: win.activeRoute as never });
-  }
-
-  function navigateAfterClose(id: WindowId) {
-    if (windowIdForRoute(pathname) !== id) return;
-    const fallback = [...windows]
-      .filter((w) => w.open && w.id !== id)
-      .sort((a, b) => b.zIndex - a.zIndex)[0];
-    navigate({ to: fallback ? (windowDefById(fallback.id).route as never) : ("/dashboard" as never) });
+  // Mirror the focused window's top-of-stack into the URL bar, but never the other way around.
+  // This keeps the URL meaningful for refresh / sharing without driving the in-window state.
+  function syncUrl(id: WindowId) {
+    const win = windows.find((w) => w.id === id);
+    if (!win) return;
+    const top = win.history[win.history.length - 1];
+    if (top !== pathname) navigate({ to: top as never });
   }
 
   function handleIconClick(id: WindowId) {
     const win = windows.find((w) => w.id === id)!;
     if (win.open) {
       focusWindow(id);
-      if (win.minimized) navigateToActiveRoute(id);
+      if (win.minimized) syncUrl(id);
       return;
     }
     openWindow(id);
-    navigateToWindow(id);
+    syncUrl(id);
   }
 
   function handleTaskbarClick(id: WindowId) {
@@ -97,7 +85,20 @@ function DesktopInner({ entered }: { entered: boolean }) {
       toggleMinimize(id);
     } else {
       focusWindow(id);
-      navigateToActiveRoute(id);
+      syncUrl(id);
+    }
+  }
+
+  function navigateAfterClose(id: WindowId) {
+    if (windowIdForRoute(pathname) !== id) return;
+    const fallback = [...windows]
+      .filter((w) => w.open && w.id !== id)
+      .sort((a, b) => b.zIndex - a.zIndex)[0];
+    if (fallback) {
+      const top = fallback.history[fallback.history.length - 1];
+      navigate({ to: top as never });
+    } else {
+      navigate({ to: "/dashboard" as never });
     }
   }
 
@@ -116,7 +117,6 @@ function DesktopInner({ entered }: { entered: boolean }) {
       className="fixed inset-0 overflow-hidden"
       style={{ background: "var(--color-desktop-bg)" }}
     >
-      {/* Wallpaper radial glow */}
       <div
         className="pointer-events-none absolute inset-0"
         aria-hidden
@@ -126,7 +126,6 @@ function DesktopInner({ entered }: { entered: boolean }) {
         }}
       />
 
-      {/* Dot grid */}
       <div
         className="pointer-events-none absolute inset-0"
         aria-hidden
@@ -137,7 +136,6 @@ function DesktopInner({ entered }: { entered: boolean }) {
         }}
       />
 
-      {/* Desktop icons — top-right, 2-column grid, above windows */}
       <div className="absolute right-5 top-5 z-[300] grid grid-cols-2 gap-2 pb-14">
         {WINDOW_DEFS.map((def, i) => {
           const win = windows.find((w) => w.id === def.id)!;
@@ -164,18 +162,18 @@ function DesktopInner({ entered }: { entered: boolean }) {
         })}
       </div>
 
-      {/* Floating windows */}
       {WINDOW_DEFS.map((def) => {
         const win = windows.find((w) => w.id === def.id)!;
         if (!win.open) return null;
+        const top = win.history[win.history.length - 1];
         return (
           <AppWindow
             key={def.id}
             id={def.id}
             onClose={() => handleTitlebarClose(def.id)}
-            onFocus={() => { if (windowIdForRoute(pathname) !== def.id) navigateToActiveRoute(def.id); }}
+            onFocus={() => syncUrl(def.id)}
           >
-            <WindowContent id={def.id} windowRoute={win.activeRoute} globalPathname={pathname} />
+            <WindowContent id={def.id} route={top} />
           </AppWindow>
         );
       })}
@@ -187,9 +185,5 @@ function DesktopInner({ entered }: { entered: boolean }) {
 }
 
 export function Desktop({ entered = false }: { entered?: boolean }) {
-  return (
-    <DesktopProvider>
-      <DesktopInner entered={entered} />
-    </DesktopProvider>
-  );
+  return <DesktopInner entered={entered} />;
 }

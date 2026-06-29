@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 interface TopbarProps {
   title: string;
   subtitle?: string;
-  back?: { to: string; label?: string };
+  back?: { to?: string; onClick?: () => void; label?: string };
   actions?: React.ReactNode;
   onMenuClick?: () => void;
 }
@@ -31,13 +31,24 @@ export function Topbar({ title, subtitle, back, actions, onMenuClick }: TopbarPr
           </button>
         )}
         {back ? (
-          <Link
-            to={back.to}
-            aria-label={back.label ?? "Back"}
-            className="grid h-9 w-9 place-items-center rounded-md border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-primary)]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+          back.onClick ? (
+            <button
+              type="button"
+              onClick={back.onClick}
+              aria-label={back.label ?? "Back"}
+              className="grid h-9 w-9 place-items-center rounded-md border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-primary)]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          ) : back.to ? (
+            <Link
+              to={back.to}
+              aria-label={back.label ?? "Back"}
+              className="grid h-9 w-9 place-items-center rounded-md border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-primary)]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          ) : null
         ) : null}
         <div>
           <h1 className="font-display text-xl font-semibold tracking-tight">

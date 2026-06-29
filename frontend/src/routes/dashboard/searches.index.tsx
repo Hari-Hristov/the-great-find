@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useDeleteSearch, usePollAllSearches, usePollSearch, useSearches } from "@/api/hooks/queries";
 import type { SavedSearch } from "@/api/types";
 import { relativeTime } from "@/lib/utils";
+import { useWindowNav } from "@/contexts/DesktopContext";
 export const Route = createFileRoute("/dashboard/searches/")({
   component: SearchesPage,
 });
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/dashboard/searches/")({
 export function SearchesPage() {
   const searches = useSearches();
   const pollAll = usePollAllSearches();
+  const nav = useWindowNav("searches");
 
   const refreshLabel = pollAll.isPending
     ? "Refreshing…"
@@ -44,18 +46,19 @@ export function SearchesPage() {
           <div className="text-sm text-[var(--color-text-muted)]">
             {searches.data?.length ?? 0} saved
           </div>
-          <Link
-            to="/dashboard/searches/new"
+          <button
+            type="button"
+            onClick={() => nav.push("/dashboard/searches/new")}
             className="inline-flex h-8 items-center gap-2 rounded-[var(--radius-button)] bg-[var(--color-accent)] px-3 text-sm font-medium text-[var(--color-bg-base)] transition-colors hover:bg-[var(--color-accent-hover)]"
           >
             <Plus className="h-4 w-4" />
             New search
-          </Link>
+          </button>
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {(searches.data ?? []).map((s) => (
-            <SearchCard key={s.id} search={s} />
+            <SearchCard key={s.id} search={s} onOpen={() => nav.push(`/dashboard/searches/${s.id}`)} />
           ))}
         </div>
       </div>
@@ -63,7 +66,7 @@ export function SearchesPage() {
   );
 }
 
-function SearchCard({ search }: { search: SavedSearch }) {
+function SearchCard({ search, onOpen }: { search: SavedSearch; onOpen: () => void }) {
   const del = useDeleteSearch();
   const poll = usePollSearch();
   return (
@@ -71,13 +74,13 @@ function SearchCard({ search }: { search: SavedSearch }) {
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div className="min-w-0">
-            <Link
-              to="/dashboard/searches/$id"
-              params={{ id: String(search.id) }}
-              className="block font-display text-lg font-semibold hover:text-[var(--color-accent)]"
+            <button
+              type="button"
+              onClick={onOpen}
+              className="block text-left font-display text-lg font-semibold hover:text-[var(--color-accent)]"
             >
               {search.name}
-            </Link>
+            </button>
             <div className="mt-1 text-xs text-[var(--color-text-muted)]">
               {search.platform} · {search.country} · every {search.poll_interval_min}m
               {search.last_polled_at ? ` · last polled ${relativeTime(search.last_polled_at)}` : ""}

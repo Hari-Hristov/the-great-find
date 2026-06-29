@@ -9,10 +9,10 @@ GO           ?= go
 GOLANGCI     ?= $(shell $(GO) env GOPATH)/bin/golangci-lint
 
 # Pin the data dir to the repo's backend/ folder in dev so the app, the
-# Makefile, and any scripts all read/write the same dev.db file.
+# Makefile, and any scripts all read/write the same DB file.
 export THE_GREAT_FIND_DATA_DIR := $(CURDIR)
 
-DB_PATH     ?= ./dev.db
+DB_PATH     ?= ./the-great-find.db
 MIGRATIONS  := ./migrations
 
 .PHONY: tidy

@@ -3,6 +3,7 @@ import type { MutableRefObject } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Environment } from "@react-three/drei";
 import { ACESFilmicToneMapping } from "three";
+import { useNavigate } from "@tanstack/react-router";
 import { useSceneStateRef } from "./sceneState";
 import type { SceneState } from "./sceneState";
 import { useScrollDriver } from "./scrollDriver";
@@ -23,15 +24,16 @@ export function CinematicLanding() {
   const stateRef = useSceneStateRef();
   const [deliveryActive, setDeliveryActive] = useState(false);
   const [currentSection, setCurrentSection] = useState<Section>("cold-open");
+  const navigate = useNavigate();
 
   const handleDelivery = useCallback((active: boolean) => {
     setDeliveryActive(active);
   }, []);
 
   const handleSkip = useCallback(() => {
-    localStorage.setItem("skipIntro", "true");
-    window.location.reload();
-  }, []);
+    sessionStorage.setItem("desktop-entered", "1");
+    navigate({ to: "/dashboard" });
+  }, [navigate]);
 
   return (
     <div ref={containerRef} style={{ height: SCROLL_HEIGHT }} className="relative">
