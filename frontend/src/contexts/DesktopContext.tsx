@@ -118,6 +118,7 @@ export function DesktopProvider({ children }: { children: React.ReactNode }) {
   const closeWindow = useCallback((id: WindowId, resetPosition = false) => {
     setWindows((prev) => {
       const target = prev.find((w) => w.id === id);
+      const def = windowDefById(id);
       const closed = prev.map((w) =>
         w.id === id
           ? {
@@ -127,6 +128,7 @@ export function DesktopProvider({ children }: { children: React.ReactNode }) {
               lastPosition: target ? target.position : w.lastPosition,
               lastSize: target ? target.size : w.lastSize,
               resetOnNextOpen: resetPosition,
+              history: resetPosition ? [def.route] : w.history,
             }
           : w,
       );
