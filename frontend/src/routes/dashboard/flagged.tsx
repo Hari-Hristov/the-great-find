@@ -10,7 +10,7 @@ export const Route = createFileRoute("/dashboard/flagged")({
   component: FlaggedPage,
 });
 
-function FlaggedPage() {
+export function FlaggedPage() {
   const listings = useListings({ status: "hidden", limit: 500 });
   const unhide = useUnhideListing();
 

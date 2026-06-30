@@ -1,4 +1,4 @@
-import { createFileRoute, useParams, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { EyeOff, Loader2, MoreHorizontal, Pencil, RefreshCw, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
@@ -10,6 +10,7 @@ import { useHideListing, useListings, usePollSearch, useSearch } from "@/api/hoo
 import { formatEUR, relativeTime, sortByPostedAtDesc } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { SavedSearch } from "@/api/types";
+import { useWindowNav } from "@/contexts/DesktopContext";
 
 export const Route = createFileRoute("/dashboard/searches/$id")({
   component: SearchDetailPage,
@@ -23,11 +24,15 @@ function parseQueryParams(raw: string): Record<string, string | string[]> {
   }
 }
 
-function SearchDetailPage() {
-  const { id: idParam } = useParams({ from: "/dashboard/searches/$id" });
+function idFromRoute(route: string): string | null {
+  const m = route.match(/^\/dashboard\/searches\/(\d+)/);
+  return m ? m[1] : null;
+}
+
+export function SearchDetailPage() {
+  const nav = useWindowNav("searches");
+  const idParam = idFromRoute(nav.current) ?? "0";
   const id = Number(idParam);
-  const matchRoute = useMatchRoute();
-  const isChildActive = matchRoute({ to: "/dashboard/searches/$id/analytics", params: { id: idParam }, fuzzy: true });
 
   const search = useSearch(id);
 
@@ -61,25 +66,25 @@ function SearchDetailPage() {
     ? `${search.data.platform} · ${search.data.country} · every ${search.data.poll_interval_min}m`
     : undefined;
 
-  return isChildActive ? <Outlet /> : (
+  return (
     <>
       <Topbar
         title={search.data?.name ?? "Search"}
         subtitle={subtitle}
-        back={{ to: "/dashboard/searches", label: "Back to searches" }}
+        back={{ onClick: () => nav.pop(), label: "Back to searches" }}
         actions={search.data ? <DetailsOverflow search={search.data} /> : undefined}
       />
 
       {/* Action strip — sits between topbar and content, always visible */}
       <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] px-6 py-2">
         <div className="flex items-center gap-1">
-          <Link
-            to="/dashboard/searches/$id/analytics"
-            params={{ id: idParam }}
+          <button
+            type="button"
+            onClick={() => nav.push(`/dashboard/searches/${idParam}/analytics`)}
             className="inline-flex h-8 items-center gap-2 rounded-[var(--radius-button)] px-3 text-sm font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-card)] hover:text-[var(--color-text-primary)]"
           >
             Analytics
-          </Link>
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <Button

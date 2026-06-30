@@ -1,9 +1,9 @@
-import { Outlet, createFileRoute, useRouterState, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { X } from "lucide-react";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { SidebarContext } from "@/contexts/SidebarContext";
+import { Desktop } from "@/components/desktop/Desktop";
 import { useNotificationSettings } from "@/api/hooks/queries";
+import { useDesktop } from "@/contexts/DesktopContext";
 
 const EMAIL_DISMISSED_KEY = "email_setup_dismissed_until";
 const DISMISS_DURATION_MS = 8 * 60 * 60 * 1000;
@@ -19,14 +19,15 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function DashboardLayout() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const hideSidebar = pathname === "/dashboard/searches/new";
-
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dismissed, setDismissed] = useState(() => isDismissed());
   const { data: notifSettings, isSuccess } = useNotificationSettings();
+  const { openWindow, focusWindow, windows } = useDesktop();
 
-  const sidebarCtx = useMemo(() => ({ openSidebar: () => setSidebarOpen(true) }), []);
+  const [entered] = useState(() => {
+    const flag = sessionStorage.getItem("desktop-entered") === "1";
+    if (flag) sessionStorage.removeItem("desktop-entered");
+    return flag;
+  });
 
   const showPopup = isSuccess && !dismissed && !notifSettings?.smtp_host;
 
@@ -35,41 +36,30 @@ function DashboardLayout() {
     setDismissed(true);
   }
 
-  return (
-    <div className="flex h-full w-full bg-[var(--color-bg-base)]">
-      {!hideSidebar && (
-        <>
-          {/* Backdrop — mobile/tablet only */}
-          {sidebarOpen && (
-            <div
-              className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            />
-          )}
-          <Sidebar
-            emailUnconfigured={isSuccess && !notifSettings?.smtp_host}
-            open={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
-          />
-        </>
-      )}
+  function goToSettings() {
+    const settings = windows.find((w) => w.id === "settings");
+    if (settings?.open) {
+      focusWindow("settings");
+    } else {
+      openWindow("settings");
+    }
+    dismiss();
+  }
 
-      <main className="flex flex-1 flex-col overflow-hidden">
-        <SidebarContext.Provider value={sidebarCtx}>
-          <Outlet />
-        </SidebarContext.Provider>
-      </main>
+  return (
+    <>
+      <Desktop entered={entered} />
 
       {showPopup && (
-        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full border border-amber-500/30 bg-[var(--color-bg-elev)]/90 px-3 py-1.5 shadow-lg backdrop-blur-sm">
-          <Link
-            to="/dashboard/settings"
-            onClick={dismiss}
+        <div className="fixed bottom-14 right-5 z-[9990] flex items-center gap-2 rounded-full border border-amber-500/30 bg-[var(--color-bg-elev)]/90 px-3 py-1.5 shadow-lg backdrop-blur-sm">
+          <button
+            type="button"
+            onClick={goToSettings}
             className="flex items-center gap-2 transition-opacity hover:opacity-80"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
             <span className="text-xs text-[var(--color-text-muted)]">Email alerts not configured</span>
-          </Link>
+          </button>
           <button
             onClick={dismiss}
             className="ml-1 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
@@ -79,6 +69,6 @@ function DashboardLayout() {
           </button>
         </div>
       )}
-    </div>
+    </>
   );
 }

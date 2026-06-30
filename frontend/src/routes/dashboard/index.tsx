@@ -14,7 +14,7 @@ export const Route = createFileRoute("/dashboard/")({
 const RECENT_PAGE_SIZE = 10;
 const RECENT_TOTAL_CAP = 100;
 
-function OverviewPage() {
+export function OverviewPage() {
   const searches = useSearches();
   const alerts = useAlerts(50);
 

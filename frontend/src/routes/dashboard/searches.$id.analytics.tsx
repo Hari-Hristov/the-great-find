@@ -1,4 +1,4 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Stat } from "@/components/ui/Stat";
 import { TrendChart, type TrendDatum } from "@/components/charts/TrendChart";
 import { useAnalytics, useSearch } from "@/api/hooks/queries";
 import { formatEUR } from "@/lib/utils";
+import { useWindowNav } from "@/contexts/DesktopContext";
 
 export const Route = createFileRoute("/dashboard/searches/$id/analytics")({
   component: SearchAnalyticsPage,
@@ -53,8 +54,10 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SearchAnalyticsPage() {
-  const { id: idParam } = useParams({ from: "/dashboard/searches/$id/analytics" });
+export function SearchAnalyticsPage() {
+  const nav = useWindowNav("searches");
+  const m = nav.current.match(/^\/dashboard\/searches\/(\d+)\/analytics$/);
+  const idParam = m ? m[1] : "0";
   const id = Number(idParam);
 
   const search = useSearch(id);
@@ -85,7 +88,7 @@ function SearchAnalyticsPage() {
       <Topbar
         title={search.data ? `${search.data.name} — Analytics` : "Analytics"}
         back={{
-          to: `/dashboard/searches/${idParam}`,
+          onClick: () => nav.pop(),
           label: "Back to search",
         }}
       />
