@@ -1,15 +1,17 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAlerts, useSearches } from "@/api/hooks/queries";
 import { relativeTime } from "@/lib/utils";
+import { useWindowNav } from "@/contexts/DesktopContext";
 
 export const Route = createFileRoute("/dashboard/alerts/")({
   component: AlertsPage,
 });
 
 export function AlertsPage() {
+  const nav = useWindowNav("alerts");
   const alerts = useAlerts(200);
   const searches = useSearches();
 
@@ -49,28 +51,25 @@ export function AlertsPage() {
         ) : (
           <div className="flex flex-col gap-3">
             {searchIds.map((sid) => (
-              <Link
+              <Card
                 key={sid}
-                to="/dashboard/alerts/$searchId"
-                params={{ searchId: String(sid) }}
-                className="block"
+                className="cursor-pointer transition-colors hover:border-[var(--color-accent)]"
+                onClick={() => nav.push(`/dashboard/alerts/${sid}`)}
               >
-                <Card className="cursor-pointer transition-colors hover:border-[var(--color-accent)]">
-                  <CardContent className="flex items-center justify-between p-5">
-                    <div className="min-w-0">
-                      <p className="font-display text-base font-semibold">
-                        {searchNameMap.get(sid) ?? `Search #${sid}`}
+                <CardContent className="flex items-center justify-between p-5">
+                  <div className="min-w-0">
+                    <p className="font-display text-base font-semibold">
+                      {searchNameMap.get(sid) ?? `Search #${sid}`}
+                    </p>
+                    {latestAt.get(sid) ? (
+                      <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                        Last alert {relativeTime(latestAt.get(sid)!)}
                       </p>
-                      {latestAt.get(sid) ? (
-                        <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                          Last alert {relativeTime(latestAt.get(sid)!)}
-                        </p>
-                      ) : null}
-                    </div>
-                    <Badge variant="secondary">{grouped.get(sid)}</Badge>
-                  </CardContent>
-                </Card>
-              </Link>
+                    ) : null}
+                  </div>
+                  <Badge variant="secondary">{grouped.get(sid)}</Badge>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}

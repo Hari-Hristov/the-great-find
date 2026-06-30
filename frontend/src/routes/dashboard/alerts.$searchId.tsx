@@ -1,4 +1,5 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { useWindowNav } from "@/contexts/DesktopContext";
 import { EyeOff, Tag, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
@@ -137,9 +138,14 @@ function TagPopover({
   );
 }
 
+function searchIdFromRoute(route: string): string | null {
+  const m = route.match(/^\/dashboard\/alerts\/(\d+)/);
+  return m ? m[1] : null;
+}
+
 export function AlertDetailPage() {
-  const { searchId: searchIdParam } = useParams({ from: "/dashboard/alerts/$searchId" });
-  const searchId = Number(searchIdParam);
+  const nav = useWindowNav("alerts");
+  const searchId = Number(searchIdFromRoute(nav.current) ?? "0");
 
   const alerts = useAlerts(200);
   const searches = useSearches();
@@ -162,7 +168,7 @@ export function AlertDetailPage() {
       <Topbar
         title={search?.name ?? `Search #${searchId}`}
         subtitle={`${items.length} alert${items.length === 1 ? "" : "s"}`}
-        back={{ to: "/dashboard/alerts", label: "Back to alerts" }}
+        back={{ onClick: () => nav.pop(), label: "Back to alerts" }}
       />
 
       <div className="flex-1 overflow-auto px-6 py-6">
