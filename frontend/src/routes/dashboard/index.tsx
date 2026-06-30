@@ -374,10 +374,7 @@ function AlertRow({
         </div>
       </div>
       <div className="flex flex-col items-end shrink-0 text-right">
-        <PriceContext
-          searchId={alert.search_id}
-          targetEur={targetPrice}
-        />
+        <PriceContext alert={alert} targetEur={targetPrice} />
       </div>
     </li>
   );
@@ -386,36 +383,65 @@ function AlertRow({
 /**
  * Inline "is this a good price" context for the alert row.
  *
- * TODO(listing-price-on-alert): The current Alert payload does not carry the
- * listing's price, so this component surfaces only the operator's own target
- * (≤ X EUR) and the search's 30d average. The operator's primary decision is
- * "is this a good price?" — that needs the actual listing price next to the
- * row. Fix is a one-field backend change adding `price_eur` to the /alerts
- * response and the `alert.fired` SSE payload, plus an `Alert.listing_price_eur`
- * field on the frontend type. See CLAUDE.md → Known follow-ups for the full
- * plan. Once the field lands, render the listing price as the primary tabular
- * number and compute the delta vs 30d avg inline.
+ * Renders the listing price as the primary tabular number (the deciding
+ * value), with the operator's target and a delta vs the search's 30d average
+ * as inline secondary context. Falls back gracefully if the listing has no
+ * price.
  */
 function PriceContext({
-  searchId,
+  alert,
   targetEur,
 }: {
-  searchId: number;
+  alert: Alert;
   targetEur?: number;
 }) {
-  const analytics = useAnalytics(searchId, 30, undefined, undefined, "active");
+  const analytics = useAnalytics(alert.search_id, 30, undefined, undefined, "active");
   const avg = analytics.data?.avg_eur;
+  const price = alert.listing_price_eur;
+  const deltaPct =
+    price != null && avg && avg > 0 ? ((price - avg) / avg) * 100 : null;
+
+  // Below-target wins the colour — it's the green-light the operator is
+  // hunting for. Otherwise: cheaper-than-average is muted positive, more
+  // expensive is muted.
+  const belowTarget = targetEur != null && price != null && price <= targetEur;
+
   return (
-    <div className="space-y-0.5 text-right text-[11px] font-mono tabular-nums">
-      {targetEur !== undefined ? (
-        <div>
-          <span className="text-[var(--color-text-muted)]">target </span>
-          <span className="text-[var(--color-text-primary)]">≤ {formatEUR(targetEur)}</span>
+    <div className="text-right font-mono tabular-nums">
+      {price != null ? (
+        <div
+          className={
+            "text-base font-semibold " +
+            (belowTarget
+              ? "text-[var(--color-accent)]"
+              : "text-[var(--color-text-primary)]")
+          }
+        >
+          {formatEUR(price)}
         </div>
       ) : null}
-      {avg && avg > 0 ? (
-        <div className="text-[var(--color-text-muted)]">
+      {deltaPct != null ? (
+        <div
+          className={
+            "text-[11px] " +
+            (deltaPct < 0
+              ? "text-[var(--color-text-primary)]"
+              : "text-[var(--color-text-muted)]")
+          }
+        >
+          {deltaPct >= 0 ? "+" : ""}
+          {deltaPct.toFixed(0)}% vs 30d avg
+        </div>
+      ) : avg != null && avg > 0 ? (
+        // Price missing on the alert but we still have an average → show it
+        // so the row keeps some context.
+        <div className="text-[11px] text-[var(--color-text-muted)]">
           30d avg {formatEUR(avg)}
+        </div>
+      ) : null}
+      {targetEur != null ? (
+        <div className="text-[10px] text-[var(--color-text-muted)]">
+          target ≤ {formatEUR(targetEur)}
         </div>
       ) : null}
     </div>

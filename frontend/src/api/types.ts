@@ -85,10 +85,19 @@ export interface Alert {
   listing_title?: string;
   listing_url?: string;
   listing_status?: string;
+  listing_price_amount?: number;
+  listing_price_currency?: string;
+  listing_price_eur?: number;
 }
 
 export interface AppConfig {
   categories: Record<string, string>;
+}
+
+export interface VersionInfo {
+  version: string;
+  commit?: string;
+  date?: string;
 }
 
 export interface TrendPoint {

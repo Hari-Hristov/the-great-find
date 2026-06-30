@@ -1,0 +1,194 @@
+# Release pipeline — runs on every tag push that looks like a semver (v*).
+#
+# Two stages:
+#   1. build-go  : cross-compile the Go sidecar for 4 GOOS/GOARCH targets.
+#                  Uploads one artifact per target. Runs on the matching
+#                  native OS for darwin (so Apple-Silicon binaries are
+#                  produced on macos-latest) — saves us from juggling
+#                  cross-toolchains.
+#   2. package   : on each of windows / macos / linux, downloads the
+#                  relevant Go artifacts, builds the Electron app, runs
+#                  electron-builder, uploads the installer/dmg/AppImage
+#                  to the GitHub release.
+#
+# v1 is unsigned. macOS users right-click → Open the first time; Windows
+# SmartScreen warns; Linux AppImage is signing-free. See INSTALL-NOTES.md
+# attached to each release.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION_FILE: backend/go.mod
+  NODE_VERSION: "20.19.0"
+
+jobs:
+  build-go:
+    name: Go ${{ matrix.goos }}/${{ matrix.goarch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  goos: linux,   goarch: amd64 }
+          - { os: windows-latest, goos: windows, goarch: amd64 }
+          - { os: macos-latest,   goos: darwin,  goarch: amd64 }
+          - { os: macos-latest,   goos: darwin,  goarch: arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ env.GO_VERSION_FILE }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Derive version
+        id: ver
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          COMMIT="$(git rev-parse --short HEAD)"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+
+      - name: Cross-compile
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+          VERSION: ${{ steps.ver.outputs.version }}
+          COMMIT: ${{ steps.ver.outputs.commit }}
+          BUILD_DATE: ${{ steps.ver.outputs.date }}
+        run: |
+          EXT=""
+          if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
+          OUT="dist/bin/${GOOS}-${GOARCH}/the-great-find${EXT}"
+          mkdir -p "$(dirname "$OUT")"
+          LDFLAGS="-s -w \
+            -X github.com/Hari-Hristov/the-great-find/backend/internal/version.Version=${VERSION} \
+            -X github.com/Hari-Hristov/the-great-find/backend/internal/version.Commit=${COMMIT} \
+            -X github.com/Hari-Hristov/the-great-find/backend/internal/version.Date=${BUILD_DATE}"
+          ( cd backend && go build -trimpath -ldflags "$LDFLAGS" -o "../$OUT" ./cmd/the-great-find )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/bin/${{ matrix.goos }}-${{ matrix.goarch }}/*
+          retention-days: 7
+
+  package:
+    name: Package ${{ matrix.platform }}
+    needs: build-go
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, platform: win,   builder_flag: "--win" }
+          - { os: macos-latest,   platform: mac,   builder_flag: "--mac" }
+          - { os: ubuntu-latest,  platform: linux, builder_flag: "--linux" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Derive version
+        id: ver
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # macOS needs BOTH darwin artifacts; everything else needs only its own.
+      - name: Download Go binaries (mac)
+        if: matrix.platform == 'mac'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bin-darwin-*
+          path: dist/bin
+      - name: Download Go binary (windows)
+        if: matrix.platform == 'win'
+        uses: actions/download-artifact@v4
+        with:
+          name: bin-windows-amd64
+          path: dist/bin/windows-amd64
+      - name: Download Go binary (linux)
+        if: matrix.platform == 'linux'
+        uses: actions/download-artifact@v4
+        with:
+          name: bin-linux-amd64
+          path: dist/bin/linux-amd64
+
+      - name: Normalise mac artifact layout
+        if: matrix.platform == 'mac'
+        shell: bash
+        run: |
+          # The download-artifact action with pattern: flattens artifact
+          # NAMES into directories. We need them under goos-goarch/.
+          ls -la dist/bin/
+          for d in dist/bin/bin-darwin-*; do
+            arch="${d##*-}"
+            mv "$d" "dist/bin/darwin-${arch}"
+          done
+          ls -la dist/bin/darwin-amd64 dist/bin/darwin-arm64
+
+      - name: Make Go binaries executable
+        if: matrix.platform != 'win'
+        shell: bash
+        run: chmod +x dist/bin/*/the-great-find
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Generate placeholder icons (no real assets yet)
+        shell: bash
+        run: python3 frontend/build/make-placeholders.py
+
+      - name: Build Electron sources
+        working-directory: frontend
+        env:
+          VITE_APP_VERSION: ${{ steps.ver.outputs.version }}
+        run: npm run build:electron
+
+      - name: Run electron-builder
+        working-directory: frontend
+        shell: bash
+        run: |
+          npx electron-builder ${{ matrix.builder_flag }} \
+            --publish=never \
+            --config.extraMetadata.version=${{ steps.ver.outputs.version }}
+
+      - name: Stage release artifacts
+        shell: bash
+        run: |
+          mkdir -p release-staging
+          # Pick up the packaged outputs (electron-builder writes to
+          # dist/electron per electron-builder.yml).
+          find dist/electron -maxdepth 3 -type f \
+            \( -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.zip" -o -name "latest*.yml" \) \
+            -exec cp {} release-staging/ \;
+          cp INSTALL-NOTES.md release-staging/ 2>/dev/null || true
+          ls -la release-staging/
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-staging/*
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') }}
+          fail_on_unmatched_files: true

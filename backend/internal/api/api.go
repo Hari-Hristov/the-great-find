@@ -73,6 +73,7 @@ func New(q Queries, sched Reloader, cfg ConfigProvider) http.Handler {
 	registerAnalytics(api, q)
 	registerConfig(api, cfg)
 	registerNotificationSettings(api, q)
+	registerVersion(api)
 
 	return r
 }

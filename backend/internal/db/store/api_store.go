@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Hari-Hristov/the-great-find/backend/internal/api"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/money"
 )
 
 // Compile-time assertion that Store satisfies api.Queries (which embeds scheduler.Queries).
@@ -442,7 +443,7 @@ func (s *Store) ListRecentAlerts(ctx context.Context, limit int) ([]api.AlertRow
 	const q = `
 		SELECT a.id, a.search_id, a.listing_id, a.criteria_hash, a.criteria, a.sent_at,
 		       a.tag_label, a.tag_color,
-		       l.title, l.url, l.status
+		       l.title, l.url, l.status, l.price_amount, l.price_currency
 		FROM alerts_sent a
 		LEFT JOIN listings l ON l.id = a.listing_id
 		ORDER BY a.sent_at DESC
@@ -456,15 +457,18 @@ func (s *Store) ListRecentAlerts(ctx context.Context, limit int) ([]api.AlertRow
 	out := []api.AlertRow{}
 	for rows.Next() {
 		var (
-			r                       api.AlertRow
-			sentAt                  string
-			tagLabel, tagColor      sql.NullString
-			title, url              sql.NullString
-			listingStatus           sql.NullString
+			r                  api.AlertRow
+			sentAt             string
+			tagLabel, tagColor sql.NullString
+			title, url         sql.NullString
+			listingStatus      sql.NullString
+			priceAmount        sql.NullFloat64
+			priceCurrency      sql.NullString
 		)
 		if err := rows.Scan(&r.ID, &r.SearchID, &r.ListingID,
 			&r.CriteriaHash, &r.Criteria, &sentAt, &tagLabel, &tagColor,
-			&title, &url, &listingStatus); err != nil {
+			&title, &url, &listingStatus,
+			&priceAmount, &priceCurrency); err != nil {
 			return nil, err
 		}
 		if t, err := parseTS(sentAt); err == nil {
@@ -484,6 +488,16 @@ func (s *Store) ListRecentAlerts(ctx context.Context, limit int) ([]api.AlertRow
 		}
 		if listingStatus.Valid {
 			r.ListingStatus = listingStatus.String
+		}
+		if priceAmount.Valid {
+			v := priceAmount.Float64
+			r.ListingPriceAmount = &v
+			if priceCurrency.Valid {
+				r.ListingPriceCurrency = priceCurrency.String
+				if eur, ok := money.ToEUR(v, priceCurrency.String); ok {
+					r.ListingPriceEUR = &eur
+				}
+			}
 		}
 		out = append(out, r)
 	}

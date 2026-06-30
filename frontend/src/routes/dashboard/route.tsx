@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Desktop } from "@/components/desktop/Desktop";
-import { useNotificationSettings } from "@/api/hooks/queries";
+import { useNotificationSettings, useSearches } from "@/api/hooks/queries";
 import { useDesktop } from "@/contexts/DesktopContext";
 
 const EMAIL_DISMISSED_KEY = "email_setup_dismissed_until";
@@ -19,15 +19,29 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function DashboardLayout() {
+  const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(() => isDismissed());
   const { data: notifSettings, isSuccess } = useNotificationSettings();
   const { openWindow, focusWindow, windows } = useDesktop();
+
+  // First-run gate: empty searches list → punt to the wizard.
+  const searches = useSearches();
+  useEffect(() => {
+    if (searches.isSuccess && (searches.data?.length ?? 0) === 0) {
+      void navigate({ to: "/wizard", replace: true });
+    }
+  }, [searches.isSuccess, searches.data, navigate]);
 
   const [entered] = useState(() => {
     const flag = sessionStorage.getItem("desktop-entered") === "1";
     if (flag) sessionStorage.removeItem("desktop-entered");
     return flag;
   });
+
+  // While we don't yet know whether searches exist, render nothing —
+  // avoids a flash of the empty desktop before the redirect resolves.
+  if (searches.isLoading) return null;
+  if (searches.isSuccess && (searches.data?.length ?? 0) === 0) return null;
 
   const showPopup = isSuccess && !dismissed && !notifSettings?.smtp_host;
 

@@ -29,6 +29,7 @@ import (
 
 	"github.com/Hari-Hristov/the-great-find/backend/internal/alerts"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/events"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/money"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/scraper"
 )
@@ -591,18 +592,34 @@ func (r *runner) processListing(ctx context.Context, l scraper.Listing, cfg *par
 			continue
 		}
 		r.parent.bus.Publish(events.Event{
-			Type: events.TypeAlertFired,
-			Payload: map[string]any{
-				"search_id":  r.search.ID,
-				"listing_id": stored.ID,
-				"kind":       m.Kind,
-				"details":    m.Details,
-				"title":      l.Title,
-				"url":        l.URL,
-			},
+			Type:    events.TypeAlertFired,
+			Payload: buildAlertFiredPayload(r.search.ID, stored.ID, m, l),
 		})
 	}
 	return nil
+}
+
+// buildAlertFiredPayload assembles the SSE payload for an alert.fired event.
+// Includes the listing's price (raw amount + currency + computed EUR) so the
+// dashboard can render the deciding number without a follow-up fetch. When the
+// listing has no price, only the title/url surface.
+func buildAlertFiredPayload(searchID, listingID int64, m alerts.Match, l scraper.Listing) map[string]any {
+	payload := map[string]any{
+		"search_id":  searchID,
+		"listing_id": listingID,
+		"kind":       m.Kind,
+		"details":    m.Details,
+		"title":      l.Title,
+		"url":        l.URL,
+	}
+	if l.PriceAmount != nil {
+		payload["listing_price_amount"] = *l.PriceAmount
+		payload["listing_price_currency"] = l.PriceCurrency
+		if eur, ok := money.ToEUR(*l.PriceAmount, l.PriceCurrency); ok {
+			payload["listing_price_eur"] = eur
+		}
+	}
+	return payload
 }
 
 // fetchAllVariants expands the saved search's keyword over the built-in

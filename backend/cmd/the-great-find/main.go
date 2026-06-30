@@ -23,6 +23,7 @@ import (
 	"github.com/Hari-Hristov/the-great-find/backend/internal/politehttp"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/scheduler"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/scraper"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/version"
 )
 
 func main() {
@@ -38,6 +39,9 @@ func main() {
 func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	info := version.Get()
+	slog.Info("startup", "version", info.Version, "commit", info.Commit, "date", info.Date)
 
 	dataDir, err := paths.DataDir()
 	if err != nil {
