@@ -5,6 +5,10 @@ import { AlertsPage } from "@/routes/dashboard/alerts.index";
 import { FlaggedPage } from "@/routes/dashboard/flagged";
 import { SettingsPage } from "@/routes/dashboard/settings";
 
+export const DESKTOP_ICON_Z = 0;
+export const WINDOW_Z_BASE = DESKTOP_ICON_Z + 1;
+export const FULLSCREEN_Z = 9000;
+
 export type WindowId = "overview" | "searches" | "alerts" | "flagged" | "settings";
 
 export interface WindowDef {
@@ -58,7 +62,7 @@ function buildInitial(): WindowState[] {
     id: def.id,
     position: { x: 0, y: 0 },
     size: { w: 0, h: 0 },
-    zIndex: 10,
+    zIndex: WINDOW_Z_BASE,
     minimized: false,
     fullscreen: false,
     open: false,
@@ -124,7 +128,7 @@ export function DesktopProvider({ children }: { children: React.ReactNode }) {
           ? {
               ...w,
               open: false,
-              zIndex: 10,
+              zIndex: WINDOW_Z_BASE,
               lastPosition: target ? target.position : w.lastPosition,
               lastSize: target ? target.size : w.lastSize,
               resetOnNextOpen: resetPosition,
@@ -135,12 +139,12 @@ export function DesktopProvider({ children }: { children: React.ReactNode }) {
       const openSorted = closed
         .filter((w) => w.open)
         .sort((a, b) => a.zIndex - b.zIndex)
-        .map((w, i) => ({ ...w, zIndex: i + 1 }));
-      zCounter.current = openSorted.length;
+        .map((w, i) => ({ ...w, zIndex: i + WINDOW_Z_BASE }));
+      zCounter.current = openSorted.length + WINDOW_Z_BASE - 1;
       const openIds = new Set(openSorted.map((w) => w.id));
       return closed.map((w) => {
         const ranked = openSorted.find((o) => o.id === w.id);
-        return ranked ?? (openIds.has(w.id) ? w : { ...w, zIndex: 10 });
+        return ranked ?? (openIds.has(w.id) ? w : { ...w, zIndex: WINDOW_Z_BASE });
       });
     });
   }, []);

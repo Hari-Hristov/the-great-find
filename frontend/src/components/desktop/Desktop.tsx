@@ -7,6 +7,7 @@ import {
   windowDefById,
   type WindowId,
   useDesktop,
+  DESKTOP_ICON_Z,
 } from "@/contexts/DesktopContext";
 import { DesktopIcon } from "./DesktopIcon";
 import { AppWindow } from "./AppWindow";
@@ -147,7 +148,7 @@ function DesktopInner({ entered }: { entered: boolean }) {
         }}
       />
 
-      <div className="absolute right-5 top-5 z-0 grid grid-cols-2 gap-2 pb-14">
+      <div className="absolute right-5 top-5 grid grid-cols-2 gap-2 pb-14" style={{ zIndex: DESKTOP_ICON_Z }}>
         {WINDOW_DEFS.map((def, i) => {
           const win = windows.find((w) => w.id === def.id)!;
           return (
