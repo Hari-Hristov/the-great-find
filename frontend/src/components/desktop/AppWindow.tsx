@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useDesktop, useWindow, windowDefById, type WindowId } from "@/contexts/DesktopContext";
+import { useDesktop, useWindow, windowDefById, type WindowId, FULLSCREEN_Z } from "@/contexts/DesktopContext";
 
 interface TitlebarButtonProps {
   color: string;
@@ -86,7 +86,7 @@ export function AppWindow({ id, onClose, onFocus, children }: AppWindowProps) {
   }, []);
 
   const fsStyle = win.fullscreen
-    ? { position: "fixed" as const, left: 0, top: 0, width: "100vw", height: "100vh", zIndex: 9000 }
+    ? { position: "fixed" as const, left: 0, top: 0, width: "100vw", height: "100vh", zIndex: FULLSCREEN_Z }
     : {
         position: "absolute" as const,
         left: win.position.x,
