@@ -16,7 +16,7 @@ export const Route = createFileRoute("/dashboard/")({
 const LAST_VISIT_KEY = "tgf-overview-last-visited";
 const POLL_WINDOW_MS = 30 * 60 * 1000;
 
-function OverviewPage() {
+export function OverviewPage() {
   const searches = useSearches();
   const alerts = useAlerts(100);
   const { last: lastEvent } = useEventStreamContext();
