@@ -49,3 +49,12 @@ export function sortByPostedAtDesc<T extends { posted_at?: string }>(a: T, b: T)
   if (!b.posted_at) return -1;
   return b.posted_at.localeCompare(a.posted_at);
 }
+
+export function safeJSONParse<T>(raw: string | undefined | null, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}

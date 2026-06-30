@@ -68,6 +68,17 @@ function DesktopInner({ entered }: { entered: boolean }) {
     if (top !== pathname) navigate({ to: top as never });
   }
 
+  // Reactively sync URL whenever the focused window's history top changes (e.g. push/pop inside a window).
+  const focusedTop = (() => {
+    const focused = [...windows]
+      .filter((w) => w.open && !w.minimized)
+      .sort((a, b) => b.zIndex - a.zIndex)[0];
+    return focused ? focused.history[focused.history.length - 1] : null;
+  })();
+  useEffect(() => {
+    if (focusedTop && focusedTop !== pathname) navigate({ to: focusedTop as never });
+  }, [focusedTop]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleIconClick(id: WindowId) {
     const win = windows.find((w) => w.id === id)!;
     if (win.open) {
