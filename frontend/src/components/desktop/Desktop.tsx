@@ -147,7 +147,7 @@ function DesktopInner({ entered }: { entered: boolean }) {
         }}
       />
 
-      <div className="absolute right-5 top-5 z-[300] grid grid-cols-2 gap-2 pb-14">
+      <div className="absolute right-5 top-5 z-0 grid grid-cols-2 gap-2 pb-14">
         {WINDOW_DEFS.map((def, i) => {
           const win = windows.find((w) => w.id === def.id)!;
           return (
