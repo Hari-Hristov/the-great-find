@@ -1,4 +1,4 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Stat } from "@/components/ui/Stat";
 import { TrendChart, type TrendDatum } from "@/components/charts/TrendChart";
 import { useAnalytics, useSearch } from "@/api/hooks/queries";
 import { formatEUR } from "@/lib/utils";
+import { useWindowNav } from "@/contexts/DesktopContext";
 
 export const Route = createFileRoute("/dashboard/searches/$id/analytics")({
   component: SearchAnalyticsPage,
@@ -20,25 +21,22 @@ const WINDOWS = [
 function WindowSelector({
   value,
   onChange,
-  label,
 }: {
   value: number;
   onChange: (v: number) => void;
-  label: string;
 }) {
   return (
-    <div className="flex items-center gap-1" role="radiogroup" aria-label={label}>
+    <div className="flex items-center gap-1">
       {WINDOWS.map((w) => (
         <button
           key={w.value}
           type="button"
-          role="radio"
-          aria-checked={value === w.value}
+          aria-pressed={value === w.value}
           onClick={() => onChange(w.value)}
-          className={`rounded-[var(--radius-button)] px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-base)] ${
+          className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
             value === w.value
               ? "bg-[var(--color-accent)] text-[var(--color-bg-base)]"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-card)]"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-base)]"
           }`}
         >
           {w.label}
@@ -48,8 +46,18 @@ function WindowSelector({
   );
 }
 
-function SearchAnalyticsPage() {
-  const { id: idParam } = useParams({ from: "/dashboard/searches/$id/analytics" });
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
+      {children}
+    </h2>
+  );
+}
+
+export function SearchAnalyticsPage() {
+  const nav = useWindowNav("searches");
+  const m = nav.current.match(/^\/dashboard\/searches\/(\d+)\/analytics$/);
+  const idParam = m ? m[1] : "0";
   const id = Number(idParam);
 
   const search = useSearch(id);
@@ -80,7 +88,7 @@ function SearchAnalyticsPage() {
       <Topbar
         title={search.data ? `${search.data.name} — Analytics` : "Analytics"}
         back={{
-          to: `/dashboard/searches/${idParam}`,
+          onClick: () => nav.pop(),
           label: "Back to search",
         }}
       />
@@ -88,10 +96,8 @@ function SearchAnalyticsPage() {
       <div className="flex-1 overflow-auto px-6 py-6 space-y-8">
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg font-semibold tracking-tight">
-              Active market
-            </h2>
-            <WindowSelector value={activeWindow} onChange={setActiveWindow} label="Active market window" />
+            <SectionHeading>Active market</SectionHeading>
+            <WindowSelector value={activeWindow} onChange={setActiveWindow} />
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
@@ -123,10 +129,8 @@ function SearchAnalyticsPage() {
 
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg font-semibold tracking-tight">
-              Sold / inactive prices
-            </h2>
-            <WindowSelector value={inactiveWindow} onChange={setInactiveWindow} label="Sold window" />
+            <SectionHeading>Sold / inactive prices</SectionHeading>
+            <WindowSelector value={inactiveWindow} onChange={setInactiveWindow} />
           </div>
           <p className="text-xs text-[var(--color-text-muted)]">
             Listings that left the market — likely sold. Their last known price reflects what buyers actually paid.

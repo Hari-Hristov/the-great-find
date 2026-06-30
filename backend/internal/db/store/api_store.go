@@ -444,7 +444,7 @@ func (s *Store) ListRecentAlerts(ctx context.Context, limit int) ([]api.AlertRow
 		       a.tag_label, a.tag_color,
 		       l.title, l.url, l.status
 		FROM alerts_sent a
-		JOIN listings l ON l.id = a.listing_id AND l.status = 'active'
+		LEFT JOIN listings l ON l.id = a.listing_id
 		ORDER BY a.sent_at DESC
 		LIMIT ?`
 	rows, err := s.pools.Reader.QueryContext(ctx, q, limit)

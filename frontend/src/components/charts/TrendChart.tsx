@@ -60,13 +60,7 @@ function MobileSparkline({ data, colors }: { data: TrendDatum[]; colors: ReturnT
   const first = data[0]?.avgEur ?? 0;
   const last = data[data.length - 1]?.avgEur ?? 0;
   const delta = first > 0 ? ((last - first) / first) * 100 : 0;
-  // For a buyer-side operator: prices going DOWN over the period is a
-  // success signal (their target is more reachable); UP is a danger signal.
-  // Theme-token-backed so the military skin picks up the right hues.
-  const trendColor =
-    delta <= 0
-      ? "text-[var(--color-success)]"
-      : "text-[var(--color-danger)]";
+  const trendColor = delta >= 0 ? "text-emerald-400" : "text-rose-400";
   const trendLabel = `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}%`;
   const totalCount = data.reduce((s, d) => s + d.count, 0);
 

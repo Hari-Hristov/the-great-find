@@ -1,19 +1,24 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { SearchForm } from "@/components/SearchForm";
+import { useWindowNav } from "@/contexts/DesktopContext";
 
 export const Route = createFileRoute("/dashboard/searches/new")({
   component: NewSearchPage,
 });
 
-function NewSearchPage() {
-  const navigate = useNavigate();
-  const goBack = () => navigate({ to: "/dashboard/searches" });
+export function NewSearchPage() {
+  const nav = useWindowNav("searches");
+  const goBack = () => nav.pop();
 
   return (
     <>
-      <Topbar title="New search" subtitle="Create a saved olx.bg query for the scheduler to monitor" />
+      <Topbar
+        title="New search"
+        subtitle="Create a saved olx.bg query for the scheduler to monitor"
+        back={{ onClick: goBack, label: "Back to searches" }}
+      />
 
       <div className="flex-1 overflow-auto px-6 py-6">
         <Card className="mx-auto max-w-3xl">

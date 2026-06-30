@@ -50,6 +50,7 @@ export function DeliveryCTA({ visible }: Props) {
             <Spotlight className="rounded-full" size={200}>
               <a
                 href="/dashboard"
+                onClick={() => sessionStorage.setItem("desktop-entered", "1")}
                 className="relative z-20 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-medium text-black transition-opacity hover:opacity-90"
               >
                 Open the dashboard →

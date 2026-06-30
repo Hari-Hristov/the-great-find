@@ -1,10 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import * as React from "react";
 import { useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/input";
 import { useTheme, type ThemeId } from "@/contexts/ThemeContext";
 import {
   useNotificationSettings,
@@ -31,7 +28,7 @@ const THEMES: { id: ThemeId; label: string; description: string; swatches: strin
   },
 ];
 
-function SettingsPage() {
+export function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { data: notifSettings } = useNotificationSettings();
   const saveNotif = useSaveNotificationSettings();
@@ -83,7 +80,7 @@ function SettingsPage() {
                         {t.swatches.map((color, i) => (
                           <span
                             key={i}
-                            className="h-4 w-4 rounded-full border border-[var(--color-border-subtle)]"
+                            className="h-4 w-4 rounded-full border border-white/10"
                             style={{ background: color }}
                           />
                         ))}
@@ -112,14 +109,12 @@ function SettingsPage() {
                   <CardDescription>OS alerts are always on. Email is optional.</CardDescription>
                 </div>
                 {!isEmailConfigured && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-warning)] bg-[var(--color-bg-elev)] px-2.5 py-0.5 text-xs font-medium text-[var(--color-text-muted)]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-warning)]" />
+                  <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-400">
                     Email not configured
                   </span>
                 )}
                 {isEmailConfigured && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-success)] bg-[var(--color-bg-elev)] px-2.5 py-0.5 text-xs font-medium text-[var(--color-text-muted)]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" />
+                  <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-400">
                     Email configured
                   </span>
                 )}
@@ -173,24 +168,22 @@ function SettingsPage() {
                   />
                 </div>
                 <div className="mt-4 flex items-center gap-3">
-                  <Button
-                    type="button"
+                  <button
                     onClick={() =>
                       saveNotif.mutate(form, {
                         onSuccess: () => setEditedForm(null),
                       })
                     }
                     disabled={saveNotif.isPending}
+                    className="rounded-[var(--radius-btn)] bg-[var(--color-accent)] px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:opacity-40"
                   >
                     {saveNotif.isPending ? "Saving…" : "Save"}
-                  </Button>
+                  </button>
                   {saveNotif.isSuccess && (
-                    <span className="text-xs text-[var(--color-success)]">Saved</span>
+                    <span className="text-xs text-emerald-400">Saved</span>
                   )}
                   {saveNotif.isError && (
-                    <span className="text-xs text-[var(--color-danger)]">
-                      Failed to save — check the SMTP host, port, and credentials.
-                    </span>
+                    <span className="text-xs text-red-400">Failed to save</span>
                   )}
                 </div>
               </div>
@@ -228,6 +221,21 @@ function SettingsPage() {
               <Row k="Auth" v="OS user account is the boundary" />
             </CardContent>
           </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Roadmap</CardTitle>
+              <CardDescription>What's coming next</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-[var(--color-text-muted)]">
+              <Row k="Phase 6.5" v="Landing v0 (2D scroll story)" />
+              <Row k="Phase 6.6" v="Landing v1 (3D upgrade)" />
+              <Row k="Phase 7" v="Tray + first-run wizard" />
+              <Row k="Phase 8" v="Param discovery from olx.bg" />
+              <Row k="Phase 9" v="Cross-build + release workflow" />
+              <Row k="Phase 10" v="Polish + README" />
+            </CardContent>
+          </Card>
         </div>
       </div>
     </>
@@ -256,18 +264,16 @@ function Field({
   onChange: (v: string) => void;
   type?: string;
 }) {
-  const id = React.useId();
   return (
-    <div className="flex flex-col gap-1">
-      <Label htmlFor={id}>{label}</Label>
+    <label className="flex flex-col gap-1">
+      <span className="text-xs text-[var(--color-text-muted)]">{label}</span>
       <input
-        id={id}
         type={type}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 rounded-[var(--radius-button)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] px-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+        className="rounded-[var(--radius-input,4px)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-elev)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent)] focus:outline-none"
       />
-    </div>
+    </label>
   );
 }

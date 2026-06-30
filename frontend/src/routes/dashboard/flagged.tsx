@@ -10,7 +10,7 @@ export const Route = createFileRoute("/dashboard/flagged")({
   component: FlaggedPage,
 });
 
-function FlaggedPage() {
+export function FlaggedPage() {
   const listings = useListings({ status: "hidden", limit: 500 });
   const unhide = useUnhideListing();
 
@@ -44,8 +44,7 @@ function FlaggedPage() {
                         href={l.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        title={l.title}
-                        className="listing-link block truncate text-sm opacity-50 hover:opacity-100 hover:text-[var(--color-accent)]"
+                        className="block truncate text-sm opacity-50 hover:opacity-100 hover:text-[var(--color-accent)]"
                       >
                         {l.title}
                       </a>
@@ -63,7 +62,7 @@ function FlaggedPage() {
                         aria-label="Unhide listing"
                         disabled={unhide.isPending}
                         onClick={() => unhide.mutate(l.id)}
-                        className="text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
+                        className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>

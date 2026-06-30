@@ -1,20 +1,13 @@
-import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useLocation } from "@tanstack/react-router";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { BusEvent, EventName } from "@/api/types";
 
 interface EventStreamState {
   connected: boolean;
   last: BusEvent | null;
-  /** Timestamp (ms) of the operator's most recent visit to /dashboard/alerts. */
-  lastAlertsVisit: number;
 }
 
-const EventStreamContext = createContext<EventStreamState>({
-  connected: false,
-  last: null,
-  lastAlertsVisit: 0,
-});
+const EventStreamContext = createContext<EventStreamState>({ connected: false, last: null });
 
 export function useEventStreamContext() {
   return useContext(EventStreamContext);
@@ -22,62 +15,15 @@ export function useEventStreamContext() {
 
 const EVENT_NAMES: EventName[] = ["alert.fired", "listing.new", "listing.updated", "listing.removed", "poll.finished"];
 const MAX_BACKOFF_MS = 30_000;
-const ALERTS_VISIT_KEY = "tgf-alerts-last-visit";
-const ALERTS_VISIT_EVENT = "tgf:alerts-visit";
-
-function readLastVisit(): number {
-  if (typeof window === "undefined") return 0;
-  const stored = window.localStorage.getItem(ALERTS_VISIT_KEY);
-  return stored ? Number(stored) || 0 : 0;
-}
-
-/**
- * Subscribe to the persisted "last alerts visit" timestamp via
- * useSyncExternalStore. We dispatch a custom event whenever we write the
- * value, which lets React subscribers re-derive without a setState-in-effect.
- */
-function useLastAlertsVisit(): number {
-  return useSyncExternalStore(
-    (callback) => {
-      if (typeof window === "undefined") return () => {};
-      window.addEventListener(ALERTS_VISIT_EVENT, callback);
-      window.addEventListener("storage", callback);
-      return () => {
-        window.removeEventListener(ALERTS_VISIT_EVENT, callback);
-        window.removeEventListener("storage", callback);
-      };
-    },
-    readLastVisit,
-    () => 0,
-  );
-}
-
-function bumpLastAlertsVisit() {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(ALERTS_VISIT_KEY, String(Date.now()));
-  window.dispatchEvent(new CustomEvent(ALERTS_VISIT_EVENT));
-}
 
 export function EventStreamProvider({ children }: { children: React.ReactNode }) {
   const qc = useQueryClient();
-  const pathname = useLocation({ select: (s) => s.pathname });
   const [connected, setConnected] = useState(false);
   const [last, setLast] = useState<BusEvent | null>(null);
-  const lastAlertsVisit = useLastAlertsVisit();
   const sourceRef = useRef<EventSource | null>(null);
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptRef = useRef(0);
   const connectRef = useRef<() => void>(() => {});
-
-  // External-system sync: bump the persisted "last visited alerts" timestamp
-  // whenever the operator's path is on /dashboard/alerts*. The write goes to
-  // localStorage and dispatches a custom event; useSyncExternalStore subscribers
-  // pick up the new value without us calling setState here.
-  useEffect(() => {
-    if (pathname.startsWith("/dashboard/alerts")) {
-      bumpLastAlertsVisit();
-    }
-  }, [pathname]);
 
   useEffect(() => {
     connectRef.current = () => {
@@ -132,7 +78,7 @@ export function EventStreamProvider({ children }: { children: React.ReactNode })
   }, [qc]);
 
   return (
-    <EventStreamContext.Provider value={{ connected, last, lastAlertsVisit }}>
+    <EventStreamContext.Provider value={{ connected, last }}>
       {children}
     </EventStreamContext.Provider>
   );
