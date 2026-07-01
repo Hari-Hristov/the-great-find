@@ -5,13 +5,21 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
+    <!--
+      CSP: single policy that covers both browser/Electron dev and packaged.
+      - 'unsafe-eval' is unavoidable — Vite HMR uses eval() and Three.js does
+        function generation for shaders.
+      - connect-src includes http://127.0.0.1:* for the local backend (any port,
+        since packaged binds an OS-assigned one) and localhost:5173 + ws://
+        for the Vite dev server. 'self' covers the packaged file:// origin.
+      - img-src allows data: (SVGs inline) and https: (listing thumbnails
+        rendered from olx.bg URLs).
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:* http://localhost:5173 ws://localhost:5173; img-src 'self' data: https:; font-src 'self' data:;" />
     <title>the great find</title>
   </head>
   <body class="h-full antialiased">
     <div id="root" class="h-full"></div>
     <script type="module" src="/src/main.tsx"></script>
-  <!-- impeccable-live-start -->
-<script src="http://localhost:8400/live.js"></script>
-<!-- impeccable-live-end -->
-</body>
+  </body>
 </html>
