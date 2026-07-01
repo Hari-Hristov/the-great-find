@@ -110,6 +110,18 @@ async function bootstrap() {
 }
 
 function createMainWindow() {
+  // electron-vite emits main + preload into out/{main,preload}/ in both dev
+  // and packaged mode. `__dirname` for the running main script is out/main/,
+  // so the preload lives one level up in out/preload/index.cjs.
+  //
+  // Extension is .cjs (not .js) because frontend/package.json declares
+  // "type": "module" — a bare .js file would be treated as ESM, and
+  // Electron's preload loader uses synchronous require() which only
+  // supports CommonJS.
+  const preloadPath = path.join(__dirname, "..", "preload", "index.cjs");
+  console.log("[main] __dirname:", __dirname);
+  console.log("[main] preload path:", preloadPath);
+
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -119,7 +131,7 @@ function createMainWindow() {
     backgroundColor: "#0a0a0a",
     title: "The Great Find",
     webPreferences: {
-      preload: path.join(__dirname, "../preload/index.js"),
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
@@ -135,17 +147,45 @@ function createMainWindow() {
     }
   });
 
-  // Open external links in the system browser, not inside the app.
+  // External-link handling — two layers:
+  //   1. `setWindowOpenHandler` catches target="_blank" links (window.open,
+  //      middle-click, cmd/ctrl-click). We punt to the system browser.
+  //   2. `will-navigate` catches normal <a href> clicks that would navigate
+  //      the whole app window to an external URL — same treatment.
+  //
+  // Without (2), clicking a plain external link would black-screen the app
+  // as Electron tries to load olx.bg inside the BrowserWindow.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      void shell.openExternal(url);
+    }
     return { action: "deny" };
+  });
+
+  win.webContents.on("will-navigate", (e, url) => {
+    const target = new URL(url);
+    const currentUrl =
+      process.env.ELECTRON_RENDERER_URL ?? win.webContents.getURL();
+    // Only intercept when the navigation would take us OFF the app's own
+    // origin (Vite dev server in dev, file:// in packaged). Same-origin
+    // navigation is TanStack Router doing its thing.
+    let currentOrigin = "";
+    try {
+      currentOrigin = new URL(currentUrl).origin;
+    } catch {
+      currentOrigin = "";
+    }
+    if (target.origin !== currentOrigin) {
+      e.preventDefault();
+      void shell.openExternal(url);
+    }
   });
 
   const devServerUrl = process.env.ELECTRON_RENDERER_URL;
   if (devServerUrl) {
     void win.loadURL(devServerUrl);
   } else {
-    void win.loadFile(path.join(__dirname, "../renderer/index.html"));
+    void win.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
   }
 
   mainWindow = win;
