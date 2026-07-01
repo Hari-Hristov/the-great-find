@@ -2,12 +2,21 @@
 // on where the renderer is hosted:
 //
 //   - browser dev (`npm run dev`): "/api" — Vite proxies to 127.0.0.1:8088
-//   - packaged Electron: "http://127.0.0.1:<port>/api" where <port> is whatever
-//     port the sidecar grabbed (BACKEND_PORT=0 → OS-assigned)
-//   - Electron dev (`npm run dev:electron`): the bridge yields the sidecar
-//     port; if the sidecar is in "external" mode it returns 8088 and we
-//     could either go absolute or still rely on the Vite proxy. Going
-//     absolute is simpler.
+//   - Electron dev (`npm run dev:electron`): "/api" — same Vite proxy. The
+//     renderer runs on http://localhost:5173, so going absolute to
+//     http://127.0.0.1:<port> would trip CORS (browser treats localhost vs
+//     127.0.0.1 as different origins, and the backend correctly refuses to
+//     serve CORS headers to arbitrary origins — see below).
+//   - packaged Electron: "http://127.0.0.1:<port>/api" where <port> is
+//     whatever port the sidecar grabbed (BACKEND_PORT=0 → OS-assigned).
+//     Chromium doesn't enforce CORS for file:// → http://127.0.0.1 fetches,
+//     so the absolute URL works.
+//
+// The backend intentionally does NOT set CORS headers. Doing so would let
+// any website you visit in your regular browser hit your local API — the
+// 127.0.0.1 bind is not a defense against a browser on the same machine
+// executing hostile JS. Same-origin (via file:// or the Vite proxy) is the
+// invariant we rely on.
 
 let baseUrl = "/api";
 
@@ -19,14 +28,25 @@ let baseUrl = "/api";
 const BRIDGE_TIMEOUT_MS = 10_000;
 
 /**
- * Initialise the API base URL. Called once at app startup. In Electron the
- * port comes from the main process via the preload bridge. In browser dev
- * the call is a no-op — the relative "/api" default works with the Vite
- * proxy.
+ * Initialise the API base URL. Called once at app startup.
+ *
+ * - Browser dev: no bridge → early-return, keep "/api" (Vite proxy handles it).
+ * - Electron dev: bridge exists BUT the renderer is on the Vite dev server
+ *   (http://localhost:5173). Going absolute to http://127.0.0.1 would be
+ *   cross-origin and CORS-blocked. Keep "/api" so the Vite dev proxy handles
+ *   the routing same-origin.
+ * - Packaged Electron: bridge exists, renderer is file://, no CORS
+ *   enforcement → resolve the sidecar port and go absolute.
  */
 export async function initApiBaseUrl(): Promise<void> {
   const bridge = typeof window !== "undefined" ? window.tgf : undefined;
   if (!bridge) return;
+
+  // In dev the Vite proxy is what makes /api reachable. Going absolute
+  // here would break with CORS because the renderer is served from
+  // localhost:5173, not from file://.
+  if (import.meta.env.DEV) return;
+
   try {
     const port = await Promise.race([
       bridge.getBackendPort(),
