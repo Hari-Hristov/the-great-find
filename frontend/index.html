@@ -17,15 +17,17 @@
             packaged mode).
           * blob: because Three.js's GLTFLoader fetches embedded textures via
             blob URLs, and connect-src gates those.
-          * https://raw.githack.com is the CDN drei's <Environment> pulls
-            HDR presets from. Narrower than a bare https:; add more origins
-            here (jsdelivr.net, unpkg.com) if we later use other drei presets.
+          * https://raw.githubusercontent.com is where drei's <Environment>
+            actually resolves HDR presets from (the drei-assets repo on
+            GitHub). raw.githack.com stays in the list because drei has
+            historically pointed at both — kept as a fallback in case
+            they switch back or use it for cache-busted variants.
       - img-src allows data: (inline SVGs) and https: (listing thumbnails
         rendered from olx.bg URLs).
       - style-src 'unsafe-inline' is Tailwind's runtime injected styles —
         Tailwind doesn't ship nonces yet.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' blob: http://127.0.0.1:* http://localhost:5173 ws://localhost:5173 https://raw.githack.com; img-src 'self' data: https:; font-src 'self' data:;" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' blob: http://127.0.0.1:* http://localhost:5173 ws://localhost:5173 https://raw.githubusercontent.com https://raw.githack.com; img-src 'self' data: https:; font-src 'self' data:;" />
     <title>the great find</title>
   </head>
   <body class="h-full antialiased">
