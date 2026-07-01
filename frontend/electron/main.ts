@@ -9,6 +9,7 @@ import {
   dialog,
   shell,
 } from "electron";
+import type { IpcMainInvokeEvent } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Sidecar } from "./sidecar";
@@ -134,7 +135,13 @@ function createMainWindow() {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      // sandbox: true means the renderer process runs with Chromium's OS-level
+      // sandbox. contextIsolation alone doesn't equal a sandbox — it isolates
+      // the preload's JS world from the page's, but the renderer process
+      // itself still has Node capabilities unless sandboxed. The preload here
+      // only uses contextBridge + ipcRenderer, both of which work fine under
+      // sandbox, so nothing is lost.
+      sandbox: true,
     },
   });
 
@@ -206,29 +213,29 @@ function hideWindow() {
 }
 
 function registerIpc() {
-  ipcMain.handle("backend:port", async () => {
+  ipcMain.handle("backend:port", guarded(async () => {
     const p = sidecar.port();
     if (p != null) return p;
     const ready = await sidecar.start();
     return ready.port;
-  });
+  }));
 
-  ipcMain.handle("config:getDataDir", async () => {
+  ipcMain.handle("config:getDataDir", guarded(async () => {
     const cfg = await loadConfig();
     return cfg.dataDir;
-  });
-  ipcMain.handle("config:setDataDir", async (_e, p: string) => {
+  }));
+  ipcMain.handle("config:setDataDir", guarded(async (_e, p: string) => {
     await updateConfig({ dataDir: p });
-  });
-  ipcMain.handle("config:getOsNotifications", async () => {
+  }));
+  ipcMain.handle("config:getOsNotifications", guarded(async () => {
     const cfg = await loadConfig();
     return cfg.osNotifications ?? true;
-  });
-  ipcMain.handle("config:setOsNotifications", async (_e, enabled: boolean) => {
+  }));
+  ipcMain.handle("config:setOsNotifications", guarded(async (_e, enabled: boolean) => {
     await updateConfig({ osNotifications: enabled });
-  });
+  }));
 
-  ipcMain.handle("dialog:pickDir", async () => {
+  ipcMain.handle("dialog:pickDir", guarded(async () => {
     if (!mainWindow) return undefined;
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ["openDirectory", "createDirectory"],
@@ -236,16 +243,51 @@ function registerIpc() {
     });
     if (result.canceled || result.filePaths.length === 0) return undefined;
     return result.filePaths[0];
-  });
+  }));
 
-  ipcMain.handle("app:quit", () => {
+  ipcMain.handle("app:quit", guarded(() => {
     isQuitting = true;
     app.quit();
-  });
-  ipcMain.handle("app:hide", () => {
+  }));
+  ipcMain.handle("app:hide", guarded(() => {
     hideWindow();
-  });
-  ipcMain.handle("app:platform", () => process.platform);
+  }));
+  ipcMain.handle("app:platform", guarded(() => process.platform));
+}
+
+// Wraps an IPC handler with a frame-origin check. Every ipcMain.handle call
+// goes through this so a compromised renderer (via XSS, malicious iframe, or
+// hijacked preload) cannot invoke privileged main-process operations from an
+// unexpected origin. Rejects any call whose sender frame isn't:
+//   - file:// (packaged renderer), or
+//   - http://localhost:5173 (Vite dev server we ship with).
+// Rejection throws — ipcRenderer.invoke() sees a rejected promise, same as
+// any other handler error.
+type IpcHandler<A extends unknown[], R> = (
+  event: IpcMainInvokeEvent,
+  ...args: A
+) => R | Promise<R>;
+
+function guarded<A extends unknown[], R>(fn: IpcHandler<A, R>): IpcHandler<A, R> {
+  return (event, ...args) => {
+    if (!isAllowedFrame(event)) {
+      const url = event.senderFrame?.url ?? "(no url)";
+      console.warn("[ipc] rejected call from unexpected frame:", url);
+      throw new Error("ipc call from unauthorized frame");
+    }
+    return fn(event, ...args);
+  };
+}
+
+function isAllowedFrame(event: IpcMainInvokeEvent): boolean {
+  const url = event.senderFrame?.url;
+  if (!url) return false;
+  // file:// is what electron uses for packaged renderer HTML — Chromium
+  // opaque-origins it, so URL comparison is prefix-based rather than exact.
+  if (url.startsWith("file://")) return true;
+  // Vite dev server for `npm run dev:electron`.
+  if (url.startsWith("http://localhost:5173/")) return true;
+  return false;
 }
 
 // All-windows-closed: do nothing on macOS (tray persists), quit elsewhere
