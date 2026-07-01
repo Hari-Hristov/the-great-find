@@ -8,14 +8,24 @@
     <!--
       CSP: single policy that covers both browser/Electron dev and packaged.
       - 'unsafe-eval' is unavoidable — Vite HMR uses eval() and Three.js does
-        function generation for shaders.
-      - connect-src includes http://127.0.0.1:* for the local backend (any port,
-        since packaged binds an OS-assigned one) and localhost:5173 + ws://
-        for the Vite dev server. 'self' covers the packaged file:// origin.
-      - img-src allows data: (SVGs inline) and https: (listing thumbnails
+        function generation for shaders. Electron will emit a dev-only warning
+        about this; it doesn't fire in packaged builds.
+      - connect-src whitelist:
+          * 'self' + file:// for packaged renderer, http://localhost:5173 +
+            ws://localhost:5173 for Vite dev.
+          * http://127.0.0.1:* for the local Go backend (OS-assigned port in
+            packaged mode).
+          * blob: because Three.js's GLTFLoader fetches embedded textures via
+            blob URLs, and connect-src gates those.
+          * https://raw.githack.com is the CDN drei's <Environment> pulls
+            HDR presets from. Narrower than a bare https:; add more origins
+            here (jsdelivr.net, unpkg.com) if we later use other drei presets.
+      - img-src allows data: (inline SVGs) and https: (listing thumbnails
         rendered from olx.bg URLs).
+      - style-src 'unsafe-inline' is Tailwind's runtime injected styles —
+        Tailwind doesn't ship nonces yet.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:* http://localhost:5173 ws://localhost:5173; img-src 'self' data: https:; font-src 'self' data:;" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' blob: http://127.0.0.1:* http://localhost:5173 ws://localhost:5173 https://raw.githack.com; img-src 'self' data: https:; font-src 'self' data:;" />
     <title>the great find</title>
   </head>
   <body class="h-full antialiased">
