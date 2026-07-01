@@ -57,6 +57,17 @@ export class Sidecar extends EventEmitter {
 
     const binPath = resolveBinaryPath(this.opts.isPackaged === true);
     if (!binPath) {
+      // Only ever fall back to external mode in dev. In packaged builds the
+      // bundled binary MUST exist — degrading to "connect to whatever is on
+      // :8088" would let the packaged app talk to an arbitrary local HTTP
+      // server (another user's forgotten dev instance, or a hostile process
+      // that grabbed the port first).
+      if (this.opts.isPackaged === true) {
+        throw new Error(
+          "bundled backend binary is missing from the package (expected in resources/). " +
+            "The app cannot start without it.",
+        );
+      }
       this.mode = "external";
       const port = DEFAULT_EXTERNAL_PORT;
       await waitForHealth(port);
