@@ -162,6 +162,12 @@ function createMainWindow() {
   //
   // Without (2), clicking a plain external link would black-screen the app
   // as Electron tries to load olx.bg inside the BrowserWindow.
+  //
+  // Both handlers restrict which protocols can reach shell.openExternal:
+  // only http/https. Otherwise a hostile URL like `javascript:...`,
+  // `file:///...`, or a third-party custom scheme (`slack://`, `steam://`,
+  // etc.) could be forwarded to whichever app handles it — a small but
+  // real cross-app attack surface if the renderer ever gets XSS'd.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("http://") || url.startsWith("https://")) {
       void shell.openExternal(url);
@@ -170,20 +176,31 @@ function createMainWindow() {
   });
 
   win.webContents.on("will-navigate", (e, url) => {
-    const target = new URL(url);
+    let target: URL;
+    try {
+      target = new URL(url);
+    } catch {
+      e.preventDefault();
+      return;
+    }
+
     const currentUrl =
       process.env.ELECTRON_RENDERER_URL ?? win.webContents.getURL();
-    // Only intercept when the navigation would take us OFF the app's own
-    // origin (Vite dev server in dev, file:// in packaged). Same-origin
-    // navigation is TanStack Router doing its thing.
-    let currentOrigin = "";
+    let currentOrigin: string;
     try {
       currentOrigin = new URL(currentUrl).origin;
     } catch {
       currentOrigin = "";
     }
-    if (target.origin !== currentOrigin) {
-      e.preventDefault();
+
+    // Same-origin navigation is TanStack Router doing its thing — let it.
+    if (target.origin === currentOrigin) return;
+
+    // Cross-origin: block the in-app navigation, punt to system browser
+    // ONLY for http/https. Anything else (javascript:, file:, custom
+    // app schemes) gets dropped silently.
+    e.preventDefault();
+    if (target.protocol === "http:" || target.protocol === "https:") {
       void shell.openExternal(url);
     }
   });
