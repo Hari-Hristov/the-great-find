@@ -17,7 +17,7 @@ declare global {
     getOsNotifications: () => Promise<boolean>;
     quitApp: () => Promise<void>;
     hideWindow: () => Promise<void>;
-    getVersion: () => Promise<string>;
+    getPlatform: () => Promise<"win32" | "darwin" | "linux" | "aix" | "freebsd" | "openbsd" | "sunos" | "android" | "cygwin" | "netbsd" | "haiku">;
     isElectron: () => true;
   }
 

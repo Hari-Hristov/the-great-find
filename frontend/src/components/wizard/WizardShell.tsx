@@ -18,7 +18,6 @@ interface WizardShellProps {
   onNext?: () => void;
   onSkip?: () => void;
   nextLabel?: string;
-  nextDisabled?: boolean;
   hideFooter?: boolean;
   isLast?: boolean;
 }
@@ -33,7 +32,6 @@ export function WizardShell({
   onNext,
   onSkip,
   nextLabel,
-  nextDisabled,
   hideFooter,
   isLast,
 }: WizardShellProps) {
@@ -76,7 +74,7 @@ export function WizardShell({
               </Button>
             ) : null}
             {onNext ? (
-              <Button onClick={onNext} disabled={nextDisabled}>
+              <Button onClick={onNext}>
                 {nextLabel ?? (isLast ? "Done" : "Next")}
                 {isLast ? (
                   <Check className="h-4 w-4" />

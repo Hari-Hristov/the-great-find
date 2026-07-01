@@ -6,10 +6,11 @@
 // `cd backend && make run` in WSL2 — required on this laptop because WDAC
 // blocks Windows-compiled Go binaries; see CLAUDE.md).
 
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, type ChildProcessByStdio } from "node:child_process";
 import { EventEmitter } from "node:events";
 import path from "node:path";
 import http from "node:http";
+import type { Readable } from "node:stream";
 
 const DEFAULT_EXTERNAL_PORT = 8088;
 const READY_TIMEOUT_MS = 15_000;
@@ -28,10 +29,16 @@ export interface SidecarReady {
 
 interface SidecarOpts {
   dataDir?: string;
+  /**
+   * True in packaged Electron builds, false in dev. Pass `app.isPackaged`
+   * from the main process. Governs whether we spawn the bundled Go binary
+   * from `process.resourcesPath` or fall back to "external" mode.
+   */
+  isPackaged?: boolean;
 }
 
 export class Sidecar extends EventEmitter {
-  private proc: ChildProcessWithoutNullStreams | null = null;
+  private proc: ChildProcessByStdio<null, Readable, Readable> | null = null;
   private readyPort: number | null = null;
   private mode: SidecarMode = "external";
   private restarts: number[] = [];
@@ -48,7 +55,7 @@ export class Sidecar extends EventEmitter {
       return { mode: this.mode, port: this.readyPort };
     }
 
-    const binPath = resolveBinaryPath();
+    const binPath = resolveBinaryPath(this.opts.isPackaged === true);
     if (!binPath) {
       this.mode = "external";
       const port = DEFAULT_EXTERNAL_PORT;
@@ -134,9 +141,13 @@ export class Sidecar extends EventEmitter {
   }
 
   async stop(): Promise<void> {
-    this.stopping = true;
     const proc = this.proc;
-    if (!proc) return;
+    if (!proc) {
+      // Nothing to stop — don't flip `stopping` because we might yet be
+      // asked to spawn later (e.g. external → spawned transition).
+      return;
+    }
+    this.stopping = true;
     return new Promise<void>((resolve) => {
       const timer = setTimeout(() => {
         try {
@@ -164,19 +175,22 @@ export class Sidecar extends EventEmitter {
   }
 }
 
-function resolveBinaryPath(): string | null {
+function resolveBinaryPath(isPackaged: boolean): string | null {
+  // Explicit override always wins — useful for `TGF_BACKEND_BIN=./bin/tgf
+  // npm run dev:electron` when developing against a locally-built binary.
   const override = process.env.TGF_BACKEND_BIN;
   if (override && override.length > 0) {
     return override;
   }
 
-  // `app.isPackaged` is not available here without importing electron in
-  // tests; we rely on the convention that packaged builds set
-  // process.resourcesPath inside Electron's runtime.
-  const resources = process.resourcesPath;
-  if (!resources || resources.includes("electron-vite")) {
+  // Only spawn the bundled sidecar in packaged builds. Dev runs the backend
+  // externally (per CLAUDE.md — Windows WDAC forces WSL2 for Go builds).
+  if (!isPackaged) {
     return null;
   }
+
+  const resources = process.resourcesPath;
+  if (!resources) return null;
 
   let binName: string;
   if (process.platform === "win32") {

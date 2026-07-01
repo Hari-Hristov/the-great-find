@@ -35,14 +35,30 @@ HOST_ARCH="$(go env GOARCH)"
 EXT=""
 [[ "$HOST_OS" == "windows" ]] && EXT=".exe"
 
-BIN_OUT="$ROOT/dist/bin/${HOST_OS}-${HOST_ARCH}/the-great-find${EXT}"
-mkdir -p "$(dirname "$BIN_OUT")"
+# On macOS the electron-builder config targets the *universal* DMG, which
+# requires BOTH darwin-amd64 and darwin-arm64 binaries side-by-side under
+# dist/bin/ (the sidecar picks the right one at runtime via process.arch).
+# So on darwin hosts we cross-build both arches; on windows/linux we just
+# build the host arch.
+build_go() {
+  local goos="$1" goarch="$2" ext=""
+  [[ "$goos" == "windows" ]] && ext=".exe"
+  local out="$ROOT/dist/bin/${goos}-${goarch}/the-great-find${ext}"
+  mkdir -p "$(dirname "$out")"
+  echo ">>> go build ${goos}/${goarch} -> $out"
+  ( cd "$ROOT/backend" && GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 \
+    go build -trimpath -ldflags "$LDFLAGS" \
+    -o "$out" \
+    ./cmd/the-great-find )
+}
 
-echo ">>> [1/3] go build -> $BIN_OUT"
-( cd "$ROOT/backend" && CGO_ENABLED=0 \
-  go build -trimpath -ldflags "$LDFLAGS" \
-  -o "$BIN_OUT" \
-  ./cmd/the-great-find )
+echo ">>> [1/3] go build"
+if [[ "$HOST_OS" == "darwin" ]]; then
+  build_go darwin amd64
+  build_go darwin arm64
+else
+  build_go "$HOST_OS" "$HOST_ARCH"
+fi
 
 echo ">>> [2/3] frontend renderer + electron main/preload"
 ( cd "$ROOT/frontend" && \

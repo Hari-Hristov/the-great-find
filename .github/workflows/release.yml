@@ -155,9 +155,12 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Generate placeholder icons (no real assets yet)
+      - name: Regenerate icon derivatives from source
         shell: bash
-        run: python3 frontend/build/make-placeholders.py
+        # Rebuilds icon.ico / icon.icns / tray-icon*.png from the committed
+        # icon-source.png. Guarantees derivatives are in sync with source
+        # even if someone updated one but forgot the other.
+        run: python3 frontend/build/regen-icons.py
 
       - name: Build Electron sources
         working-directory: frontend

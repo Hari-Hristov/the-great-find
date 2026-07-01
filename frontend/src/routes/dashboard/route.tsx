@@ -25,12 +25,19 @@ function DashboardLayout() {
   const { openWindow, focusWindow, windows } = useDesktop();
 
   // First-run gate: empty searches list → punt to the wizard.
+  // Gated on !isFetching so we don't redirect on the stale-cache render
+  // that fires immediately after Step 4 creates a search (React Query has
+  // invalidated but the refetch is still in flight; without this guard the
+  // dashboard would bounce the user back to Step 1 before the new data
+  // lands).
   const searches = useSearches();
+  const searchesEmpty =
+    searches.isSuccess && !searches.isFetching && (searches.data?.length ?? 0) === 0;
   useEffect(() => {
-    if (searches.isSuccess && (searches.data?.length ?? 0) === 0) {
+    if (searchesEmpty) {
       void navigate({ to: "/wizard", replace: true });
     }
-  }, [searches.isSuccess, searches.data, navigate]);
+  }, [searchesEmpty, navigate]);
 
   const [entered] = useState(() => {
     const flag = sessionStorage.getItem("desktop-entered") === "1";
@@ -41,7 +48,7 @@ function DashboardLayout() {
   // While we don't yet know whether searches exist, render nothing —
   // avoids a flash of the empty desktop before the redirect resolves.
   if (searches.isLoading) return null;
-  if (searches.isSuccess && (searches.data?.length ?? 0) === 0) return null;
+  if (searchesEmpty) return null;
 
   const showPopup = isSuccess && !dismissed && !notifSettings?.smtp_host;
 

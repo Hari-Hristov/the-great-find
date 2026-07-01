@@ -24,7 +24,8 @@ const bridge: TgfBridge = {
 
   quitApp: () => ipcRenderer.invoke("app:quit") as Promise<void>,
   hideWindow: () => ipcRenderer.invoke("app:hide") as Promise<void>,
-  getVersion: () => ipcRenderer.invoke("app:version") as Promise<string>,
+  getPlatform: () =>
+    ipcRenderer.invoke("app:platform") as Promise<NodeJS.Platform>,
   isElectron: () => true as const,
 };
 

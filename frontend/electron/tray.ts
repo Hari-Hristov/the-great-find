@@ -9,10 +9,12 @@ export interface TrayDeps {
   showWindow: () => void;
   hideWindow: () => void;
   quit: () => void;
+  /** True in packaged Electron builds, false in dev. Pass `app.isPackaged`. */
+  isPackaged: boolean;
 }
 
 export function createTray(deps: TrayDeps): Tray {
-  const iconPath = resolveTrayIconPath();
+  const iconPath = resolveTrayIconPath(deps.isPackaged);
   const image = nativeImage.createFromPath(iconPath);
   if (process.platform === "darwin") {
     image.setTemplateImage(true);
@@ -48,15 +50,12 @@ export function createTray(deps: TrayDeps): Tray {
   return tray;
 }
 
-function resolveTrayIconPath(): string {
-  // Packaged: extraResources places icons in the build/ dir which
-  // electron-builder copies into the app's `buildResources`. Dev: read from
-  // the source tree.
+function resolveTrayIconPath(isPackaged: boolean): string {
   const filename =
     process.platform === "darwin"
       ? "tray-icon-Template@2x.png"
       : "tray-icon.png";
-  if (process.resourcesPath && !process.resourcesPath.includes("electron-vite")) {
+  if (isPackaged && process.resourcesPath) {
     return path.join(process.resourcesPath, filename);
   }
   return path.resolve(__dirname, "..", "..", "build", filename);

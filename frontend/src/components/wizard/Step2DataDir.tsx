@@ -28,9 +28,11 @@ export function Step2DataDir({ onBack, onNext }: Props) {
   const isElectron = !!bridge?.isElectron;
   const [override, setOverride] = useState<string | undefined>(undefined);
   const [dirty, setDirty] = useState(false);
+  const [platform, setPlatform] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     void bridge?.getDataDir().then((d) => setOverride(d));
+    void bridge?.getPlatform().then((p) => setPlatform(p));
   }, [bridge]);
 
   const pick = async () => {
@@ -48,14 +50,17 @@ export function Step2DataDir({ onBack, onNext }: Props) {
     onNext();
   };
 
-  const platformDefault =
-    PLATFORM_DEFAULTS[
-      typeof navigator !== "undefined" && navigator.platform.toLowerCase().startsWith("win")
-        ? "win32"
-        : typeof navigator !== "undefined" && navigator.platform.toLowerCase().startsWith("mac")
-          ? "darwin"
-          : "linux"
-    ] ?? "";
+  // Prefer the bridge-provided platform (reliable). Fall back to the
+  // deprecated navigator.platform only when the bridge isn't available
+  // (browser dev). Silent deprecation, one place, easy to swap later.
+  const detectedPlatform =
+    platform ??
+    (typeof navigator !== "undefined" && navigator.platform.toLowerCase().startsWith("win")
+      ? "win32"
+      : typeof navigator !== "undefined" && navigator.platform.toLowerCase().startsWith("mac")
+        ? "darwin"
+        : "linux");
+  const platformDefault = PLATFORM_DEFAULTS[detectedPlatform] ?? "";
 
   return (
     <WizardShell

@@ -11,6 +11,13 @@
 
 let baseUrl = "/api";
 
+// If the preload bridge is broken (bad IPC registration, main-process
+// panic before the handler was wired), the getBackendPort() promise can
+// hang forever and block the app from ever mounting. Race it against a
+// short timeout and fall back to the "/api" default (which will 404 in
+// packaged builds but at least renders an error state).
+const BRIDGE_TIMEOUT_MS = 10_000;
+
 /**
  * Initialise the API base URL. Called once at app startup. In Electron the
  * port comes from the main process via the preload bridge. In browser dev
@@ -21,7 +28,15 @@ export async function initApiBaseUrl(): Promise<void> {
   const bridge = typeof window !== "undefined" ? window.tgf : undefined;
   if (!bridge) return;
   try {
-    const port = await bridge.getBackendPort();
+    const port = await Promise.race([
+      bridge.getBackendPort(),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`backend port resolution timed out after ${BRIDGE_TIMEOUT_MS}ms`)),
+          BRIDGE_TIMEOUT_MS,
+        ),
+      ),
+    ]);
     baseUrl = `http://127.0.0.1:${port}/api`;
     bridge.onBackendReady((nextPort) => {
       baseUrl = `http://127.0.0.1:${nextPort}/api`;

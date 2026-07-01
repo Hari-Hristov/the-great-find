@@ -4,7 +4,10 @@ A quiet pair of eyes on [olx.bg](https://olx.bg). Runs locally on your machine, 
 
 No cloud. No account. No telemetry. The database is a SQLite file on your disk and the network only talks to olx.bg.
 
+<!-- Screenshots are placeholders — real captures land as part of Phase 10 polish.
+     See docs/screenshots/README.md for capture instructions.
 ![Screenshot of the dashboard](docs/screenshots/dashboard-overview.png)
+-->
 
 ---
 

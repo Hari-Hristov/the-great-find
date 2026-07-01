@@ -50,7 +50,7 @@ async function bootstrap() {
 
   registerIpc();
 
-  await sidecar.start({ dataDir: cfg.dataDir });
+  await sidecar.start({ dataDir: cfg.dataDir, isPackaged: app.isPackaged });
 
   createMainWindow();
 
@@ -62,6 +62,7 @@ async function bootstrap() {
       isQuitting = true;
       app.quit();
     },
+    isPackaged: app.isPackaged,
   });
 
   if (process.platform === "darwin") {
@@ -92,10 +93,18 @@ async function bootstrap() {
   });
 
   app.on("before-quit", async (e) => {
+    // Only run this once — after we've awaited the sidecar and called
+    // app.exit(0), the OS-level cleanup handles everything else. `app.exit`
+    // does NOT emit `will-quit`/`quit`, so anything that needed to run on
+    // those events must run here.
     if (sidecar.port() == null) return;
     e.preventDefault();
     isQuitting = true;
     await sidecar.stop();
+    if (tray) {
+      tray.destroy();
+      tray = null;
+    }
     app.exit(0);
   });
 }
@@ -196,7 +205,7 @@ function registerIpc() {
   ipcMain.handle("app:hide", () => {
     hideWindow();
   });
-  ipcMain.handle("app:version", () => app.getVersion());
+  ipcMain.handle("app:platform", () => process.platform);
 }
 
 // All-windows-closed: do nothing on macOS (tray persists), quit elsewhere
@@ -206,14 +215,5 @@ function registerIpc() {
 app.on("window-all-closed", () => {
   if (isQuitting && process.platform !== "darwin") {
     app.quit();
-  }
-});
-
-// Make sure we never leak the sidecar.
-app.on("quit", () => {
-  void sidecar.stop();
-  if (tray) {
-    tray.destroy();
-    tray = null;
   }
 });

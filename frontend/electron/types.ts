@@ -25,6 +25,7 @@ export interface TgfBridge {
 
   quitApp: () => Promise<void>;
   hideWindow: () => Promise<void>;
-  getVersion: () => Promise<string>;
+  /** The Electron main process's `process.platform` — reliable, not deprecated. */
+  getPlatform: () => Promise<NodeJS.Platform>;
   isElectron: () => true;
 }

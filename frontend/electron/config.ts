@@ -29,7 +29,7 @@ export async function loadConfig(): Promise<AppConfig> {
   return {};
 }
 
-export async function saveConfig(cfg: AppConfig): Promise<void> {
+async function saveConfig(cfg: AppConfig): Promise<void> {
   const file = configPath();
   await fs.mkdir(path.dirname(file), { recursive: true });
   await fs.writeFile(file, JSON.stringify(cfg, null, 2), "utf8");
