@@ -120,8 +120,13 @@ function createMainWindow() {
   // Electron's preload loader uses synchronous require() which only
   // supports CommonJS.
   const preloadPath = path.join(__dirname, "..", "preload", "index.cjs");
-  console.log("[main] __dirname:", __dirname);
-  console.log("[main] preload path:", preloadPath);
+  if (!app.isPackaged) {
+    // Dev-only trace of where the main process resolves its preload from.
+    // Suppressed in packaged builds so the log never leaks the install
+    // layout to whoever's reading the app's stdout.
+    console.log("[main] __dirname:", __dirname);
+    console.log("[main] preload path:", preloadPath);
+  }
 
   const win = new BrowserWindow({
     width: 1280,
