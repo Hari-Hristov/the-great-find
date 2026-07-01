@@ -39,7 +39,6 @@ export function AppWindow({ id, onClose, onFocus, children }: AppWindowProps) {
   const dragging = useRef(false);
   const dragStart = useRef({ mx: 0, my: 0, wx: 0, wy: 0 });
   const frameId = useRef<number | null>(null);
-  const windowRef = useRef<HTMLDivElement>(null);
 
   const onTitlebarPointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -100,7 +99,6 @@ export function AppWindow({ id, onClose, onFocus, children }: AppWindowProps) {
     <AnimatePresence>
       {win.open && (
         <motion.div
-          ref={windowRef}
           key={id}
           initial={{ opacity: 0, scale: 0.92 }}
           animate={
