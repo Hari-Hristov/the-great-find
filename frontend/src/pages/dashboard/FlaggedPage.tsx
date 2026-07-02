@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useListings, useUnhideListing } from "@/api/hooks/queries";
 import { formatEUR, relativeTime, sortByPostedAtDesc } from "@/lib/utils";
+import { safeHref } from "@/lib/url";
 
 export function FlaggedPage() {
   const listings = useListings({ status: "hidden", limit: 500 });
@@ -36,7 +37,7 @@ export function FlaggedPage() {
                   <li key={l.id} className="flex items-center justify-between py-3">
                     <div className="min-w-0 flex-1 pr-4">
                       <a
-                        href={l.url}
+                        href={safeHref(l.url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block truncate text-sm opacity-50 hover:opacity-100 hover:text-[var(--color-accent)]"

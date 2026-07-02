@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { SearchForm } from "@/components/SearchForm";
 import { useHideListing, useListings, usePollSearch, useSearch } from "@/api/hooks/queries";
 import { formatEUR, relativeTime, sortByPostedAtDesc } from "@/lib/utils";
+import { safeHref } from "@/lib/url";
 import { cn } from "@/lib/utils";
 import type { SavedSearch } from "@/api/types";
 import { useWindowNav } from "@/contexts/DesktopContext";
@@ -139,7 +140,7 @@ export function SearchDetailPage() {
                 <li key={l.id} className="flex items-center justify-between py-3">
                   <div className="min-w-0 flex-1 pr-4">
                     <a
-                      href={l.url}
+                      href={safeHref(l.url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block truncate text-sm hover:text-[var(--color-accent)]"
@@ -175,7 +176,7 @@ export function SearchDetailPage() {
                   <li key={l.id} className="flex items-center justify-between py-3 opacity-50">
                     <div className="min-w-0 flex-1 pr-4">
                       <a
-                        href={l.url}
+                        href={safeHref(l.url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block truncate text-sm hover:text-[var(--color-accent)]"

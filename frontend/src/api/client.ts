@@ -87,6 +87,38 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Turns any thrown value into a short user-facing string. Never leaks
+ * stack traces, internal paths, or raw backend error bodies into the UI —
+ * those go to the console via `console.warn` for support/debugging.
+ *
+ * Prefers Huma's `{ title, detail }` shape when the backend rejects with a
+ * structured 4xx; falls back to a generic message on anything else.
+ */
+export function humanizeApiError(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status >= 500) {
+      console.warn("[api] server error", err.status, err.body);
+      return "Something went wrong on the backend. Check the app logs.";
+    }
+    if (
+      typeof err.body === "object" &&
+      err.body !== null &&
+      "detail" in err.body &&
+      typeof (err.body as { detail: unknown }).detail === "string"
+    ) {
+      return (err.body as { detail: string }).detail;
+    }
+    return `Request failed (${err.status}).`;
+  }
+  if (err instanceof Error) {
+    console.warn("[api] error:", err);
+    return "Something went wrong. Please try again.";
+  }
+  console.warn("[api] unknown error:", err);
+  return "Something went wrong.";
+}
+
 type FetchOpts = RequestInit & { json?: unknown };
 
 export async function apiFetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {

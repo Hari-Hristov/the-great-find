@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAlerts, useHideListing, useSearches, useTagAlert } from "@/api/hooks/queries";
 import { formatEUR, relativeTime } from "@/lib/utils";
+import { safeHref } from "@/lib/url";
 import { TAG_COLORS, tagBg, type TagColorName } from "@/lib/tagColors";
 import type { Alert } from "@/api/types";
 
@@ -182,7 +183,7 @@ export function AlertDetailPage() {
                 <div className="min-w-0 flex-1 pr-4">
                   {a.listing_url ? (
                     <a
-                      href={a.listing_url}
+                      href={safeHref(a.listing_url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block truncate text-sm hover:text-[var(--color-accent)]"

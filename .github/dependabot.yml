@@ -23,3 +23,12 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - dependencies
+    # All action pins are commit SHAs. Dependabot detects that style
+    # automatically and PRs SHA bumps with `# vX.Y.Z` version comments —
+    # no extra config needed. Grouping keeps the noise down: one weekly
+    # PR bumping every action, instead of six separate ones every time
+    # GitHub does a security sweep.
+    groups:
+      actions:
+        patterns:
+          - "*"

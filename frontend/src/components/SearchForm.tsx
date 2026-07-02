@@ -3,6 +3,7 @@ import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { useCreateSearch, useUpdateSearch, useConfig } from "@/api/hooks/queries";
+import { humanizeApiError } from "@/api/client";
 import type { SavedSearch } from "@/api/types";
 
 type CreateProps = {
@@ -127,8 +128,7 @@ export function SearchForm(props: SearchFormProps) {
       alertCriteria = { kind: "price_below", price_eur: n };
     }
 
-    const onError = (err: unknown) =>
-      setError(err instanceof Error ? err.message : String(err));
+    const onError = (err: unknown) => setError(humanizeApiError(err));
 
     if (mode === "create") {
       create.mutate(

@@ -6,6 +6,7 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { useAlerts, useAnalytics, useSearches } from "@/api/hooks/queries";
 import { useEventStreamContext } from "@/contexts/EventStreamContext";
 import { formatEUR, relativeTime, safeJSONParse } from "@/lib/utils";
+import { safeHref } from "@/lib/url";
 import { tagBg } from "@/lib/tagColors";
 import type { Alert, SavedSearch } from "@/api/types";
 
@@ -338,7 +339,7 @@ function AlertRow({
       ) : null}
       <div className="min-w-0 flex-1">
         <a
-          href={alert.listing_url ?? "#"}
+          href={safeHref(alert.listing_url)}
           target={alert.listing_url ? "_blank" : undefined}
           rel="noopener noreferrer"
           title={alert.listing_title ?? `listing #${alert.listing_id}`}
