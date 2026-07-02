@@ -16,7 +16,10 @@ function Clock() {
 }
 
 function VersionStamp() {
-  const { data } = useVersion();
+  // verbose=true because the hover tooltip shows the commit SHA + build
+  // date. The backend defaults /version to version-only to keep the recon
+  // surface minimal for anything else that hits the endpoint.
+  const { data } = useVersion(true);
   // "dev" is the default ldflags placeholder — hide it so the dashboard
   // doesn't shout "this is unreleased" at the user every session.
   if (!data?.version || data.version === "dev") return null;

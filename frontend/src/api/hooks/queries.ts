@@ -32,10 +32,10 @@ export const qk = {
     ["analytics", searchId, windowDays] as const,
 };
 
-export function useVersion() {
+export function useVersion(verbose = false) {
   return useQuery({
-    queryKey: qk.version,
-    queryFn: () => apiFetch<VersionInfo>("/version"),
+    queryKey: [...qk.version, verbose] as const,
+    queryFn: () => apiFetch<VersionInfo>(verbose ? "/version?verbose=1" : "/version"),
     staleTime: Infinity,
   });
 }

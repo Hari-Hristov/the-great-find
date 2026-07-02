@@ -13,6 +13,7 @@ import (
 
 	"github.com/Hari-Hristov/the-great-find/backend/internal/events"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/scheduler"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/version"
 )
 
 func newTestServer(t *testing.T, q Queries, sched Reloader) (*httptest.Server, *events.Bus) {
@@ -821,5 +822,71 @@ func TestSSE_Headers(t *testing.T) {
 	}
 	if v := resp.Header.Get("X-Accel-Buffering"); v != "no" {
 		t.Errorf("X-Accel-Buffering=%q, want no", v)
+	}
+}
+
+// withInjectedBuildStamp swaps the package-level version vars for a test,
+// restoring them on cleanup. Mirrors how -ldflags injects real values at
+// build time so the endpoint's redaction behaviour can be exercised.
+func withInjectedBuildStamp(t *testing.T, ver, commit, date string) {
+	t.Helper()
+	origVer, origCommit, origDate := version.Version, version.Commit, version.Date
+	version.Version, version.Commit, version.Date = ver, commit, date
+	t.Cleanup(func() {
+		version.Version, version.Commit, version.Date = origVer, origCommit, origDate
+	})
+}
+
+func TestVersion_DefaultOmitsCommitAndDate(t *testing.T) {
+	withInjectedBuildStamp(t, "1.2.3", "abc1234", "2026-07-02T09:00:00Z")
+
+	srv, _ := newTestServer(t, newFakeQueries(), &fakeReloader{})
+
+	status, raw := httpJSON(t, "GET", srv.URL+"/api/version", nil)
+	if status != 200 {
+		t.Fatalf("status = %d, body=%s", status, raw)
+	}
+	// omitempty on Commit/Date means the fields should not appear at all
+	// in the default response — check both the parsed struct and the raw
+	// bytes to make sure a future JSON-tag typo can't slip past this test.
+	if strings.Contains(string(raw), "commit") {
+		t.Errorf("default response leaked commit: %s", raw)
+	}
+	if strings.Contains(string(raw), "date") {
+		t.Errorf("default response leaked date: %s", raw)
+	}
+	var got version.Info
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Version != "1.2.3" {
+		t.Errorf("version = %q, want 1.2.3", got.Version)
+	}
+	if got.Commit != "" || got.Date != "" {
+		t.Errorf("expected empty commit/date, got commit=%q date=%q", got.Commit, got.Date)
+	}
+}
+
+func TestVersion_VerboseIncludesCommitAndDate(t *testing.T) {
+	withInjectedBuildStamp(t, "1.2.3", "abc1234", "2026-07-02T09:00:00Z")
+
+	srv, _ := newTestServer(t, newFakeQueries(), &fakeReloader{})
+
+	status, raw := httpJSON(t, "GET", srv.URL+"/api/version?verbose=1", nil)
+	if status != 200 {
+		t.Fatalf("status = %d, body=%s", status, raw)
+	}
+	var got version.Info
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Version != "1.2.3" {
+		t.Errorf("version = %q, want 1.2.3", got.Version)
+	}
+	if got.Commit != "abc1234" {
+		t.Errorf("commit = %q, want abc1234", got.Commit)
+	}
+	if got.Date != "2026-07-02T09:00:00Z" {
+		t.Errorf("date = %q, want 2026-07-02T09:00:00Z", got.Date)
 	}
 }
