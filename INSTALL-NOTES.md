@@ -6,7 +6,7 @@ public release artifacts on GitHub.
 
 ## Windows (.exe)
 
-1. Double-click `The-Great-Find-Setup-<version>.exe`.
+1. Double-click `The-Great-Find-<version>-windows-x64.exe`.
 2. Windows SmartScreen will warn: **"Windows protected your PC"**.
 3. Click **More info** → **Run anyway**.
 4. The installer runs normally. Pick an install location, optionally create
@@ -21,7 +21,7 @@ the dashboard.
 The `.dmg` is a universal binary — it works on both Apple Silicon and
 Intel Macs.
 
-1. Double-click `The-Great-Find-<version>-universal.dmg`.
+1. Double-click `The-Great-Find-<version>-macos-universal.dmg`.
 2. Drag **The Great Find** into the **Applications** folder.
 3. The first launch macOS will refuse with:
    > "The Great Find" cannot be opened because the developer cannot be verified.
@@ -42,8 +42,8 @@ the screen.
 ## Linux (AppImage)
 
 ```sh
-chmod +x The-Great-Find-<version>-x86_64.AppImage
-./The-Great-Find-<version>-x86_64.AppImage
+chmod +x The-Great-Find-<version>-linux-x64.AppImage
+./The-Great-Find-<version>-linux-x64.AppImage
 ```
 
 The AppImage is self-contained — no install step. You can move it
@@ -87,7 +87,7 @@ alongside each installer. Two layers of defence:
 
 **Windows** (PowerShell):
 ```powershell
-Get-FileHash .\The-Great-Find-Setup-<version>.exe -Algorithm SHA256
+Get-FileHash .\The-Great-Find-<version>-windows-x64.exe -Algorithm SHA256
 # Compare the hash against SHA256SUMS-win.txt
 ```
 
@@ -106,10 +106,10 @@ Then verify each installer against the bundle that ships with it:
 
 ```sh
 cosign verify-blob \
-  --bundle The-Great-Find-Setup-<version>.exe.sigstore.json \
+  --bundle The-Great-Find-<version>-windows-x64.exe.sigstore.json \
   --certificate-identity-regexp "^https://github.com/Hari-Hristov/the-great-find/\.github/workflows/release\.yml@refs/tags/v.*" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  The-Great-Find-Setup-<version>.exe
+  The-Great-Find-<version>-windows-x64.exe
 ```
 
 Should print `Verified OK`. If verification fails, the binary was not
