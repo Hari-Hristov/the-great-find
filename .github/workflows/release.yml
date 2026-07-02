@@ -193,10 +193,23 @@ jobs:
         shell: bash
         run: |
           mkdir -p release-staging
-          # Pick up the packaged outputs (electron-builder writes to
-          # dist/electron per electron-builder.yml).
-          find dist/electron -maxdepth 3 -type f \
-            \( -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.zip" -o -name "latest*.yml" \) \
+          # Pick up ONLY the final packaged installers + electron-updater
+          # feed files. electron-builder scaffolds intermediate build
+          # directories (win-unpacked/, mac/, linux-unpacked/) that contain
+          # raw executables, Squirrel/NSIS helpers (elevate.exe), and the
+          # Go sidecar binary — none of which should ship on the release
+          # page. Filter by the artifactName pattern from electron-builder.yml
+          # ('The-Great-Find-<version>...' or 'The-Great-Find-Setup-<version>...')
+          # plus the fixed 'latest*.yml' feed filenames.
+          #
+          # -maxdepth 1 because electron-builder writes final artifacts to
+          # dist/electron/ root; nested files are intermediates by definition.
+          find dist/electron -maxdepth 1 -type f \
+            \( -name "The-Great-Find-*.exe" \
+             -o -name "The-Great-Find-*.dmg" \
+             -o -name "The-Great-Find-*.AppImage" \
+             -o -name "The-Great-Find-*.zip" \
+             -o -name "latest*.yml" \) \
             -exec cp {} release-staging/ \;
           cp INSTALL-NOTES.md release-staging/ 2>/dev/null || true
           ls -la release-staging/
