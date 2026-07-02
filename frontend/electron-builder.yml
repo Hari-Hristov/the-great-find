@@ -27,6 +27,15 @@ files:
 
 asar: true
 
+# electron-updater uses this to find the release feed. GitHub Releases
+# emits latest-*.yml files alongside the installers when publish=github
+# is used; electron-builder generates them during packaging even with
+# --publish=never (the workflow uploads them to the draft release later).
+publish:
+  provider: github
+  owner: Hari-Hristov
+  repo: the-great-find
+
 # ─── Windows ─────────────────────────────────────────────────────────────
 win:
   target:

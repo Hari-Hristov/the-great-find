@@ -102,6 +102,27 @@ Run these by hand once the dev environment is set up.
 1. Launch the app.
 2. Try to launch it again — the second launch should focus the existing window instead of spawning a new one.
 
+### Auto-updater
+
+Runs only in packaged builds. Behaviour splits by platform:
+
+- **Linux (AppImage)**: full electron-updater flow. Checks GitHub Releases
+  on startup + every 6h, downloads new AppImages automatically, verifies
+  the `.sigstore.json` bundle against the release pipeline's OIDC identity
+  before install (uses `cosign` if on PATH; falls back to install-anyway
+  with a warning if cosign is missing).
+- **Windows / macOS**: notify-only. Polls `api.github.com/repos/.../releases/latest`
+  every 6h; if a newer tag exists, posts a native Notification that opens
+  the Releases page on click. No auto-download — unsigned installers can't
+  be silently applied on these platforms (SmartScreen / Gatekeeper). See
+  [#52](https://github.com/Hari-Hristov/the-great-find/issues/52) for the
+  v2 plan around real code signing.
+
+**Manual test (Linux)**: tag `v0.0.0-test` on a scratch branch, push, wait
+for the release workflow to publish a draft. Manually mark it as latest,
+then run the local packaged AppImage — the updater should offer to
+install after ~30 seconds.
+
 ## Verification commands
 
 ```bash

@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import { Sidecar } from "./sidecar";
 import { createTray } from "./tray";
 import { loadConfig, updateConfig } from "./config";
+import { initAutoUpdater } from "./updater";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,6 +73,8 @@ async function bootstrap() {
     // consistent.
     app.dock?.hide();
   }
+
+  initAutoUpdater();
 
   // Forward subsequent sidecar restarts so the renderer can re-derive the
   // backend base URL without a reload.
