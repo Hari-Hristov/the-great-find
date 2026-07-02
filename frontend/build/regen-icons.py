@@ -13,6 +13,15 @@ from __future__ import annotations
 import struct
 import sys
 import zlib
+
+# Force UTF-8 stdout so the ✓ / other non-ASCII progress prints don't crash
+# on Windows CI runners where sys.stdout defaults to cp1252 (no console
+# locale) and blows up with UnicodeEncodeError on the first fancy char.
+# reconfigure() exists on TextIOWrapper since Python 3.7; CI is 3.12.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
 from pathlib import Path
 
 ROOT = Path(__file__).parent
