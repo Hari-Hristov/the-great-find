@@ -17,12 +17,14 @@ import (
 	"github.com/Hari-Hristov/the-great-find/backend/internal/db"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/db/store"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/events"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/hostguard"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/notify"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/paths"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/politehttp"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/scheduler"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/scraper"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/version"
 )
 
 func main() {
@@ -38,6 +40,9 @@ func main() {
 func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	info := version.Get()
+	slog.Info("startup", "version", info.Version, "commit", info.Commit, "date", info.Date)
 
 	dataDir, err := paths.DataDir()
 	if err != nil {
@@ -162,8 +167,14 @@ func run() error {
 	mux.Handle("/api/", http.StripPrefix("/api", api.New(queries, sched, parserStore)))
 	mux.Handle("/events", api.NewSSE(bus))
 
+	// Guard against DNS rebinding: any request must have Host header matching
+	// 127.0.0.1:<port> or localhost:<port>. Wraps the OUTER mux so /events is
+	// covered too (SSE is state-observing and would leak alert activity to
+	// a rebinding attacker). /healthz is exempt inside the middleware.
+	handler := hostguard.Middleware(mux, addr.Port)
+
 	server := &http.Server{
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

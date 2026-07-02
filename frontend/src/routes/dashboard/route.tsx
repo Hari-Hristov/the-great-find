@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Desktop } from "@/components/desktop/Desktop";
-import { useNotificationSettings } from "@/api/hooks/queries";
+import { useNotificationSettings, useSearches } from "@/api/hooks/queries";
 import { useDesktop } from "@/contexts/DesktopContext";
 
 const EMAIL_DISMISSED_KEY = "email_setup_dismissed_until";
@@ -19,15 +19,36 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function DashboardLayout() {
+  const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(() => isDismissed());
   const { data: notifSettings, isSuccess } = useNotificationSettings();
   const { openWindow, focusWindow, windows } = useDesktop();
+
+  // First-run gate: empty searches list → punt to the wizard.
+  // Gated on !isFetching so we don't redirect on the stale-cache render
+  // that fires immediately after Step 4 creates a search (React Query has
+  // invalidated but the refetch is still in flight; without this guard the
+  // dashboard would bounce the user back to Step 1 before the new data
+  // lands).
+  const searches = useSearches();
+  const searchesEmpty =
+    searches.isSuccess && !searches.isFetching && (searches.data?.length ?? 0) === 0;
+  useEffect(() => {
+    if (searchesEmpty) {
+      void navigate({ to: "/wizard", replace: true });
+    }
+  }, [searchesEmpty, navigate]);
 
   const [entered] = useState(() => {
     const flag = sessionStorage.getItem("desktop-entered") === "1";
     if (flag) sessionStorage.removeItem("desktop-entered");
     return flag;
   });
+
+  // While we don't yet know whether searches exist, render nothing —
+  // avoids a flash of the empty desktop before the redirect resolves.
+  if (searches.isLoading) return null;
+  if (searchesEmpty) return null;
 
   const showPopup = isSuccess && !dismissed && !notifSettings?.smtp_host;
 

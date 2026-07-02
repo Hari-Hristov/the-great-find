@@ -1,0 +1,94 @@
+# electron-builder configuration for The Great Find.
+#
+# Single source of truth for packaging. NOT inlined in package.json — keeping
+# it here lets the file be commented and grep-able.
+#
+# Conventions:
+#   - Universal macOS .dmg ships BOTH amd64 + arm64 Go binaries side-by-side
+#     under different filenames. The Electron main process picks at runtime
+#     based on `process.arch`. This avoids needing `lipo` and works with the
+#     unsigned identity we use for v1.
+#   - `extraResources` paths are RELATIVE to `frontend/` (electron-builder
+#     resolves them from the directory containing this file). The Go binaries
+#     live at `<repo>/dist/bin/<goos>-<goarch>/` — see scripts/cross-build.sh.
+
+appId: com.harihristov.thegreatfind
+productName: The Great Find
+copyright: "Copyright © 2026 Hari Hristov"
+
+directories:
+  buildResources: build
+  output: ../dist/electron
+
+files:
+  - out/**
+  - package.json
+  - "!**/*.{md,map}"
+
+asar: true
+
+# electron-updater uses this to find the release feed. GitHub Releases
+# emits latest-*.yml files alongside the installers when publish=github
+# is used; electron-builder generates them during packaging even with
+# --publish=never (the workflow uploads them to the draft release later).
+publish:
+  provider: github
+  owner: Hari-Hristov
+  repo: the-great-find
+
+# ─── Windows ─────────────────────────────────────────────────────────────
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: "The-Great-Find-Setup-${version}.${ext}"
+  extraResources:
+    - from: ../dist/bin/windows-amd64/the-great-find.exe
+      to: the-great-find.exe
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: The Great Find
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  runAfterFinish: true
+
+# ─── macOS ───────────────────────────────────────────────────────────────
+mac:
+  target:
+    - target: dmg
+      arch:
+        - universal
+  icon: build/icon.icns
+  identity: null              # unsigned — see INSTALL-NOTES
+  category: public.app-category.utilities
+  artifactName: "The-Great-Find-${version}-universal.${ext}"
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  extendInfo:
+    LSUIElement: true         # menu-bar app, no Dock icon
+    NSHighResolutionCapable: true
+    NSAppTransportSecurity:
+      NSAllowsLocalNetworking: true
+  extraResources:
+    - from: ../dist/bin/darwin-amd64/the-great-find
+      to: the-great-find-amd64
+    - from: ../dist/bin/darwin-arm64/the-great-find
+      to: the-great-find-arm64
+
+# ─── Linux ───────────────────────────────────────────────────────────────
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  icon: build/icon.png
+  category: Utility
+  artifactName: "The-Great-Find-${version}-x86_64.${ext}"
+  extraResources:
+    - from: ../dist/bin/linux-amd64/the-great-find
+      to: the-great-find

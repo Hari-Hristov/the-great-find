@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { OverviewPage } from "@/routes/dashboard/index";
-import { SearchesPage } from "@/routes/dashboard/searches.index";
-import { AlertsPage } from "@/routes/dashboard/alerts.index";
-import { FlaggedPage } from "@/routes/dashboard/flagged";
-import { SettingsPage } from "@/routes/dashboard/settings";
+import { OverviewPage } from "@/pages/dashboard/OverviewPage";
+import { SearchesPage } from "@/pages/dashboard/SearchesPage";
+import { AlertsPage } from "@/pages/dashboard/AlertsPage";
+import { FlaggedPage } from "@/pages/dashboard/FlaggedPage";
+import { SettingsPage } from "@/pages/dashboard/SettingsPage";
 
 export const DESKTOP_ICON_Z = 0;
 export const WINDOW_Z_BASE = DESKTOP_ICON_Z + 1;

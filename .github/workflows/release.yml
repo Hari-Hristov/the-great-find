@@ -1,0 +1,265 @@
+# Release pipeline — runs on every tag push that looks like a semver (v*).
+#
+# Two stages:
+#   1. build-go  : cross-compile the Go sidecar for 4 GOOS/GOARCH targets.
+#                  Uploads one artifact per target. Runs on the matching
+#                  native OS for darwin (so Apple-Silicon binaries are
+#                  produced on macos-latest) — saves us from juggling
+#                  cross-toolchains.
+#   2. package   : on each of windows / macos / linux, downloads the
+#                  relevant Go artifacts, builds the Electron app, runs
+#                  electron-builder, uploads the installer/dmg/AppImage
+#                  to the GitHub release.
+#
+# v1 is unsigned. macOS users right-click → Open the first time; Windows
+# SmartScreen warns; Linux AppImage is signing-free. See INSTALL-NOTES.md
+# attached to each release.
+#
+# Every `uses:` is pinned to a full commit SHA (with a comment for the
+# human-readable version). Floating `@v4` tags are hijack surface — if a
+# maintainer PAT is stolen or a tag is force-moved, an unpinned pipeline
+# would silently pick up the malicious action and inject it into every
+# distributed binary. Dependabot will PR SHA bumps as new versions ship.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  # id-token: write is required for Sigstore keyless signing. The signing
+  # step exchanges the workflow's OIDC token for a short-lived Fulcio
+  # certificate that binds the signature to this exact repo + workflow +
+  # tag ref — meaning a valid Sigstore signature for our release can
+  # ONLY be produced by this pipeline. See the "Sign artifacts (Sigstore)"
+  # step below for the verify command.
+  id-token: write
+
+env:
+  GO_VERSION_FILE: backend/go.mod
+  NODE_VERSION: "20.19.0"
+
+jobs:
+  build-go:
+    name: Go ${{ matrix.goos }}/${{ matrix.goarch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  goos: linux,   goarch: amd64 }
+          - { os: windows-latest, goos: windows, goarch: amd64 }
+          - { os: macos-latest,   goos: darwin,  goarch: amd64 }
+          - { os: macos-latest,   goos: darwin,  goarch: arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: ${{ env.GO_VERSION_FILE }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Derive version
+        id: ver
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          COMMIT="$(git rev-parse --short HEAD)"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+
+      - name: Cross-compile
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+          VERSION: ${{ steps.ver.outputs.version }}
+          COMMIT: ${{ steps.ver.outputs.commit }}
+          BUILD_DATE: ${{ steps.ver.outputs.date }}
+        run: |
+          EXT=""
+          if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
+          OUT="dist/bin/${GOOS}-${GOARCH}/the-great-find${EXT}"
+          mkdir -p "$(dirname "$OUT")"
+          LDFLAGS="-s -w \
+            -X github.com/Hari-Hristov/the-great-find/backend/internal/version.Version=${VERSION} \
+            -X github.com/Hari-Hristov/the-great-find/backend/internal/version.Commit=${COMMIT} \
+            -X github.com/Hari-Hristov/the-great-find/backend/internal/version.Date=${BUILD_DATE}"
+          ( cd backend && go build -trimpath -ldflags "$LDFLAGS" -o "../$OUT" ./cmd/the-great-find )
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: bin-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/bin/${{ matrix.goos }}-${{ matrix.goarch }}/*
+          retention-days: 7
+
+  package:
+    name: Package ${{ matrix.platform }}
+    needs: build-go
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, platform: win,   builder_flag: "--win" }
+          - { os: macos-latest,   platform: mac,   builder_flag: "--mac" }
+          - { os: ubuntu-latest,  platform: linux, builder_flag: "--linux" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Derive version
+        id: ver
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # macOS needs BOTH darwin artifacts; everything else needs only its own.
+      - name: Download Go binaries (mac)
+        if: matrix.platform == 'mac'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: bin-darwin-*
+          path: dist/bin
+      - name: Download Go binary (windows)
+        if: matrix.platform == 'win'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: bin-windows-amd64
+          path: dist/bin/windows-amd64
+      - name: Download Go binary (linux)
+        if: matrix.platform == 'linux'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: bin-linux-amd64
+          path: dist/bin/linux-amd64
+
+      - name: Normalise mac artifact layout
+        if: matrix.platform == 'mac'
+        shell: bash
+        run: |
+          # The download-artifact action with pattern: flattens artifact
+          # NAMES into directories. We need them under goos-goarch/.
+          ls -la dist/bin/
+          for d in dist/bin/bin-darwin-*; do
+            arch="${d##*-}"
+            mv "$d" "dist/bin/darwin-${arch}"
+          done
+          ls -la dist/bin/darwin-amd64 dist/bin/darwin-arm64
+
+      - name: Make Go binaries executable
+        if: matrix.platform != 'win'
+        shell: bash
+        run: chmod +x dist/bin/*/the-great-find
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Regenerate icon derivatives from source
+        shell: bash
+        # Rebuilds icon.ico / icon.icns / tray-icon*.png from the committed
+        # icon-source.png. Guarantees derivatives are in sync with source
+        # even if someone updated one but forgot the other.
+        run: python3 frontend/build/regen-icons.py
+
+      - name: Build Electron sources
+        working-directory: frontend
+        env:
+          VITE_APP_VERSION: ${{ steps.ver.outputs.version }}
+        run: npm run build:electron
+
+      - name: Run electron-builder
+        working-directory: frontend
+        shell: bash
+        run: |
+          npx electron-builder ${{ matrix.builder_flag }} \
+            --publish=never \
+            --config.extraMetadata.version=${{ steps.ver.outputs.version }}
+
+      - name: Stage release artifacts
+        shell: bash
+        run: |
+          mkdir -p release-staging
+          # Pick up the packaged outputs (electron-builder writes to
+          # dist/electron per electron-builder.yml).
+          find dist/electron -maxdepth 3 -type f \
+            \( -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.zip" -o -name "latest*.yml" \) \
+            -exec cp {} release-staging/ \;
+          cp INSTALL-NOTES.md release-staging/ 2>/dev/null || true
+          ls -la release-staging/
+
+      - name: Generate SHA256 checksums
+        shell: bash
+        working-directory: release-staging
+        run: |
+          # One checksum file per platform matrix leg. softprops merges them
+          # onto the same draft release; users get SHA256SUMS-win.txt /
+          # -mac.txt / -linux.txt alongside the installer.
+          #
+          # Uses `shasum -a 256` (present on macOS + Linux) instead of
+          # `sha256sum` (Linux-only). On Windows runners bash is Git Bash,
+          # which also has shasum via the perl bundle.
+          find . -maxdepth 1 -type f \
+            \( -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.zip" \) \
+            -print0 | xargs -0 shasum -a 256 > "SHA256SUMS-${{ matrix.platform }}.txt"
+          cat "SHA256SUMS-${{ matrix.platform }}.txt"
+
+      # Sigstore keyless signing. This is the real integrity guarantee —
+      # SHA256SUMS above only defeats tampering-in-transit; if someone
+      # pops the GitHub account they can replace both the artifact AND
+      # the checksums in one shot. Sigstore ties the signature to this
+      # pipeline's OIDC identity (repo + workflow file + tag ref), so a
+      # valid signature can ONLY be produced by this exact workflow run.
+      # An account takeover attacker cannot forge one without also
+      # compromising the pipeline itself.
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Sign artifacts (Sigstore)
+        shell: bash
+        working-directory: release-staging
+        run: |
+          # Cosign v3 emits a single `.sigstore.json` bundle per artifact
+          # (contains signature + certificate + rekor entry). Users verify
+          # with:
+          #
+          #   cosign verify-blob \
+          #     --bundle <artifact>.sigstore.json \
+          #     --certificate-identity-regexp "^https://github.com/Hari-Hristov/the-great-find/\\.github/workflows/release\\.yml@refs/tags/v.*" \
+          #     --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+          #     <artifact>
+          for f in *.exe *.dmg *.AppImage *.zip; do
+            [ -f "$f" ] || continue
+            echo ">>> signing $f"
+            cosign sign-blob --yes --bundle "${f}.sigstore.json" "$f"
+          done
+          ls -la *.sigstore.json 2>/dev/null || echo "no bundles produced (no installers on this platform?)"
+
+      - name: Upload to release
+        # softprops/action-gh-release — pinned. Third-party action = highest
+        # supply-chain risk on this workflow. Bump the SHA when Dependabot
+        # opens a PR AND after eyeballing the diff of the new version.
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          files: release-staging/*
+          # Drafts require manual "Publish release" in the GitHub UI, giving
+          # us a window to verify all four artifacts (.exe, .dmg, .AppImage,
+          # SHA256SUMS-*.txt) are present and non-zero-byte before users can
+          # download. If any matrix leg silently failed, we notice here
+          # instead of shipping a busted release.
+          draft: true
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') }}
+          fail_on_unmatched_files: true

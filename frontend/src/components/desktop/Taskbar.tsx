@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDesktop, WINDOW_DEFS, type WindowId } from "@/contexts/DesktopContext";
+import { useVersion } from "@/api/hooks/queries";
 
 function Clock() {
   const [time, setTime] = useState(() => new Date());
@@ -10,6 +11,25 @@ function Clock() {
   return (
     <span className="font-mono text-[11px] tabular-nums" style={{ color: "var(--color-win-titlebar-text)" }}>
       {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+    </span>
+  );
+}
+
+function VersionStamp() {
+  // verbose=true because the hover tooltip shows the commit SHA + build
+  // date. The backend defaults /version to version-only to keep the recon
+  // surface minimal for anything else that hits the endpoint.
+  const { data } = useVersion(true);
+  // "dev" is the default ldflags placeholder — hide it so the dashboard
+  // doesn't shout "this is unreleased" at the user every session.
+  if (!data?.version || data.version === "dev") return null;
+  return (
+    <span
+      className="font-mono text-[10px] uppercase tracking-wider opacity-60"
+      style={{ color: "var(--color-win-titlebar-text)" }}
+      title={data.commit ? `commit ${data.commit}${data.date ? ` · ${data.date}` : ""}` : undefined}
+    >
+      v{data.version}
     </span>
   );
 }
@@ -83,7 +103,10 @@ export function Taskbar({ onChipClick, onChipClose }: TaskbarProps) {
       </div>
 
       {/* Clock */}
-      <Clock />
+      <div className="flex items-center gap-3">
+        <VersionStamp />
+        <Clock />
+      </div>
     </div>
   );
 }

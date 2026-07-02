@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { BusEvent, EventName } from "@/api/types";
+import { getBackendOrigin } from "@/api/client";
 
 interface EventStreamState {
   connected: boolean;
@@ -32,7 +33,7 @@ export function EventStreamProvider({ children }: { children: React.ReactNode })
         sourceRef.current = null;
       }
 
-      const es = new EventSource("/events");
+      const es = new EventSource(`${getBackendOrigin()}/events`);
       sourceRef.current = es;
 
       es.onopen = () => {

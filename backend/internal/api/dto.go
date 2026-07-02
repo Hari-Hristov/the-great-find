@@ -92,17 +92,20 @@ type PriceObservationRow struct {
 }
 
 type AlertRow struct {
-	ID            int64     `json:"id"`
-	SearchID      int64     `json:"search_id"`
-	ListingID     int64     `json:"listing_id"`
-	CriteriaHash  string    `json:"criteria_hash"`
-	Criteria      string    `json:"criteria"`
-	SentAt        time.Time `json:"sent_at"`
-	TagLabel      string    `json:"tag_label,omitempty"`
-	TagColor      string    `json:"tag_color,omitempty"`
-	ListingTitle  string    `json:"listing_title,omitempty"`
-	ListingURL    string    `json:"listing_url,omitempty"`
-	ListingStatus string    `json:"listing_status,omitempty"`
+	ID                   int64     `json:"id"`
+	SearchID             int64     `json:"search_id"`
+	ListingID            int64     `json:"listing_id"`
+	CriteriaHash         string    `json:"criteria_hash"`
+	Criteria             string    `json:"criteria"`
+	SentAt               time.Time `json:"sent_at"`
+	TagLabel             string    `json:"tag_label,omitempty"`
+	TagColor             string    `json:"tag_color,omitempty"`
+	ListingTitle         string    `json:"listing_title,omitempty"`
+	ListingURL           string    `json:"listing_url,omitempty"`
+	ListingStatus        string    `json:"listing_status,omitempty"`
+	ListingPriceAmount   *float64  `json:"listing_price_amount,omitempty"`
+	ListingPriceCurrency string    `json:"listing_price_currency,omitempty"`
+	ListingPriceEUR      *float64  `json:"listing_price_eur,omitempty"`
 }
 
 type AnalyticsFilter struct {

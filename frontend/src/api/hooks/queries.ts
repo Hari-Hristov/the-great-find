@@ -17,6 +17,7 @@ import type {
   PriceObservation,
   SavedSearch,
   UpdateSavedSearchInput,
+  VersionInfo,
 } from "../types";
 
 export const qk = {
@@ -26,9 +27,18 @@ export const qk = {
   listing: (id: number) => ["listings", id] as const,
   alerts: (limit: number) => ["alerts", limit] as const,
   config: ["config"] as const,
+  version: ["version"] as const,
   analytics: (searchId: number, windowDays: number) =>
     ["analytics", searchId, windowDays] as const,
 };
+
+export function useVersion(verbose = false) {
+  return useQuery({
+    queryKey: [...qk.version, verbose] as const,
+    queryFn: () => apiFetch<VersionInfo>(verbose ? "/version?verbose=1" : "/version"),
+    staleTime: Infinity,
+  });
+}
 
 export function useSearches() {
   return useQuery({
