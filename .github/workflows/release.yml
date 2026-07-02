@@ -14,6 +14,12 @@
 # v1 is unsigned. macOS users right-click → Open the first time; Windows
 # SmartScreen warns; Linux AppImage is signing-free. See INSTALL-NOTES.md
 # attached to each release.
+#
+# Every `uses:` is pinned to a full commit SHA (with a comment for the
+# human-readable version). Floating `@v4` tags are hijack surface — if a
+# maintainer PAT is stolen or a tag is force-moved, an unpinned pipeline
+# would silently pick up the malicious action and inject it into every
+# distributed binary. Dependabot will PR SHA bumps as new versions ship.
 
 name: Release
 
@@ -24,6 +30,13 @@ on:
 
 permissions:
   contents: write
+  # id-token: write is required for Sigstore keyless signing. The signing
+  # step exchanges the workflow's OIDC token for a short-lived Fulcio
+  # certificate that binds the signature to this exact repo + workflow +
+  # tag ref — meaning a valid Sigstore signature for our release can
+  # ONLY be produced by this pipeline. See the "Sign artifacts (Sigstore)"
+  # step below for the verify command.
+  id-token: write
 
 env:
   GO_VERSION_FILE: backend/go.mod
@@ -42,11 +55,11 @@ jobs:
           - { os: macos-latest,   goos: darwin,  goarch: arm64 }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: ${{ env.GO_VERSION_FILE }}
           cache-dependency-path: backend/go.sum
@@ -82,7 +95,7 @@ jobs:
             -X github.com/Hari-Hristov/the-great-find/backend/internal/version.Date=${BUILD_DATE}"
           ( cd backend && go build -trimpath -ldflags "$LDFLAGS" -o "../$OUT" ./cmd/the-great-find )
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: bin-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/bin/${{ matrix.goos }}-${{ matrix.goarch }}/*
@@ -100,9 +113,9 @@ jobs:
           - { os: ubuntu-latest,  platform: linux, builder_flag: "--linux" }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -116,19 +129,19 @@ jobs:
       # macOS needs BOTH darwin artifacts; everything else needs only its own.
       - name: Download Go binaries (mac)
         if: matrix.platform == 'mac'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: bin-darwin-*
           path: dist/bin
       - name: Download Go binary (windows)
         if: matrix.platform == 'win'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: bin-windows-amd64
           path: dist/bin/windows-amd64
       - name: Download Go binary (linux)
         if: matrix.platform == 'linux'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: bin-linux-amd64
           path: dist/bin/linux-amd64
@@ -188,10 +201,65 @@ jobs:
           cp INSTALL-NOTES.md release-staging/ 2>/dev/null || true
           ls -la release-staging/
 
+      - name: Generate SHA256 checksums
+        shell: bash
+        working-directory: release-staging
+        run: |
+          # One checksum file per platform matrix leg. softprops merges them
+          # onto the same draft release; users get SHA256SUMS-win.txt /
+          # -mac.txt / -linux.txt alongside the installer.
+          #
+          # Uses `shasum -a 256` (present on macOS + Linux) instead of
+          # `sha256sum` (Linux-only). On Windows runners bash is Git Bash,
+          # which also has shasum via the perl bundle.
+          find . -maxdepth 1 -type f \
+            \( -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.zip" \) \
+            -print0 | xargs -0 shasum -a 256 > "SHA256SUMS-${{ matrix.platform }}.txt"
+          cat "SHA256SUMS-${{ matrix.platform }}.txt"
+
+      # Sigstore keyless signing. This is the real integrity guarantee —
+      # SHA256SUMS above only defeats tampering-in-transit; if someone
+      # pops the GitHub account they can replace both the artifact AND
+      # the checksums in one shot. Sigstore ties the signature to this
+      # pipeline's OIDC identity (repo + workflow file + tag ref), so a
+      # valid signature can ONLY be produced by this exact workflow run.
+      # An account takeover attacker cannot forge one without also
+      # compromising the pipeline itself.
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Sign artifacts (Sigstore)
+        shell: bash
+        working-directory: release-staging
+        run: |
+          # Cosign v3 emits a single `.sigstore.json` bundle per artifact
+          # (contains signature + certificate + rekor entry). Users verify
+          # with:
+          #
+          #   cosign verify-blob \
+          #     --bundle <artifact>.sigstore.json \
+          #     --certificate-identity-regexp "^https://github.com/Hari-Hristov/the-great-find/\\.github/workflows/release\\.yml@refs/tags/v.*" \
+          #     --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+          #     <artifact>
+          for f in *.exe *.dmg *.AppImage *.zip; do
+            [ -f "$f" ] || continue
+            echo ">>> signing $f"
+            cosign sign-blob --yes --bundle "${f}.sigstore.json" "$f"
+          done
+          ls -la *.sigstore.json 2>/dev/null || echo "no bundles produced (no installers on this platform?)"
+
       - name: Upload to release
-        uses: softprops/action-gh-release@v2
+        # softprops/action-gh-release — pinned. Third-party action = highest
+        # supply-chain risk on this workflow. Bump the SHA when Dependabot
+        # opens a PR AND after eyeballing the diff of the new version.
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: release-staging/*
-          draft: false
+          # Drafts require manual "Publish release" in the GitHub UI, giving
+          # us a window to verify all four artifacts (.exe, .dmg, .AppImage,
+          # SHA256SUMS-*.txt) are present and non-zero-byte before users can
+          # download. If any matrix leg silently failed, we notice here
+          # instead of shipping a busted release.
+          draft: true
           prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') }}
           fail_on_unmatched_files: true
