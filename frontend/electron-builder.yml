@@ -69,6 +69,14 @@ mac:
   artifactName: "The-Great-Find-${version}-universal.${ext}"
   hardenedRuntime: false
   gatekeeperAssess: false
+  # @electron/universal builds the universal .app by merging the x64 and
+  # arm64 slices. When it sees identical Mach-O files in both, it refuses
+  # unless they're covered by an x64ArchFiles rule (minimatch glob).
+  # Our Go sidecar binaries ('the-great-find-amd64', 'the-great-find-arm64')
+  # are shipped into BOTH slices intentionally — the sidecar picks at
+  # runtime by process.arch, avoiding the need for `lipo`. This glob
+  # whitelists both so the merger accepts the duplication.
+  x64ArchFiles: "**/the-great-find-{amd64,arm64}"
   extendInfo:
     LSUIElement: true         # menu-bar app, no Dock icon
     NSHighResolutionCapable: true
