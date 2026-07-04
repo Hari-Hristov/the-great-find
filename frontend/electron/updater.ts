@@ -19,7 +19,8 @@
 //                        https://github.com/Hari-Hristov/the-great-find/issues/52
 
 import { app, dialog, Notification, shell } from "electron";
-import { autoUpdater } from "electron-updater";
+import pkg from "electron-updater";
+const { autoUpdater } = pkg;
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
