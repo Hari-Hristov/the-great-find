@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { ArrowDown } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { SplitReveal } from "./primitives/SplitReveal";
 import { Spotlight } from "./primitives/Spotlight";
 
@@ -57,13 +58,13 @@ export function Hero() {
           className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row"
         >
           <Spotlight className="rounded-[var(--radius-button)]" size={220}>
-            <a
-              href="/dashboard"
+            <Link
+              to="/dashboard"
               className="relative z-20 inline-flex items-center gap-2 rounded-[var(--radius-button)] bg-[var(--color-accent)] px-6 py-3 text-sm font-medium text-[var(--color-bg-base)] transition-colors hover:bg-[var(--color-accent-hover)]"
             >
               Open the dashboard
               <span aria-hidden>→</span>
-            </a>
+            </Link>
           </Spotlight>
           <a
             href="#how-it-works"
