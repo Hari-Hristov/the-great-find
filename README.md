@@ -4,10 +4,15 @@ A quiet pair of eyes on [olx.bg](https://olx.bg). Runs locally on your machine, 
 
 No cloud. No account. No telemetry. The database is a SQLite file on your disk and the network only talks to olx.bg.
 
-<!-- Screenshots are placeholders — real captures land as part of Phase 10 polish.
-     See docs/screenshots/README.md for capture instructions.
-![Screenshot of the dashboard](docs/screenshots/dashboard-overview.png)
--->
+### Features
+
+- **Saved searches** — monitor multiple olx.bg categories or queries with independent poll schedules
+- **Price monitoring** — full price-history tracking for every observed listing
+- **Alerts** — new match, keyword match, price drop, or price below target; delivered via OS notifications and optional email
+- **Flagged items** — bookmark interesting listings for quick reference later
+- **Analytics** — per-search 30-day average, min/max, trend chart, lowest-priced recent listings, days-on-market estimates
+- **Theming** — light and dark themes, switchable from Settings
+
 
 ---
 
@@ -78,12 +83,18 @@ The app is configured as a menu-bar utility on macOS (`LSUIElement=true`) — th
 
 ## Build from source
 
+### Prerequisites
+
+- **Go 1.22+** — backend compiler
+- **Node.js 20+** and **npm** — frontend toolchain
+- **Git**
+
 ```bash
 git clone https://github.com/Hari-Hristov/the-great-find.git
 cd the-great-find
 ```
 
-**All Go commands must run in WSL2 on Windows** — corporate WDAC policy on the development laptop blocks Go binaries compiled from the native Windows shell. The detailed working-around lives in [`CLAUDE.md`](./CLAUDE.md). On macOS / Linux there is no equivalent restriction.
+> **Windows note:** Go commands must run inside WSL2 if your machine enforces WDAC policy (corporate lockdown). On macOS / Linux there is no equivalent restriction.
 
 ### Quick build (host OS only)
 
@@ -103,7 +114,29 @@ Produces Go binaries for `windows/amd64`, `darwin/amd64`, `darwin/arm64`, and `l
 
 ### Dev loop
 
-See [`frontend/electron/README.md`](./frontend/electron/README.md) for the three dev modes (browser-only, Electron dev, packaged smoke).
+Three modes are available — see [`frontend/electron/README.md`](./frontend/electron/README.md) for full details.
+
+**1. Browser-only (fastest iteration)**
+
+```bash
+# Terminal 1 — start Go backend:
+cd backend && make run          # serves on :8088
+
+# Terminal 2 — start Vite dev server:
+cd frontend && npm install && npm run dev   # http://localhost:5173
+```
+
+**2. Electron dev** — full native shell (tray, IPC) pointed at the Vite dev server:
+
+```bash
+cd frontend && npm run dev:electron
+```
+
+**3. Packaged smoke test** — bundles everything into an unpacked Electron app:
+
+```bash
+cd frontend && npm run build:electron && npm run dist:dir
+```
 
 ## Architecture
 
@@ -132,8 +165,15 @@ See [`frontend/electron/README.md`](./frontend/electron/README.md) for the three
 
 The dashboard is a TanStack Router + React app. The Electron renderer loads it directly; in dev mode you can also run it in a regular browser against the same Go backend.
 
+## Known limitations
+
+- **Unsigned builds** — the app is unsigned in v1. Windows shows a SmartScreen warning; macOS shows a Gatekeeper block on first launch. See [`INSTALL-NOTES.md`](./INSTALL-NOTES.md) for the one-time bypass step per OS.
+- **Single parser target** — only [olx.bg](https://olx.bg) is supported. The parser configuration lives in `parser-config/olx-bg.json`.
+- **No auto-update on Windows / macOS** — unsigned installers can't be silently applied. The app notifies you when a new release is available; download manually from the [Releases page](https://github.com/Hari-Hristov/the-great-find/releases). Linux AppImage supports full auto-update.
+
 ## Roadmap
 
+- [#52 — Code signing for Windows / macOS](https://github.com/Hari-Hristov/the-great-find/issues/52) (v2)
 - [#46 — Auto-discover OLX filter params](https://github.com/Hari-Hristov/the-great-find/issues/46) (parked)
 - Browse open issues: <https://github.com/Hari-Hristov/the-great-find/issues>
 
