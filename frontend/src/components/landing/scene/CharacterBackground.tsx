@@ -100,7 +100,7 @@ interface CharacterDef {
 const CHARACTERS: CharacterDef[] = [
   {
     id: "mario",
-    glb: "/models/mario_obj.glb",
+    glb: "./models/mario_obj.glb",
     svgPath: MARIO_PATH,
     color: "#ff6b6b",
     position: [-4.5, 1.2, -8],
@@ -114,7 +114,7 @@ const CHARACTERS: CharacterDef[] = [
   },
   {
     id: "pikachu",
-    glb: "/models/pikachu.glb",
+    glb: "./models/pikachu.glb",
     svgPath: PIKACHU_PATH,
     color: "#fbbf24",
     position: [4.2, 1.8, -9],
@@ -126,7 +126,7 @@ const CHARACTERS: CharacterDef[] = [
   },
   {
     id: "link",
-    glb: "/models/link_the_legend_of_zelda_breath_of_the_wild.glb",
+    glb: "./models/link_the_legend_of_zelda_breath_of_the_wild.glb",
     svgPath: LINK_PATH,
     color: "#34d399",
     position: [5.5, -0.5, -8],
@@ -139,7 +139,7 @@ const CHARACTERS: CharacterDef[] = [
   },
   {
     id: "kirby",
-    glb: "/models/kirby.glb",
+    glb: "./models/kirby.glb",
     svgPath: KIRBY_PATH,
     color: "#f9a8d4",
     position: [-4, -1.8, -7],
@@ -151,7 +151,7 @@ const CHARACTERS: CharacterDef[] = [
   },
   {
     id: "hollow",
-    glb: "/models/hollow_knight.glb",
+    glb: "./models/hollow_knight.glb",
     svgPath: HOLLOW_KNIGHT_PATH,
     color: "#a78bfa",
     position: [-2.5, 2.2, -9],
@@ -164,7 +164,7 @@ const CHARACTERS: CharacterDef[] = [
   },
   {
     id: "samus",
-    glb: "/models/power_suit_samus.glb",
+    glb: "./models/power_suit_samus.glb",
     svgPath: SAMUS_PATH,
     color: "#7eb8ff",
     position: [3.8, -1.8, -8],

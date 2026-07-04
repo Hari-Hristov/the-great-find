@@ -27,6 +27,15 @@ files:
 
 asar: true
 
+# Tray icons must be in resources/ at runtime (main process reads them via
+# process.resourcesPath). They live in build/ for the build tools but are
+# NOT automatically copied by electron-builder — they need explicit entries.
+extraResources:
+  - from: build/tray-icon.png
+    to: tray-icon.png
+  - from: build/tray-icon-Template@2x.png
+    to: tray-icon-Template@2x.png
+
 # electron-updater uses this to find the release feed. GitHub Releases
 # emits latest-*.yml files alongside the installers when publish=github
 # is used; electron-builder generates them during packaging even with
