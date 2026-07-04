@@ -13,10 +13,6 @@ No cloud. No account. No telemetry. The database is a SQLite file on your disk a
 - **Analytics** — per-search 30-day average, min/max, trend chart, lowest-priced recent listings, days-on-market estimates
 - **Theming** — light and dark themes, switchable from Settings
 
-<!-- Screenshots — see docs/screenshots/README.md for capture instructions.
-     Replace these once real captures are taken from the current UI. -->
-![Dashboard overview](docs/screenshots/dashboard-overview.png)
-![Alert feed](docs/screenshots/alert-feed.png)
 
 ---
 
