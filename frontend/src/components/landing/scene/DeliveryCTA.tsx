@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "@tanstack/react-router";
 import { Spotlight } from "@/components/landing/primitives/Spotlight";
 
 interface Props {
@@ -48,13 +49,13 @@ export function DeliveryCTA({ visible }: Props) {
             transition={{ delay: 0.75, duration: 0.6 }}
           >
             <Spotlight className="rounded-full" size={200}>
-              <a
-                href="/dashboard"
+              <Link
+                to="/dashboard"
                 onClick={() => sessionStorage.setItem("desktop-entered", "1")}
                 className="relative z-20 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-medium text-black transition-opacity hover:opacity-90"
               >
                 Open the dashboard →
-              </a>
+              </Link>
             </Spotlight>
           </motion.div>
         </motion.div>

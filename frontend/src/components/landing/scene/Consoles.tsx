@@ -123,7 +123,7 @@ export function Console3DS({ visible }: { visible: boolean }) {
   return (
     <group position={[0.4, 0.3, 0]}>
       <ModelWithFallback
-        path="/models/new_nintendo_3ds_xl.glb"
+        path="./models/new_nintendo_3ds_xl.glb"
         scale={0.18}
         rotation={[Math.PI / 2, Math.PI, 0]}
         fallback={<group scale={1.8} position={[0, 0.5, 0]}><Procedural3DS /></group>}
@@ -139,7 +139,7 @@ export function ConsoleSwitch({ visible }: { visible: boolean }) {
   return (
     <group position={[1.288, 2.13, 0.032]}>
       <ModelWithFallback
-        path="/models/nintendo_switch_console.glb"
+        path="./models/nintendo_switch_console.glb"
         scale={10.55}
         rotation={[0, Math.PI, 0]}
         fallback={<ProceduralSwitch />}
@@ -152,7 +152,7 @@ export function ConsoleSteamDeck({ visible }: { visible: boolean }) {
   if (!visible) return null;
   return (
     <ModelWithFallback
-      path="/models/steam_deck.glb"
+      path="./models/steam_deck.glb"
       scale={8.39}
       rotation={[0.45, 0, 0]}
       fallback={<ProceduralSteamDeck />}
@@ -160,7 +160,7 @@ export function ConsoleSteamDeck({ visible }: { visible: boolean }) {
   );
 }
 
-useGLTF.preload("/models/new_nintendo_3ds_xl.glb");
-useGLTF.preload("/models/nintendo_switch_console.glb");
-useGLTF.preload("/models/steam_deck.glb");
+useGLTF.preload("./models/new_nintendo_3ds_xl.glb");
+useGLTF.preload("./models/nintendo_switch_console.glb");
+useGLTF.preload("./models/steam_deck.glb");
 
