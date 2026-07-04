@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { RouterProvider, createRouter, createHashHistory } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 import { initApiBaseUrl } from "./api/client";
 import "./index.css";
@@ -16,10 +16,21 @@ const queryClient = new QueryClient({
   },
 });
 
+// In packaged Electron the renderer is loaded from a file:// URL. The default
+// browser history reads window.location.pathname, which becomes the full
+// filesystem path (e.g. /C:/Users/.../index.html) instead of "/", so no
+// route ever matches and TanStack Router renders "Not Found". Hash history
+// reads window.location.hash instead, which starts as "#/" and matches the
+// root route correctly. In dev (http://localhost:5173) we keep browser
+// history so the URL bar stays human-readable.
+const history =
+  window.location.protocol === "file:" ? createHashHistory() : undefined;
+
 const router = createRouter({
   routeTree,
   context: { queryClient },
   defaultPreload: "intent",
+  ...(history ? { history } : {}),
 });
 
 declare module "@tanstack/react-router" {
