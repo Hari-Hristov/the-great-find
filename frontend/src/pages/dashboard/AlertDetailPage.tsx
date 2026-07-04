@@ -43,9 +43,9 @@ function TagPopover({
   useEffect(() => {
     if (!open) return;
     function onDown(e: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (popoverRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
@@ -132,11 +132,15 @@ function TagPopover({
         onClick={() => {
           setDraft(currentLabel ?? "");
           setDraftColor((currentColor as TagColorName | undefined) ?? "blue");
-          if (!open && buttonRef.current) {
+          if (open) {
+            setOpen(false);
+            return;
+          }
+          if (buttonRef.current) {
             const rect = buttonRef.current.getBoundingClientRect();
             setPopoverPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
           }
-          setOpen((v) => !v);
+          setOpen(true);
         }}
         className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
       >
