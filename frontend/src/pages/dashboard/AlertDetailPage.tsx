@@ -1,6 +1,7 @@
 import { useWindowNav } from "@/contexts/DesktopContext";
 import { EyeOff, Tag, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Topbar } from "@/components/layout/Topbar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,8 @@ function TagPopover({
     (currentColor as TagColorName | undefined) ?? "blue",
   );
   const popoverRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [popoverPos, setPopoverPos] = useState({ top: 0, right: 0 });
   const tag = useTagAlert();
 
   useEffect(() => {
@@ -58,42 +61,12 @@ function TagPopover({
     tag.mutate({ id: alertId, label: "", color: "" });
   }
 
-  return (
-    <div className="relative flex items-center gap-1">
-      {currentLabel ? (
-        <span
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white ${tagBg(currentColor)}`}
-        >
-          {currentLabel}
-          <button
-            aria-label="Remove tag"
-            disabled={tag.isPending}
-            onClick={clear}
-            className="ml-0.5 opacity-70 hover:opacity-100"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </span>
-      ) : null}
-
-      <Button
-        size="icon"
-        variant="ghost"
-        aria-label="Add tag"
-        onClick={() => {
-          setDraft(currentLabel ?? "");
-          setDraftColor((currentColor as TagColorName | undefined) ?? "blue");
-          setOpen((v) => !v);
-        }}
-        className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
-      >
-        <Tag className="h-4 w-4" />
-      </Button>
-
-      {open ? (
+  const popover = open
+    ? createPortal(
         <div
           ref={popoverRef}
-          className="absolute right-0 top-9 z-50 w-56 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-3 shadow-lg"
+          style={{ position: "fixed", top: popoverPos.top, right: popoverPos.right, zIndex: 9001 }}
+          className="w-56 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-3 shadow-lg"
         >
           <input
             autoFocus
@@ -128,8 +101,49 @@ function TagPopover({
               Cancel
             </Button>
           </div>
-        </div>
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <div className="relative flex items-center gap-1">
+      {currentLabel ? (
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white ${tagBg(currentColor)}`}
+        >
+          {currentLabel}
+          <button
+            aria-label="Remove tag"
+            disabled={tag.isPending}
+            onClick={clear}
+            className="ml-0.5 opacity-70 hover:opacity-100"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </span>
       ) : null}
+
+      <Button
+        ref={buttonRef}
+        size="icon"
+        variant="ghost"
+        aria-label="Add tag"
+        onClick={() => {
+          setDraft(currentLabel ?? "");
+          setDraftColor((currentColor as TagColorName | undefined) ?? "blue");
+          if (!open && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setPopoverPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+          }
+          setOpen((v) => !v);
+        }}
+        className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
+      >
+        <Tag className="h-4 w-4" />
+      </Button>
+
+      {popover}
     </div>
   );
 }
