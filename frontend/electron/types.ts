@@ -8,6 +8,13 @@ export interface AppConfig {
   dataDir?: string;
   /** Whether OS-level notifications are allowed. Default true. */
   osNotifications?: boolean;
+  /**
+   * Set once the first-run wizard has been completed. Persisted so subsequent
+   * launches skip the wizard even if the search list is momentarily empty
+   * (e.g. the user picked a fresh dataDir override in Step 2, or manually
+   * deleted their only saved search after setup).
+   */
+  setupCompleted?: boolean;
 }
 
 export interface TgfBridge {
@@ -22,6 +29,9 @@ export interface TgfBridge {
 
   setOsNotifications: (enabled: boolean) => Promise<void>;
   getOsNotifications: () => Promise<boolean>;
+
+  getSetupCompleted: () => Promise<boolean>;
+  setSetupCompleted: (done: boolean) => Promise<void>;
 
   quitApp: () => Promise<void>;
   hideWindow: () => Promise<void>;

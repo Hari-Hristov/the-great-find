@@ -22,6 +22,11 @@ const bridge: TgfBridge = {
   getOsNotifications: () =>
     ipcRenderer.invoke("config:getOsNotifications") as Promise<boolean>,
 
+  getSetupCompleted: () =>
+    ipcRenderer.invoke("config:getSetupCompleted") as Promise<boolean>,
+  setSetupCompleted: (done) =>
+    ipcRenderer.invoke("config:setSetupCompleted", done) as Promise<void>,
+
   quitApp: () => ipcRenderer.invoke("app:quit") as Promise<void>,
   hideWindow: () => ipcRenderer.invoke("app:hide") as Promise<void>,
   getPlatform: () =>
