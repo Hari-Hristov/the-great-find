@@ -1,7 +1,6 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import { Canvas } from "@react-three/fiber";
-import { Environment } from "@react-three/drei";
 import { ACESFilmicToneMapping } from "three";
 import { useNavigate } from "@tanstack/react-router";
 import { useSceneStateRef } from "./sceneState";
@@ -9,12 +8,16 @@ import type { SceneState } from "./sceneState";
 import { useScrollDriver } from "./scrollDriver";
 import { ScrollCameraRig } from "./ScrollCameraRig";
 import { ConsoleStage } from "./ConsoleStage";
-import { SceneEffects } from "./SceneEffects";
 import { FlashOverlay } from "./FlashOverlay";
 import { HeroOverlays } from "./HeroOverlays";
 import { SkipIntroButton } from "./SkipIntroButton";
 import { DeliveryCTA } from "./DeliveryCTA";
-import { CharacterBackground } from "./CharacterBackground";
+import {
+  ACTIVE_VARIANT,
+  BackgroundDom,
+  BackgroundScene,
+  BackgroundEffects,
+} from "./backgrounds";
 import type { Section } from "./types";
 
 const SCROLL_HEIGHT = "700vh";
@@ -37,16 +40,7 @@ export function CinematicLanding() {
 
   return (
     <div ref={containerRef} style={{ height: SCROLL_HEIGHT }} className="relative">
-      {/* Background gradient */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0"
-        style={{
-          zIndex: -2,
-          background:
-            "radial-gradient(ellipse 120% 80% at 60% 30%, #1e1b4b 0%, #0f172a 45%, #0a0f1e 100%)",
-        }}
-      />
+      <BackgroundDom variant={ACTIVE_VARIANT} />
 
       <div className="pointer-events-none fixed inset-0 z-0">
         <Canvas
@@ -56,15 +50,14 @@ export function CinematicLanding() {
           performance={{ min: 0.5 }}
         >
           <Suspense fallback={null}>
-            <Environment preset="night" />
-            <CharacterBackground />
+            <BackgroundScene variant={ACTIVE_VARIANT} stateRef={stateRef} />
             <ConsoleStage stateRef={stateRef} />
           </Suspense>
 
           <ScrollCameraRig stateRef={stateRef} />
 
           <Suspense fallback={null}>
-            <SceneEffects />
+            <BackgroundEffects variant={ACTIVE_VARIANT} />
           </Suspense>
         </Canvas>
       </div>
