@@ -11,6 +11,7 @@ import {
 import { BlendFunction } from "postprocessing";
 import * as THREE from "three";
 import type { SceneState } from "../sceneState";
+import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 // Variant: Depths
 // Reference DNA: Igloo Inc, DogStudio, Bruno Simon's early portfolios,
@@ -31,23 +32,6 @@ const SECTION_HORIZON_TINT: Record<SceneState["section"], THREE.ColorRepresentat
   "steam-deck":        "#1a1a2c",
   "delivery":          "#2a1e18", // warm amber horizon on delivery
 };
-
-function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  });
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
-    m.addEventListener("change", handler);
-    return () => m.removeEventListener("change", handler);
-  }, []);
-
-  return reduced;
-}
 
 function DepthsFog({ stateRef }: { stateRef: MutableRefObject<SceneState> }) {
   const { scene } = useThree();
