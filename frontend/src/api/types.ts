@@ -125,7 +125,9 @@ export type EventName =
   | "listing.new"
   | "listing.updated"
   | "listing.removed"
+  | "poll.started"
   | "poll.finished"
+  | "poll.failed"
   | string;
 
 export interface BusEvent {

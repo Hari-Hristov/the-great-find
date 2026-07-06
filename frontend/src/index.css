@@ -102,3 +102,17 @@ body,
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
 }
+
+/*
+ * Reduced-motion opt-out for spin/pulse loaders. The cinematic landing owns
+ * its own reduced-motion behaviour (static composition + crossfades) so we
+ * intentionally do NOT blanket-disable animations here — only the utility
+ * classes we ship in the dashboard shell.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin,
+  .animate-pulse,
+  .animate-ping {
+    animation: none !important;
+  }
+}
