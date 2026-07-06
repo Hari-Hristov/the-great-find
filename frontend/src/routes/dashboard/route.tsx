@@ -88,7 +88,7 @@ function DashboardLayout() {
     return () => {
       cancelled = true;
     };
-  }, [bridge, setupCompleted, searches.isSuccess, searches.data]);
+  }, [bridge, setupCompleted, searches.isSuccess, searches.data?.length]);
 
   const [entered] = useState(() => {
     const flag = sessionStorage.getItem("desktop-entered") === "1";
