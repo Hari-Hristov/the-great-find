@@ -15,6 +15,8 @@ declare global {
     pickDirectory: () => Promise<string | undefined>;
     setOsNotifications: (enabled: boolean) => Promise<void>;
     getOsNotifications: () => Promise<boolean>;
+    getSetupCompleted: () => Promise<boolean>;
+    setSetupCompleted: (done: boolean) => Promise<void>;
     quitApp: () => Promise<void>;
     hideWindow: () => Promise<void>;
     getPlatform: () => Promise<"win32" | "darwin" | "linux" | "aix" | "freebsd" | "openbsd" | "sunos" | "android" | "cygwin" | "netbsd" | "haiku">;

@@ -1,8 +1,8 @@
 // Step 4 — create the first saved search.
 //
-// Wraps the existing SearchForm. On success the wizard exits and the
-// dashboard's render gate sees a non-empty searches list, so navigation
-// to /dashboard goes through cleanly.
+// Wraps the existing SearchForm. On success we persist the setup-completed
+// flag through the Electron bridge (browser dev has no bridge — the flag
+// isn't relevant there) and then exit to the dashboard.
 
 import { useNavigate } from "@tanstack/react-router";
 import { SearchForm } from "@/components/SearchForm";
@@ -14,6 +14,7 @@ interface Props {
 
 export function Step4FirstSearch({ onBack }: Props) {
   const navigate = useNavigate();
+  const bridge = typeof window !== "undefined" ? window.tgf : undefined;
 
   return (
     <WizardShell
@@ -28,7 +29,8 @@ export function Step4FirstSearch({ onBack }: Props) {
       <div className="mt-4 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] p-5">
         <SearchForm
           mode="create"
-          onSuccess={() => {
+          onSuccess={async () => {
+            await bridge?.setSetupCompleted(true);
             void navigate({ to: "/dashboard" });
           }}
           onCancel={onBack}

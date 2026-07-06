@@ -259,6 +259,13 @@ function registerIpc() {
   ipcMain.handle("config:setOsNotifications", guarded(async (_e, enabled: boolean) => {
     await updateConfig({ osNotifications: enabled });
   }));
+  ipcMain.handle("config:getSetupCompleted", guarded(async () => {
+    const cfg = await loadConfig();
+    return cfg.setupCompleted === true;
+  }));
+  ipcMain.handle("config:setSetupCompleted", guarded(async (_e, done: boolean) => {
+    await updateConfig({ setupCompleted: done });
+  }));
 
   ipcMain.handle("dialog:pickDir", guarded(async () => {
     if (!mainWindow) return undefined;
