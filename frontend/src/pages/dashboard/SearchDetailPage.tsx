@@ -62,6 +62,9 @@ export function SearchDetailPage() {
     ? `${search.data.platform} · ${search.data.country} · every ${search.data.poll_interval_min}m`
     : undefined;
 
+  const activeItems = [...(listings.data?.items ?? [])].sort(sortByPostedAtDesc);
+  const inactiveItems = [...(inactiveListings.data?.items ?? [])].sort(sortByPostedAtDesc);
+
   return (
     <>
       <Topbar
@@ -71,7 +74,6 @@ export function SearchDetailPage() {
         actions={search.data ? <DetailsOverflow search={search.data} /> : undefined}
       />
 
-      {/* Action strip — sits between topbar and content, always visible */}
       <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] px-6 py-2">
         <div className="flex items-center gap-1">
           <button
@@ -122,95 +124,107 @@ export function SearchDetailPage() {
           </Card>
         ) : null}
 
-        <Card className={editing ? "mt-6" : ""}>
-          <CardHeader>
-            <CardTitle>Listings</CardTitle>
-            <CardDescription>
-              {listings.data?.total ?? 0} active · {inactiveListings.data?.total ?? 0} inactive
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="relative">
-            {isBusy && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded bg-[var(--color-bg-card)]/60 backdrop-blur-[2px] pointer-events-none">
-                <Loader2 className="h-6 w-6 animate-spin text-[var(--color-text-muted)]" />
-              </div>
-            )}
-            <ul className="divide-y divide-[var(--color-border-subtle)]">
-              {[...(listings.data?.items ?? [])].sort(sortByPostedAtDesc).map((l) => (
-                <li key={l.id} className="flex items-center justify-between py-3">
-                  <div className="min-w-0 flex-1 pr-4">
-                    <a
-                      href={safeHref(l.url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block truncate text-sm hover:text-[var(--color-accent)]"
-                    >
-                      {l.title}
-                    </a>
-                    <div className="mt-1 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-                      <Badge variant="success">{l.status}</Badge>
-                      <span>{l.location_city ?? "—"}</span>
-                      <span>·</span>
-                      <span>posted {relativeTime(l.posted_at)}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="font-mono text-sm tabular-nums">
-                      {formatEUR(l.price_eur)}
-                    </span>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label="Hide listing"
-                      disabled={hide.isPending}
-                      onClick={() => hide.mutate(l.id)}
-                      className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
-                    >
-                      <EyeOff className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </li>
-              ))}
-              {(inactiveListings.data?.items?.length ?? 0) > 0 && (
-                [...(inactiveListings.data?.items ?? [])].sort(sortByPostedAtDesc).map((l) => (
-                  <li key={l.id} className="flex items-center justify-between py-3 opacity-50">
-                    <div className="min-w-0 flex-1 pr-4">
-                      <a
-                        href={safeHref(l.url)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block truncate text-sm hover:text-[var(--color-accent)]"
-                      >
-                        {l.title}
-                      </a>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-                        <Badge variant="secondary">inactive</Badge>
-                        <span>{l.location_city ?? "—"}</span>
-                        <span>·</span>
-                        <span>posted {relativeTime(l.posted_at)}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="font-mono text-sm tabular-nums">
-                        {formatEUR(l.price_eur)}
-                      </span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        aria-label="Hide listing"
-                        disabled={hide.isPending}
-                        onClick={() => hide.mutate(l.id)}
-                        className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
-                      >
-                        <EyeOff className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </li>
-                ))
+        {search.isLoading ? (
+          <Card className={editing ? "mt-6" : ""}>
+            <CardContent className="p-5">
+              <p className="text-sm text-[var(--color-text-muted)]">Loading…</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className={editing ? "mt-6" : ""}>
+            <CardHeader>
+              <CardTitle>Listings</CardTitle>
+              <CardDescription>
+                {listings.data?.total ?? 0} active · {inactiveListings.data?.total ?? 0} inactive
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="relative">
+              {isBusy && (
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded bg-[var(--color-bg-card)]/60 backdrop-blur-[2px]">
+                  <Loader2 className="h-6 w-6 animate-spin text-[var(--color-text-muted)]" />
+                </div>
               )}
-            </ul>
-          </CardContent>
-        </Card>
+              {activeItems.length === 0 && inactiveItems.length === 0 ? (
+                <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">
+                  No listings yet — try refreshing.
+                </p>
+              ) : (
+                <ul className="divide-y divide-[var(--color-border-subtle)]">
+                  {activeItems.map((l) => (
+                    <li key={l.id} className="flex items-center justify-between py-3">
+                      <div className="min-w-0 flex-1 pr-4">
+                        <a
+                          href={safeHref(l.url)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block truncate text-sm hover:text-[var(--color-accent)]"
+                        >
+                          {l.title}
+                        </a>
+                        <div className="mt-1 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                          <Badge variant="success">{l.status}</Badge>
+                          <span>{l.location_city ?? "—"}</span>
+                          <span>·</span>
+                          <span>posted {relativeTime(l.posted_at)}</span>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <span className="font-mono text-sm tabular-nums">
+                          {formatEUR(l.price_eur)}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Hide listing"
+                          disabled={hide.isPending}
+                          onClick={() => hide.mutate(l.id)}
+                          className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
+                        >
+                          <EyeOff className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                  {inactiveItems.map((l) => (
+                    <li key={l.id} className="flex items-center justify-between py-3 opacity-50">
+                      <div className="min-w-0 flex-1 pr-4">
+                        <a
+                          href={safeHref(l.url)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block truncate text-sm hover:text-[var(--color-accent)]"
+                        >
+                          {l.title}
+                        </a>
+                        <div className="mt-1 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                          <Badge variant="secondary">inactive</Badge>
+                          <span>{l.location_city ?? "—"}</span>
+                          <span>·</span>
+                          <span>posted {relativeTime(l.posted_at)}</span>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <span className="font-mono text-sm tabular-nums">
+                          {formatEUR(l.price_eur)}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Hide listing"
+                          disabled={hide.isPending}
+                          onClick={() => hide.mutate(l.id)}
+                          className="h-7 w-7 text-[var(--color-text-muted)] hover:text-[var(--color-danger)]"
+                        >
+                          <EyeOff className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </>
   );
@@ -254,7 +268,11 @@ function DetailsOverflow({ search }: { search: SavedSearch }) {
             <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-[var(--color-terminal-text-dim)]">
               ████ clearance lv-2 · {search.id.toString().padStart(6, "0")} ████
             </span>
-            <button onClick={() => setOpen(false)} className="text-[var(--color-terminal-text-dim)] hover:text-[var(--color-terminal-text-bright)]">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="text-[var(--color-terminal-text-dim)] hover:text-[var(--color-terminal-text-bright)]"
+            >
               <X className="h-3 w-3" />
             </button>
           </div>

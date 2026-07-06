@@ -1,4 +1,5 @@
 import { Topbar } from "@/components/layout/Topbar";
+import { Section } from "@/components/layout/Section";
 import { Card, CardContent } from "@/components/ui/card";
 import { SearchForm } from "@/components/SearchForm";
 import { useWindowNav } from "@/contexts/DesktopContext";
@@ -16,11 +17,16 @@ export function NewSearchPage() {
       />
 
       <div className="flex-1 overflow-auto px-6 py-6">
-        <Card className="mx-auto max-w-3xl">
-          <CardContent className="p-5">
-            <SearchForm mode="create" onSuccess={goBack} onCancel={goBack} />
-          </CardContent>
-        </Card>
+        <Section
+          title="Search configuration"
+          description="Name your search, pick the platform and region, then set the polling interval and any alert criteria."
+        >
+          <Card>
+            <CardContent className="p-5">
+              <SearchForm mode="create" onSuccess={goBack} onCancel={goBack} />
+            </CardContent>
+          </Card>
+        </Section>
       </div>
     </>
   );

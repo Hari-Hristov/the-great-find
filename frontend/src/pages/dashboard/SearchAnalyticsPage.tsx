@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
+import { Section } from "@/components/layout/Section";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stat } from "@/components/ui/Stat";
 import { TrendChart, type TrendDatum } from "@/components/charts/TrendChart";
@@ -41,14 +42,6 @@ function WindowSelector({
   );
 }
 
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="text-xs font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">
-      {children}
-    </h2>
-  );
-}
-
 export function SearchAnalyticsPage() {
   const nav = useWindowNav("searches");
   const m = nav.current.match(/^\/dashboard\/searches\/(\d+)\/analytics$/);
@@ -82,19 +75,19 @@ export function SearchAnalyticsPage() {
     <>
       <Topbar
         title={search.data ? `${search.data.name} — Analytics` : "Analytics"}
+        subtitle="Price history, volume trend, and market velocity"
         back={{
           onClick: () => nav.pop(),
           label: "Back to search",
         }}
       />
 
-      <div className="flex-1 overflow-auto px-6 py-6 space-y-8">
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <SectionHeading>Active market</SectionHeading>
-            <WindowSelector value={activeWindow} onChange={setActiveWindow} />
-          </div>
-
+      <div className="flex-1 overflow-auto px-6 py-6 space-y-10">
+        <Section
+          title="Active market"
+          description={`Current listings over the last ${activeWindow} days.`}
+          aside={<WindowSelector value={activeWindow} onChange={setActiveWindow} />}
+        >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <Stat
               label="Listings"
@@ -120,17 +113,13 @@ export function SearchAnalyticsPage() {
               )}
             </CardContent>
           </Card>
-        </section>
+        </Section>
 
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <SectionHeading>Sold / inactive prices</SectionHeading>
-            <WindowSelector value={inactiveWindow} onChange={setInactiveWindow} />
-          </div>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Listings that left the market — likely sold. Their last known price reflects what buyers actually paid.
-          </p>
-
+        <Section
+          title="Sold / inactive prices"
+          description="Listings that left the market — likely sold. Their last known price reflects what buyers actually paid."
+          aside={<WindowSelector value={inactiveWindow} onChange={setInactiveWindow} />}
+        >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <Stat
               label="Closed"
@@ -171,7 +160,7 @@ export function SearchAnalyticsPage() {
               )}
             </CardContent>
           </Card>
-        </section>
+        </Section>
       </div>
     </>
   );
