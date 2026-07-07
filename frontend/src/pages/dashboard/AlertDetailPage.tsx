@@ -74,7 +74,7 @@ function TagPopover({
         <div
           ref={popoverRef}
           style={{ position: "fixed", top: popoverPos.top, right: popoverPos.right, zIndex: 9001 }}
-          className="w-56 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-3 shadow-lg"
+          className="w-56 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-elev)] p-3 shadow-lg"
         >
           <input
             autoFocus
@@ -95,7 +95,7 @@ function TagPopover({
                 key={c.name}
                 aria-label={c.name}
                 onClick={() => setDraftColor(c.name)}
-                className={`h-5 w-5 rounded-full ${c.bg} ring-offset-1 transition-all ${draftColor === c.name ? "ring-2 ring-[var(--color-bg-base)]" : "opacity-70 hover:opacity-100"}`}
+                className={`h-5 w-5 rounded-full ${c.bg} ring-offset-[var(--color-bg-elev)] transition-all ${draftColor === c.name ? "ring-2 ring-[var(--color-bg-base)]" : "opacity-70 hover:opacity-100"}`}
               />
             ))}
           </div>
@@ -121,7 +121,7 @@ function TagPopover({
     <div className="relative flex items-center gap-1">
       {currentLabel ? (
         <span
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white ${tagBg(currentColor)}`}
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-[var(--color-bg-base)] ${tagBg(currentColor)}`}
         >
           {currentLabel}
           <button
