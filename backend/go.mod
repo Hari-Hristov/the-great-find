@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/PuerkitoBio/goquery v1.12.0
-	github.com/danielgtaylor/huma/v2 v2.38.0
+	github.com/danielgtaylor/huma/v2 v2.39.0
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/pressly/goose/v3 v3.27.2
 	modernc.org/sqlite v1.53.0
@@ -14,7 +14,7 @@ require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/mattn/go-isatty v0.0.21 // indirect
+	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
