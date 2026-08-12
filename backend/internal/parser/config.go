@@ -1,14 +1,16 @@
-// Package parser owns the hot-reloadable selector config used by the scraper.
+// Package parser owns the selector config used by the scraper and the API client.
 //
-// The config lives at parser-config/olx-bg.json in this repo. At runtime the app:
+// The config lives at parser-config/olx-bg.json in this repo, and a synced copy
+// (see `make sync-parser-config`) is embedded into the binary at build time.
+// At runtime the app loads the embedded copy and schema-validates it before
+// handing it to the ingestion path. Store supports atomic replacement, so the
+// config can be swapped without a restart once something calls Replace.
 //
-//   1. Tries to fetch the latest version from a public GitHub URL we own.
-//   2. Falls back to the embedded copy bundled into the binary if the fetch fails
-//      or the schema is invalid.
-//   3. Schema-validates the result before handing it to the scraper.
-//
-// The hot-reload exists because olx.bg changes its HTML occasionally — fixing
-// selectors via a config push beats shipping a new binary for every CSS tweak.
+// Remote reload is NOT wired up. Reloader below implements fetch-from-URL and
+// is covered by tests, but nothing in cmd/ constructs it, so shipped binaries
+// only ever run the embedded config. Treat it as an unused building block, not
+// as live behavior: enabling it would mean the app pulls parsing rules from a
+// remote host at runtime, which is a deliberate decision and not a default.
 package parser
 
 import (
@@ -114,8 +116,13 @@ type PaginationConfig struct {
 	MaxPages     int    `json:"max_pages"`
 }
 
+// RobotsConfig holds the politeness settings applied to every outbound request.
+//
+// These are rate-limit controls only, enforced by internal/politehttp. The app
+// does not fetch or evaluate robots.txt; a respect_robots_txt flag used to live
+// here but nothing ever read it, so it was removed rather than left implying a
+// guarantee the code doesn't make.
 type RobotsConfig struct {
-	RespectRobotsTxt    bool   `json:"respect_robots_txt"`
 	UserAgent           string `json:"user_agent"`
 	MinRequestSpacingMs int    `json:"min_request_spacing_ms"`
 	JitterMs            int    `json:"jitter_ms"`
@@ -344,6 +351,9 @@ func (s *Store) Replace(c *Config) (*Config, error) {
 }
 
 // Reloader pulls the parser config from a remote URL and replaces the Store on success.
+//
+// Currently unused: nothing in cmd/ constructs a Reloader, so this path is
+// exercised only by tests. See the package doc before wiring it up.
 //
 // The fetcher is plain net/http with a small timeout. Failure is logged by the caller
 // but never crashes the app: stale-but-valid is always preferred to broken.
