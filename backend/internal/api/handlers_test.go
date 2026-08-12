@@ -113,6 +113,49 @@ func TestCreateSearch_RejectsBadQueryParams(t *testing.T) {
 	}
 }
 
+// keyword_variants is the one query param the scheduler reads as an array
+// (scheduler.popKeywordVariants) and the search form sends as one. Validation
+// used to decode query_params into map[string]string, which rejected it with a
+// 400 and made custom variants impossible to save from the UI.
+func TestCreateSearch_AcceptsKeywordVariantsArray(t *testing.T) {
+	q := newFakeQueries()
+	srv, _ := newTestServer(t, q, &fakeReloader{})
+
+	body := map[string]any{
+		"name": "Consoles",
+		"query_params": map[string]any{
+			"keyword":          "nintendo",
+			"keyword_variants": []string{"нинтендо", "switch"},
+		},
+	}
+	status, raw := httpJSON(t, "POST", srv.URL+"/api/searches", body)
+	if status != 201 {
+		t.Fatalf("status = %d, body=%s", status, raw)
+	}
+	if !bytes.Contains(raw, []byte("нинтендо")) {
+		t.Errorf("keyword_variants should survive to the stored row, got %s", raw)
+	}
+}
+
+func TestCreateSearch_RejectsNonStringQueryParamValue(t *testing.T) {
+	q := newFakeQueries()
+	srv, _ := newTestServer(t, q, &fakeReloader{})
+
+	for name, params := range map[string]map[string]any{
+		"number":          {"keyword": 42},
+		"array of number": {"keyword_variants": []any{1, 2}},
+		"nested object":   {"keyword": map[string]any{"nope": "nope"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			body := map[string]any{"name": "broken", "query_params": params}
+			status, _ := httpJSON(t, "POST", srv.URL+"/api/searches", body)
+			if status < 400 || status >= 500 {
+				t.Fatalf("expected 4xx, got %d", status)
+			}
+		})
+	}
+}
+
 func TestUpdateSearch_NotFoundIs404(t *testing.T) {
 	q := newFakeQueries()
 	srv, _ := newTestServer(t, q, &fakeReloader{})
