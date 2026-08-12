@@ -7,11 +7,11 @@ No cloud. No account. No telemetry. The database is a SQLite file on your disk a
 ### Features
 
 - **Saved searches** — monitor multiple olx.bg categories or queries with independent poll schedules
-- **Price monitoring** — full price-history tracking for every observed listing
-- **Alerts** — new match, keyword match, price drop, or price below target; delivered via OS notifications and optional email
-- **Flagged items** — bookmark interesting listings for quick reference later
-- **Analytics** — per-search 30-day average, min/max, trend chart, lowest-priced recent listings, days-on-market estimates
-- **Theming** — light and dark themes, switchable from Settings
+- **Price monitoring** — price-history tracking for every observed listing, recorded whenever the price changes
+- **Alerts** — new match, keyword match, price drop, or price below target; delivered via OS notifications and optional email. Note: only **price below target** is creatable from the UI today — the other three rules are implemented in the engine but need `alert_criteria` written directly
+- **Flagged items** — hide listings you're not interested in, so they're excluded from results and never alert you again
+- **Analytics** — per-search min/max/average price, trend chart, days-on-market, and weekly absorption rate
+- **Theming** — two themes, **Default** (dark blue) and **Military** (phosphor-green terminal), switchable from Settings
 
 
 ---
@@ -43,10 +43,12 @@ After the wizard, the app drops into the tray. Single-click the tray icon (or do
 ## How it works
 
 - Each saved search polls on its own schedule (default 30 minutes).
-- Every observation is stored in the local SQLite database — listings, photos, params, and a full price-history table.
+- Every observation is stored in the local SQLite database: listings, the search-to-listing associations, and a price-history table. A price-history row is written when a listing is first seen and whenever its price changes, so gaps mean "unchanged" rather than "not polled".
 - Alerts fire on **new match**, **keyword**, **price drop**, or **price below target**. Each fires an OS notification + (optionally) an email + a live row in the dashboard feed.
 - Currency normalises to EUR (Bulgaria adopted the euro on 2026-01-01; BGN conversions use the official 1.95583 peg).
-- The dashboard surfaces analytics per search: 30-day average, min/max, trend chart, lowest-priced recent listings, days-on-market estimates.
+- The dashboard surfaces analytics per search: min/max/average price, a daily trend chart, average and median days-on-market, and how many listings leave the market per week.
+
+> **Note:** the ingestion path stores each listing's core fields (title, price, location, primary image, posted date). Per-listing photo galleries and attribute tables are not currently populated — the `listing_photos` and `listing_params` tables exist in the schema but nothing writes to them, so those arrays come back empty from the API.
 
 ## Configuration
 
@@ -71,7 +73,7 @@ Override it from the first-run wizard, or edit `<userData>/config.json`. Changes
 
 ### SMTP / email alerts
 
-Open Settings inside the dashboard → **Email** to wire up SMTP. The app mirrors every fired alert to the configured recipient. Plain SMTP, STARTTLS, and TLS are all supported; SMTP auth is optional. Test connectivity from the same screen before saving.
+Open Settings inside the dashboard → **Email** to wire up SMTP. The app mirrors every fired alert to the configured recipient. Plain SMTP, STARTTLS, and TLS are all supported; SMTP auth is optional. There is no connectivity test yet — the first fired alert is what confirms the settings work.
 
 ### Tray behaviour
 
@@ -85,7 +87,7 @@ The app is configured as a menu-bar utility on macOS (`LSUIElement=true`) — th
 
 ### Prerequisites
 
-- **Go 1.22+** — backend compiler
+- **Go 1.26+** — backend compiler (see the `go` directive in `backend/go.mod`)
 - **Node.js 20+** and **npm** — frontend toolchain
 - **Git**
 
