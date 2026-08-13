@@ -36,7 +36,7 @@ import (
 
 // SavedSearch is the slice of saved_searches columns the scheduler cares about.
 // The DB layer maps its row type onto this — keeps the scheduler decoupled
-// from the sqlc generated types so the package can be tested with fakes.
+// from the store's row types so the package can be tested with fakes.
 type SavedSearch struct {
 	ID                 int64
 	Name               string
@@ -62,7 +62,7 @@ type PriceObservation struct {
 }
 
 // Queries is the narrow contract the scheduler needs from the DB layer.
-// Implemented by an adapter over sqlc-generated code in cmd/.
+// Implemented by the hand-written SQL in internal/db/store.
 type Queries interface {
 	ListActiveSavedSearches(ctx context.Context) ([]SavedSearch, error)
 	UpdateSavedSearchPolledAt(ctx context.Context, id int64, ts time.Time) error
@@ -79,8 +79,8 @@ type Queries interface {
 	MarkUnseenListingsRemoved(ctx context.Context, searchID int64, seenExternalIDs []string) (int64, error)
 }
 
-// UpsertListingInput is the scheduler's view of what an upsert requires. The
-// adapter translates it to the sqlc UpsertListingParams shape.
+// UpsertListingInput is the scheduler's view of what an upsert requires.
+// internal/db/store translates it into the listings upsert statement.
 type UpsertListingInput struct {
 	Platform        string
 	Country         string

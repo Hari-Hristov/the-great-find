@@ -59,7 +59,6 @@
     }
   },
   "robots": {
-    "respect_robots_txt": true,
     "user_agent": "the-great-find/1.0 (+personal use; contact: see README)",
     "min_request_spacing_ms": 1500,
     "jitter_ms": 750,

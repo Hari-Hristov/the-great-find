@@ -16,7 +16,7 @@ type SavedSearchInput struct {
 	Name              string          `json:"name" minLength:"1" maxLength:"200" doc:"Human-readable label."`
 	Platform          string          `json:"platform,omitempty" enum:"olx" doc:"Defaults to olx."`
 	Country           string          `json:"country,omitempty" doc:"ISO-3166 alpha-2; defaults to BG."`
-	QueryParams       json.RawMessage `json:"query_params" doc:"Raw query params. Must be a JSON object of string values; keys are filtered against the parser config's allow-list at poll time."`
+	QueryParams       json.RawMessage `json:"query_params" doc:"Raw query params. Must be a JSON object whose values are strings or arrays of strings (keyword_variants is an array); keys are filtered against the parser config's allow-list at poll time."`
 	AlertCriteria     json.RawMessage `json:"alert_criteria,omitempty" doc:"Optional alert rules; see /api/searches/{id}#alert-criteria-shape."`
 	PollIntervalMin   int             `json:"poll_interval_min,omitempty" minimum:"5" maximum:"720" doc:"Minutes between polls. Defaults to 30."`
 	MaxListingAgeDays int             `json:"max_listing_age_days,omitempty" enum:"30,60,90,120" doc:"Recency cutoff in days. Listings older than this are dropped at scrape time. Defaults to 90."`
@@ -50,9 +50,27 @@ func (in SavedSearchInput) validate() error {
 	if len(in.QueryParams) == 0 {
 		return huma.Error400BadRequest("query_params is required")
 	}
-	var probe map[string]string
+	// Values are strings, except keyword_variants which the scheduler reads as
+	// an array of strings (see scheduler.popKeywordVariants). Decoding into
+	// map[string]string would reject that array outright, so probe loosely and
+	// check the value shapes by hand.
+	var probe map[string]any
 	if err := json.Unmarshal(in.QueryParams, &probe); err != nil {
-		return huma.Error400BadRequest("query_params must be a JSON object of string values: " + err.Error())
+		return huma.Error400BadRequest("query_params must be a JSON object: " + err.Error())
+	}
+	for key, val := range probe {
+		if _, ok := val.(string); ok {
+			continue
+		}
+		list, ok := val.([]any)
+		if !ok {
+			return huma.Error400BadRequest(fmt.Sprintf("query_params[%q] must be a string or an array of strings", key))
+		}
+		for _, item := range list {
+			if _, ok := item.(string); !ok {
+				return huma.Error400BadRequest(fmt.Sprintf("query_params[%q] must contain only string values", key))
+			}
+		}
 	}
 	if len(in.AlertCriteria) > 0 {
 		var anyShape map[string]any

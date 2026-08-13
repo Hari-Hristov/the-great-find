@@ -13,7 +13,6 @@ import (
 
 func robots(maxInFlight, spacingMs, jitterMs int) parser.RobotsConfig {
 	return parser.RobotsConfig{
-		RespectRobotsTxt:    true,
 		UserAgent:           "test-agent",
 		MinRequestSpacingMs: spacingMs,
 		JitterMs:            jitterMs,
