@@ -25,7 +25,7 @@ export type BackgroundVariantId =
   | "aurora-field"
   | "kinetic-type";
 
-export const ACTIVE_VARIANT: BackgroundVariantId = "chromatic-wireframe";
+export const ACTIVE_VARIANT: BackgroundVariantId = "depths";
 // options: "depths" | "chromatic-wireframe" | "aurora-field" | "kinetic-type"
 
 // DOM layer (behind the canvas). Renders the base gradient/backdrop

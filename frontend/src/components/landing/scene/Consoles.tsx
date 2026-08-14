@@ -1,5 +1,13 @@
 import { RoundedBox, useGLTF } from "@react-three/drei";
+import { useThree } from "@react-three/fiber";
 import { ModelWithFallback } from "./ModelLoader";
+
+// Same reference height as ScrollCameraRig — keeps console framing in sync with FOV scaling.
+const REFERENCE_HEIGHT = 900;
+
+// Below this aspect (portrait / narrow), start shrinking the console so it never breaks past
+// the horizontal frame on phones / narrow windows.
+const NARROW_ASPECT = 0.75;
 
 function Procedural3DS() {
   const DEG = Math.PI / 180;
@@ -38,7 +46,7 @@ function Procedural3DS() {
         <meshStandardMaterial color="#111120" roughness={0.6} metalness={0.4} />
       </mesh>
 
-      <group position={[0, -0.03, 0]} rotation={[-120 * DEG, 0, 0]}>
+      <group position={[0, -0.03, 0]} rotation={[-15 * DEG, 0, 0]}>
         <RoundedBox args={[1.4, 1.0, 0.14]} radius={0.06} smoothness={4} position={[0, 0.53, 0]}>
           <meshStandardMaterial color="#1a1a2e" roughness={0.4} metalness={0.6} />
         </RoundedBox>
@@ -114,20 +122,28 @@ function ProceduralSteamDeck() {
 }
 
 export function Console3DS({ visible }: { visible: boolean }) {
+  const { size } = useThree();
   if (!visible) return null;
-  // Bbox at scale=1 (no extra rotation): center [0.003, 2.307, -16.41]. At scale=0.227: [0.001, 0.524, -3.725].
-  // Negate to put center at world origin. Small X tilt to angle face toward camera.
-  // Bbox at scale=1 (no extra rotation): center [0.003, 2.307, -16.41].
-  // group position=0 keeps model origin at world origin; model's own center sits at [-3.7z, 0.5y] from origin.
-  // scale=0.28, slight X tilt and Y rotation to angle screen face more toward camera.
+  // The Sketchfab GLB (new_nintendo_3ds_xl.glb) has non-uniform scale baked into its node matrices
+  // (Cube: [4.5, 0.32, 2.5], Cube.001: [0.96, 0.22, 6.85]) — any rotation applied at runtime
+  // shears rather than rigidly rotates it, producing an obelisk. Ship the procedural fallback
+  // until we get a re-authored GLB with applied transforms.
+  //
+  // Responsive scale: viewport-height scaled (matches camera FOV scaling) with an aspect-based
+  // downscale on narrow viewports so the console never breaks past the horizontal frame.
+  const heightRatio = size.height / REFERENCE_HEIGHT;
+  const aspect = size.width / size.height;
+  const narrowShrink = aspect < NARROW_ASPECT ? aspect / NARROW_ASPECT : 1;
+  const scale = 1.2 * heightRatio * narrowShrink;
   return (
-    <group position={[0.4, 0.3, 0]}>
-      <ModelWithFallback
-        path="./models/new_nintendo_3ds_xl.glb"
-        scale={0.18}
-        rotation={[Math.PI / 2, Math.PI, 0]}
-        fallback={<group scale={1.8} position={[0, 0.5, 0]}><Procedural3DS /></group>}
-      />
+    <group position={[0, 0.1, 0]} scale={scale} rotation={[-0.15, 0.25, 0]}>
+      <pointLight position={[3, 4, 4]} intensity={2.4} distance={12} color="#ffffff" />
+      <pointLight position={[-3, 1, 3]} intensity={1.2} distance={10} color="#a8c8ff" />
+      <pointLight position={[0, -2, 3]} intensity={0.6} distance={8} color="#ffe0b0" />
+      <ambientLight intensity={0.35} color="#c0d0ff" />
+      <group position={[0, 0.3, 0]}>
+        <Procedural3DS />
+      </group>
     </group>
   );
 }
@@ -160,7 +176,6 @@ export function ConsoleSteamDeck({ visible }: { visible: boolean }) {
   );
 }
 
-useGLTF.preload("./models/new_nintendo_3ds_xl.glb");
 useGLTF.preload("./models/nintendo_switch_console.glb");
 useGLTF.preload("./models/steam_deck.glb");
 

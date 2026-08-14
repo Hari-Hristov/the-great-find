@@ -59,7 +59,6 @@
     }
   },
   "robots": {
-    "respect_robots_txt": true,
     "user_agent": "the-great-find/1.0 (+personal use; contact: see README)",
     "min_request_spacing_ms": 1500,
     "jitter_ms": 750,
@@ -89,7 +88,11 @@
       "elektronika/telefoni":                                  "2",
       "elektronika/telefoni/smartfoni":                        "3",
       "elektronika/audio-i-video":                             "4",
-      "elektronika/igri-i-konzoli":                            "1184"
+      "elektronika/igri-i-konzoli":                            "1184",
+      "elektronika/igri-i-konzoli/konzoli":                    "1282",
+      "elektronika/igri-i-konzoli/konzoli/nintendo":           "1286",
+      "elektronika/igri-i-konzoli/konzoli/playstation":        "1284",
+      "elektronika/igri-i-konzoli/konzoli/xbox":               "1285"
     },
     "pagination": {
       "next_link_path": "links.next.href",

@@ -41,7 +41,6 @@ const validJSON = `{
   },
   "detail": {"fields": {}},
   "robots": {
-    "respect_robots_txt": true,
     "user_agent": "test-agent",
     "min_request_spacing_ms": 1500,
     "jitter_ms": 750,
@@ -281,7 +280,6 @@ const validJSONv3 = `{
   },
   "detail": {"fields": {}},
   "robots": {
-    "respect_robots_txt": true,
     "user_agent": "test-agent",
     "min_request_spacing_ms": 1500,
     "jitter_ms": 750,

@@ -73,7 +73,7 @@ export const CAMERA_BY_SECTION: Record<
   { position: [number, number, number]; target: [number, number, number]; fov: number }
 > = {
   "cold-open": { position: [0, 0, 6], target: [0, 0, 0], fov: 45 },
-  "3ds-hero": { position: [0.4, -0.1, 4.5], target: [0.4, -0.2, 0], fov: 42 },
+  "3ds-hero": { position: [0, 0, 5.5], target: [0, 0, 0], fov: 42 },
   "portal-dive": { position: [0, -0.2, 1.8], target: [0, -0.35, 0], fov: 35 },
   "switch-emergence": { position: [0, -1.2, 3.5], target: [0, 0, 0], fov: 44 },
   pivot: { position: [3.0, 0.2, 2.8], target: [0, 0, 0], fov: 42 },
