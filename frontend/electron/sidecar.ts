@@ -35,6 +35,16 @@ interface SidecarOpts {
    * from `process.resourcesPath` or fall back to "external" mode.
    */
   isPackaged?: boolean;
+  /**
+   * Port + bearer token of the Electron-mediated fetch proxy (see
+   * frontend/electron/fetchproxy.ts), injected into the spawned Go process's
+   * env so its outbound olx.bg requests route through Electron's Chromium
+   * network stack instead of Go's net/http (see issue #98). Undefined in
+   * "external" mode (dev, backend running outside Electron) — there's no
+   * child process env to inject into, so a dev backend must be given these
+   * manually if it needs to reach real olx.bg.
+   */
+  fetchProxy?: { port: number; token: string };
 }
 
 export class Sidecar extends EventEmitter {
@@ -85,6 +95,10 @@ export class Sidecar extends EventEmitter {
       ...process.env,
       BACKEND_PORT: "0",
       THE_GREAT_FIND_DATA_DIR: this.opts.dataDir ?? "",
+      TGF_FETCH_PROXY: this.opts.fetchProxy
+        ? `http://127.0.0.1:${this.opts.fetchProxy.port}`
+        : "",
+      TGF_FETCH_PROXY_TOKEN: this.opts.fetchProxy?.token ?? "",
     };
 
     const proc = spawn(binPath, [], {

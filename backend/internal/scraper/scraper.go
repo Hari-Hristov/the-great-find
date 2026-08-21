@@ -61,9 +61,14 @@ type Listing struct {
 	Photos          []string
 }
 
-// Client wraps net/http with politeness, plus the parser config it scrapes against.
+// Client wraps a pluggable transport (politehttp.Doer) with politeness, plus
+// the parser config it scrapes against. The transport is *http.Client by
+// default; production may instead wire in *fetchproxy.Client to route
+// requests through Electron's Chromium network stack (see
+// backend/internal/fetchproxy) — the request-building and response-handling
+// logic here is transport-agnostic either way.
 type Client struct {
-	http     *http.Client
+	http     politehttp.Doer
 	cfg      *parser.Store
 	hostGate *politehttp.HostGate
 }
@@ -72,7 +77,7 @@ type Client struct {
 // http.Client with a 30s overall timeout is used. If hg is nil, a fresh HostGate
 // is allocated — production wires the same gate into both scraper and apiclient
 // so the per-host budget covers both paths.
-func NewClient(cfg *parser.Store, hc *http.Client, hg *politehttp.HostGate) (*Client, error) {
+func NewClient(cfg *parser.Store, hc politehttp.Doer, hg *politehttp.HostGate) (*Client, error) {
 	if cfg == nil {
 		return nil, errors.New("scraper: parser store is required")
 	}

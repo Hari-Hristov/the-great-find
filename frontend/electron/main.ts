@@ -16,6 +16,7 @@ import { Sidecar } from "./sidecar";
 import { createTray } from "./tray";
 import { loadConfig, updateConfig } from "./config";
 import { initAutoUpdater } from "./updater";
+import * as fetchProxy from "./fetchproxy";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,7 +53,25 @@ async function bootstrap() {
 
   registerIpc();
 
-  await sidecar.start({ dataDir: cfg.dataDir, isPackaged: app.isPackaged });
+  // Started before the sidecar so the proxy's port + token are guaranteed
+  // live before the Go process (which reads them from its env at startup)
+  // ever exists. Never reachable from the renderer — main-process <-> Go
+  // only, no preload/IPC surface.
+  const proxy = await fetchProxy.start();
+  if (!app.isPackaged) {
+    // Dev-only: lets a developer running the Go backend externally (e.g.
+    // natively on Windows rather than via WSL2, or manually via
+    // TGF_BACKEND_BIN pointing elsewhere) copy these in by hand. Suppressed
+    // in packaged builds — these are per-launch secrets.
+    console.log(`[main] TGF_FETCH_PROXY=http://127.0.0.1:${proxy.port}`);
+    console.log(`[main] TGF_FETCH_PROXY_TOKEN=${proxy.token}`);
+  }
+
+  await sidecar.start({
+    dataDir: cfg.dataDir,
+    isPackaged: app.isPackaged,
+    fetchProxy: proxy,
+  });
 
   createMainWindow();
 
@@ -105,6 +124,7 @@ async function bootstrap() {
     e.preventDefault();
     isQuitting = true;
     await sidecar.stop();
+    await fetchProxy.stop();
     if (tray) {
       tray.destroy();
       tray = null;
