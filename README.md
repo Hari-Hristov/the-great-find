@@ -70,6 +70,8 @@ Override it from the first-run wizard, or edit `<userData>/config.json`. Changes
 |---|---|
 | `THE_GREAT_FIND_DATA_DIR` | Force a specific data directory regardless of OS conventions or wizard choice. |
 | `BACKEND_PORT` | Pin the backend HTTP port. Empty / `0` (the packaged default) lets the OS pick one. `8088` is the local dev convention. |
+| `TGF_FETCH_PROXY` | Base URL (`http://127.0.0.1:<port>`) of the Electron-mediated fetch proxy (see [Architecture](#architecture)). Set automatically by the Electron shell — don't set it by hand except when running the Go backend outside Electron in dev. |
+| `TGF_FETCH_PROXY_TOKEN` | Bearer token for `TGF_FETCH_PROXY`. Same rule — auto-set by Electron, freshly generated per launch. |
 
 ### SMTP / email alerts
 
@@ -166,6 +168,10 @@ cd frontend && npm run build:electron && npm run dist:dir
 ```
 
 The dashboard is a TanStack Router + React app. The Electron renderer loads it directly; in dev mode you can also run it in a regular browser against the same Go backend.
+
+### Why outbound olx.bg requests go through Electron
+
+Both ingestion paths (the JSON API client and the HTML scraper fallback) send their `GET` requests through Electron's own Chromium network stack instead of Go's `net/http`, via a token-authenticated loopback proxy Electron serves and Go calls (`backend/internal/fetchproxy` ↔ `frontend/electron/fetchproxy.ts`). olx.bg's CDN blocks Go's `net/http` on TLS/HTTP2 fingerprint alone, independent of headers — Electron is already resident in the tray, so this uses a real browser engine the app already ships rather than spoofing one. The honest User-Agent (see below) is preserved end to end, the HostGate politeness budget is untouched, and there's no proxy rotation, header randomization, or TLS-library patching involved.
 
 ## Known limitations
 

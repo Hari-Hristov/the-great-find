@@ -55,6 +55,24 @@ TGF_BACKEND_BIN=/path/to/the-great-find npm run dev:electron
 
 Then the Electron main process spawns it for real with `BACKEND_PORT=0`, parses the bound port from the slog startup line, and the renderer auto-picks up the right URL.
 
+#### Known gap: WSL2-hosted backend + real olx.bg ingestion
+
+olx.bg's CDN blocks Go's `net/http` on TLS/HTTP2 fingerprint alone, so outbound
+olx.bg requests are routed through an Electron-mediated loopback fetch proxy
+(`TGF_FETCH_PROXY` / `TGF_FETCH_PROXY_TOKEN` — see the root README's env var
+table). That proxy listens on `127.0.0.1` on the **Windows** side. A Go
+backend running via `make run` inside WSL2 (the default in mode 2 above)
+cannot reach a Windows-side loopback listener, so real olx.bg ingestion will
+403 in that setup after this change. This is an accepted, confirmed
+trade-off — not a bug to fix here.
+
+Two workarounds if you need real ingestion against olx.bg while developing:
+
+1. Build/run the Go binary **natively on Windows** instead of inside WSL2 (bypasses the WDAC-driven WSL2 requirement some other way — e.g. a CI-built binary), then point `TGF_BACKEND_BIN` at it so Electron spawns it directly and injects the env vars automatically.
+2. Set `TGF_BACKEND_BIN` to a binary Electron spawns itself (per the snippet above) — anything Electron spawns gets `TGF_FETCH_PROXY`/`TGF_FETCH_PROXY_TOKEN` injected into its env automatically. A separately-running external backend (mode 1, or `make run` in WSL2) never gets these injected and must be given them by hand, which doesn't help across the WSL2/Windows loopback boundary.
+
+Everything else (fixture-backed tests, non-olx.bg-dependent development) is unaffected.
+
 ### 3. Packaged smoke test (full end-to-end)
 
 ```bash
