@@ -7,7 +7,7 @@ This document covers Phase 7: how to run, develop, and smoke-test the Electron s
 The Electron toolchain is in `devDependencies`. From WSL2:
 
 ```bash
-cd /mnt/c/Users/I762034/projects/the-great-find/frontend
+cd /mnt/c/Users/<username>/projects/the-great-find/frontend
 npm install
 ```
 
@@ -21,11 +21,11 @@ The mode we've been using all along — fastest iteration, no native shell.
 
 ```bash
 # Terminal 1 (WSL2):
-cd /mnt/c/Users/I762034/projects/the-great-find/backend
+cd /mnt/c/Users/<username>/projects/the-great-find/backend
 make run
 
 # Terminal 2 (anywhere):
-cd /mnt/c/Users/I762034/projects/the-great-find/frontend
+cd /mnt/c/Users/<username>/projects/the-great-find/frontend
 npm run dev          # http://localhost:5173
 ```
 
@@ -37,11 +37,11 @@ Boots the full Electron experience — tray icon, hide-to-tray, IPC bridge — p
 
 ```bash
 # Terminal 1 (WSL2): keep the Go backend running externally.
-cd /mnt/c/Users/I762034/projects/the-great-find/backend
+cd /mnt/c/Users/<username>/projects/the-great-find/backend
 make run
 
 # Terminal 2 (PowerShell or bash):
-cd C:\Users\I762034\projects\the-great-find\frontend
+cd C:\Users\<username>\projects\the-great-find\frontend
 npm run dev:electron
 ```
 
@@ -76,7 +76,7 @@ Everything else (fixture-backed tests, non-olx.bg-dependent development) is unaf
 ### 3. Packaged smoke test (full end-to-end)
 
 ```bash
-cd /mnt/c/Users/I762034/projects/the-great-find/frontend
+cd /mnt/c/Users/<username>/projects/the-great-find/frontend
 npm run build:electron      # bundles main/preload/renderer into out/
 npm run dist:dir            # unpacked Electron app (no installer)
 ```
@@ -144,7 +144,7 @@ install after ~30 seconds.
 ## Verification commands
 
 ```bash
-cd /mnt/c/Users/I762034/projects/the-great-find/frontend
+cd /mnt/c/Users/<username>/projects/the-great-find/frontend
 npm run typecheck        # both renderer + electron tsconfigs
 npm run lint
 ```
