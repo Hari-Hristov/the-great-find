@@ -279,11 +279,7 @@ func TestClient_FetchListings_ViaFetchProxy_MapsOffersEndToEnd(t *testing.T) {
 		if got := r.Header.Get("Authorization"); got != "Bearer "+wantToken {
 			t.Errorf("Authorization = %q, want Bearer %s", got, wantToken)
 		}
-		var req struct {
-			URL     string            `json:"url"`
-			Method  string            `json:"method"`
-			Headers map[string]string `json:"headers"`
-		}
+		var req fetchproxy.EnvRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			t.Fatalf("decode envelope: %v", err)
 		}
@@ -291,11 +287,7 @@ func TestClient_FetchListings_ViaFetchProxy_MapsOffersEndToEnd(t *testing.T) {
 			t.Errorf("envelope method = %q, want GET", req.Method)
 		}
 
-		resp := struct {
-			Status  int               `json:"status"`
-			Headers map[string]string `json:"headers"`
-			BodyB64 string            `json:"body_b64"`
-		}{
+		resp := fetchproxy.EnvResponse{
 			Status:  http.StatusOK,
 			Headers: map[string]string{"content-type": "application/json"},
 			BodyB64: base64.StdEncoding.EncodeToString(offersJSON),

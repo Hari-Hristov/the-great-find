@@ -98,17 +98,9 @@ func run() error {
 	// app is running under the Electron shell (TGF_FETCH_PROXY set), since
 	// olx.bg's CDN blocks Go's net/http on TLS/HTTP2 fingerprint alone. Nil
 	// when unset (go test, `make run` in dev, cmd/dnsprobe) — both clients
-	// fall back to their default *http.Client in that case.
-	//
-	// This must be an explicit nil-check assignment, NOT a direct assignment
-	// of fetchproxy.FromEnv()'s result into the interface variable: a
-	// typed-nil *fetchproxy.Client boxed into a politehttp.Doer interface is
-	// a non-nil interface, which would make the `hc == nil` defaults inside
-	// apiclient.NewClient/scraper.NewClient never fire.
-	var transport politehttp.Doer
-	if fp := fetchproxy.FromEnv(); fp != nil {
-		transport = fp
-	}
+	// fall back to their default *http.Client in that case. FromEnv() returns
+	// politehttp.Doer directly, so this is already a true nil interface.
+	transport := fetchproxy.FromEnv()
 	if transport != nil {
 		slog.Info("outbound transport", "mode", "electron")
 	} else {

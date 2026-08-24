@@ -60,10 +60,15 @@ export class Sidecar extends EventEmitter {
    * return the cached port without restarting anything.
    */
   async start(opts: SidecarOpts = {}): Promise<SidecarReady> {
-    this.opts = opts;
     if (this.readyPort != null) {
       return { mode: this.mode, port: this.readyPort };
     }
+    // Merge rather than replace: a bare re-entrant call (e.g. the
+    // `backend:port` IPC handler polling while a crash-restart is still in
+    // flight, when readyPort is briefly null) must not blow away the
+    // fetchProxy/isPackaged/dataDir captured by the real caller's original,
+    // fully-populated start() in main.ts.
+    this.opts = { ...this.opts, ...opts };
 
     const binPath = resolveBinaryPath(this.opts.isPackaged === true);
     if (!binPath) {

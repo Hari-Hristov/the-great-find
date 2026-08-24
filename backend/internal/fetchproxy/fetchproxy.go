@@ -22,23 +22,28 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
+
+	"github.com/Hari-Hristov/the-great-find/backend/internal/politehttp"
 )
 
-// envRequest is the wire envelope Go POSTs to Electron's /fetch endpoint.
-type envRequest struct {
+// EnvRequest is the wire envelope Go POSTs to Electron's /fetch endpoint.
+// Exported so tests outside this package (e.g. apiclient's) can decode
+// against the real wire contract instead of a hand-duplicated copy.
+type EnvRequest struct {
 	URL     string            `json:"url"`
 	Method  string            `json:"method"`
 	Headers map[string]string `json:"headers"`
 }
 
-// envResponse is the wire envelope Electron replies with. A successful round
+// EnvResponse is the wire envelope Electron replies with. A successful round
 // trip through Electron — even one where the upstream (olx.bg) responded with
 // a 403 — comes back as HTTP 200 from Electron with Status set to whatever
 // upstream returned. Error is only set when the proxy itself failed (bad
 // token, disallowed host, transport failure, timeout) — that case surfaces as
 // a Go error from Do, never as a fabricated *http.Response.
-type envResponse struct {
+type EnvResponse struct {
 	Status  int               `json:"status"`
 	Headers map[string]string `json:"headers"`
 	BodyB64 string            `json:"body_b64"`
@@ -74,7 +79,11 @@ func New(baseURL, token string) *Client {
 // `go test ./...`, `make run` in dev, and cmd/dnsprobe, none of which run
 // under Electron. Nil is not an error condition; callers (apiclient.NewClient,
 // scraper.NewClient) treat a nil Doer as "use the default net/http client".
-func FromEnv() *Client {
+//
+// Returns politehttp.Doer rather than *Client so that a bare `return nil`
+// here is already a true nil interface — callers don't need to guard against
+// boxing a typed-nil *Client into an interface variable themselves.
+func FromEnv() politehttp.Doer {
 	base := os.Getenv("TGF_FETCH_PROXY")
 	if base == "" {
 		return nil
@@ -96,10 +105,13 @@ func FromEnv() *Client {
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
 	headers := make(map[string]string, len(req.Header))
 	for k := range req.Header {
-		headers[k] = req.Header.Get(k)
+		// Values, not Get: Get silently returns only the first value for a
+		// multi-value header. Joining with ", " is the HTTP-spec-correct way
+		// to fold repeated header instances into one field (RFC 7230 §3.2.2).
+		headers[k] = strings.Join(req.Header.Values(k), ", ")
 	}
 
-	envReq := envRequest{
+	envReq := EnvRequest{
 		URL:     req.URL.String(),
 		Method:  req.Method,
 		Headers: headers,
@@ -131,7 +143,7 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("fetchproxy: proxy returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var envResp envResponse
+	var envResp EnvResponse
 	if err := json.Unmarshal(body, &envResp); err != nil {
 		return nil, fmt.Errorf("fetchproxy: decode response envelope: %w", err)
 	}

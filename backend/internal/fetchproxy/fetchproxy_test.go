@@ -15,7 +15,7 @@ const testToken = "test-token-abc123"
 
 func TestClient_Do_SendsEnvelopeAndBearerHeader(t *testing.T) {
 	var gotAuth string
-	var gotEnv envRequest
+	var gotEnv EnvRequest
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
@@ -23,7 +23,7 @@ func TestClient_Do_SendsEnvelopeAndBearerHeader(t *testing.T) {
 			t.Fatalf("decode request envelope: %v", err)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(envResponse{
+		_ = json.NewEncoder(w).Encode(EnvResponse{
 			Status:  200,
 			Headers: map[string]string{"content-type": "application/json"},
 			BodyB64: base64.StdEncoding.EncodeToString([]byte(`{"ok":true}`)),
@@ -54,11 +54,11 @@ func TestClient_Do_SendsEnvelopeAndBearerHeader(t *testing.T) {
 }
 
 func TestClient_Do_RequestHeadersRoundTrip(t *testing.T) {
-	var gotEnv envRequest
+	var gotEnv EnvRequest
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewDecoder(r.Body).Decode(&gotEnv)
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(envResponse{
+		_ = json.NewEncoder(w).Encode(EnvResponse{
 			Status:  200,
 			BodyB64: base64.StdEncoding.EncodeToString(nil),
 		})
@@ -87,7 +87,7 @@ func TestClient_Do_RequestHeadersRoundTrip(t *testing.T) {
 func TestClient_Do_UpstreamStatusPassesThroughWithoutError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(envResponse{
+		_ = json.NewEncoder(w).Encode(EnvResponse{
 			Status:  403,
 			Headers: map[string]string{"content-type": "text/html"},
 			BodyB64: base64.StdEncoding.EncodeToString([]byte("<html>blocked</html>")),
@@ -151,7 +151,7 @@ func TestClient_Do_MalformedJSONBecomesGoError(t *testing.T) {
 func TestClient_Do_BadBase64BecomesGoError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(envResponse{
+		_ = json.NewEncoder(w).Encode(EnvResponse{
 			Status:  200,
 			BodyB64: "not-valid-base64!!!",
 		})
@@ -173,7 +173,7 @@ func TestClient_Do_BadBase64BecomesGoError(t *testing.T) {
 func TestClient_Do_EnvelopeErrorFieldBecomesGoError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(envResponse{
+		_ = json.NewEncoder(w).Encode(EnvResponse{
 			Error: "fetch failed: net::ERR_CONNECTION_RESET",
 		})
 	}))

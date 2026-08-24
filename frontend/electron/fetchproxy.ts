@@ -23,8 +23,12 @@ import http from "node:http";
 const PARTITION = "tgf-olx";
 
 const FETCH_TIMEOUT_MS = 30_000;
-const MAX_RESPONSE_BYTES = 8 * 1024 * 1024; // 8 MB
+// Well above any real olx.bg JSON/HTML page, so normal polling never hits
+// this — it exists purely to bound worst-case memory on a listener this
+// file's header comment treats as hostile-adjacent.
+const MAX_RESPONSE_BYTES = 32 * 1024 * 1024; // 32 MB
 const MAX_REQUEST_BYTES = 64 * 1024; // 64 KB
+const MAX_REDIRECTS = 5;
 
 interface FetchEnvelopeRequest {
   url?: unknown;
@@ -119,12 +123,7 @@ async function handleRequest(
   }
 
   try {
-    const upstream = await session.fromPartition(PARTITION).fetch(targetUrl, {
-      method: "GET",
-      headers,
-      redirect: "follow",
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
+    const upstream = await fetchWithValidatedRedirects(targetUrl, headers);
     const bodyBytes = await readCappedStream(upstream.body, MAX_RESPONSE_BYTES);
     const responseHeaders: Record<string, string> = {};
     upstream.headers.forEach((value, key) => {
@@ -140,7 +139,52 @@ async function handleRequest(
     // detail) into a client-visible error string.
     console.error("[fetchproxy] upstream fetch failed:", err);
     sendError(res, 502, "fetch failed");
+  } finally {
+    // The tgf-olx partition's cookie jar otherwise persists for the whole
+    // Electron process lifetime. Clear it after every request so behavior
+    // stays stateless request-to-request, matching the net/http client this
+    // proxy replaced (which never set a cookie Jar).
+    await session
+      .fromPartition(PARTITION)
+      .clearStorageData({ storages: ["cookies"] })
+      .catch(() => {
+        // Best-effort — a clear failure shouldn't fail the response that
+        // already succeeded or failed on its own terms above.
+      });
   }
+}
+
+// isAllowedTarget only vets the initial URL, so a redirect response can't be
+// handed to Chromium's own `redirect: "follow"` — that would let an open
+// redirect (or a compromised olx.bg endpoint) send an authenticated request
+// to an arbitrary host. Each hop is fetched with redirect: "manual" and its
+// Location re-checked against the same allowlist before being followed.
+async function fetchWithValidatedRedirects(
+  targetUrl: string,
+  headers: Record<string, string>,
+): Promise<Response> {
+  let url = targetUrl;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const res = await session.fromPartition(PARTITION).fetch(url, {
+      method: "GET",
+      headers,
+      redirect: "manual",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (res.status < 300 || res.status >= 400) {
+      return res;
+    }
+    const location = res.headers.get("location");
+    if (!location) {
+      return res;
+    }
+    const next = new URL(location, url).toString();
+    if (!isAllowedTarget(next)) {
+      throw new Error("redirect target not allowed");
+    }
+    url = next;
+  }
+  throw new Error("too many redirects");
 }
 
 function isAuthorized(req: http.IncomingMessage): boolean {
@@ -155,7 +199,12 @@ function isAuthorized(req: http.IncomingMessage): boolean {
 function isAllowedHost(req: http.IncomingMessage, srv: http.Server): boolean {
   const addr = srv.address();
   if (addr === null || typeof addr === "string") return false;
-  return req.headers.host === `127.0.0.1:${addr.port}`;
+  // Mirrors backend/internal/hostguard/hostguard.go: lowercase compare,
+  // allow both the 127.0.0.1 and localhost forms of the same port.
+  const host = (req.headers.host ?? "").toLowerCase();
+  return (
+    host === `127.0.0.1:${addr.port}` || host === `localhost:${addr.port}`
+  );
 }
 
 function isHeaderRecord(value: unknown): value is Record<string, string> {
