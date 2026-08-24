@@ -35,6 +35,16 @@ interface SidecarOpts {
    * from `process.resourcesPath` or fall back to "external" mode.
    */
   isPackaged?: boolean;
+  /**
+   * Port + bearer token of the Electron-mediated fetch proxy (see
+   * frontend/electron/fetchproxy.ts), injected into the spawned Go process's
+   * env so its outbound olx.bg requests route through Electron's Chromium
+   * network stack instead of Go's net/http (see issue #98). Undefined in
+   * "external" mode (dev, backend running outside Electron) — there's no
+   * child process env to inject into, so a dev backend must be given these
+   * manually if it needs to reach real olx.bg.
+   */
+  fetchProxy?: { port: number; token: string };
 }
 
 export class Sidecar extends EventEmitter {
@@ -50,10 +60,15 @@ export class Sidecar extends EventEmitter {
    * return the cached port without restarting anything.
    */
   async start(opts: SidecarOpts = {}): Promise<SidecarReady> {
-    this.opts = opts;
     if (this.readyPort != null) {
       return { mode: this.mode, port: this.readyPort };
     }
+    // Merge rather than replace: a bare re-entrant call (e.g. the
+    // `backend:port` IPC handler polling while a crash-restart is still in
+    // flight, when readyPort is briefly null) must not blow away the
+    // fetchProxy/isPackaged/dataDir captured by the real caller's original,
+    // fully-populated start() in main.ts.
+    this.opts = { ...this.opts, ...opts };
 
     const binPath = resolveBinaryPath(this.opts.isPackaged === true);
     if (!binPath) {
@@ -85,6 +100,10 @@ export class Sidecar extends EventEmitter {
       ...process.env,
       BACKEND_PORT: "0",
       THE_GREAT_FIND_DATA_DIR: this.opts.dataDir ?? "",
+      TGF_FETCH_PROXY: this.opts.fetchProxy
+        ? `http://127.0.0.1:${this.opts.fetchProxy.port}`
+        : "",
+      TGF_FETCH_PROXY_TOKEN: this.opts.fetchProxy?.token ?? "",
     };
 
     const proc = spawn(binPath, [], {

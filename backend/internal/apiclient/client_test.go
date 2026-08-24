@@ -2,6 +2,7 @@ package apiclient
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/Hari-Hristov/the-great-find/backend/internal/fetchproxy"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/politehttp"
 )
@@ -238,6 +240,94 @@ func TestClient_BuildURL_UnknownCategorySlugForwardedAsID(t *testing.T) {
 	q := u.Query()
 	if q.Get("category_id") != "mebeli/stolove" {
 		t.Errorf("category_id = %q, want mebeli/stolove (slug forwarded)", q.Get("category_id"))
+	}
+}
+
+// TestClient_FetchListings_ViaFetchProxy_MapsOffersEndToEnd stands in for
+// Electron: an httptest.Server speaking the /fetch envelope protocol
+// (see backend/internal/fetchproxy) instead of serving olx.bg directly.
+// fetchproxy.Client is injected as the politehttp.Doer, proving the
+// apiclient <-> fetchproxy <-> "Electron" path maps offers identically to
+// the direct *http.Client path exercised by the other tests in this file.
+func TestClient_FetchListings_ViaFetchProxy_MapsOffersEndToEnd(t *testing.T) {
+	const wantToken = "test-bearer-token"
+
+	offersJSON, _ := json.Marshal(map[string]any{
+		"data": []any{
+			map[string]any{
+				"id":           222,
+				"url":          "https://www.olx.bg/item/y-CID5-ID222.html",
+				"title":        "y",
+				"created_time": "2026-06-09T14:32:00+03:00",
+				"business":     false,
+				"location":     map[string]any{"city": map[string]any{"name": "Пловдив"}},
+				"params": []any{
+					map[string]any{
+						"key":   "price",
+						"value": map[string]any{"value": 150.0, "currency": "EUR"},
+					},
+				},
+			},
+		},
+		"links": map[string]any{"next": map[string]any{"href": ""}},
+	})
+
+	// Fake Electron: validates the envelope's shape/auth, then replies with
+	// the documented response envelope — status 200 upstream, offersJSON
+	// carried as body_b64.
+	electron := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer "+wantToken {
+			t.Errorf("Authorization = %q, want Bearer %s", got, wantToken)
+		}
+		var req fetchproxy.EnvRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode envelope: %v", err)
+		}
+		if req.Method != http.MethodGet {
+			t.Errorf("envelope method = %q, want GET", req.Method)
+		}
+
+		resp := fetchproxy.EnvResponse{
+			Status:  http.StatusOK,
+			Headers: map[string]string{"content-type": "application/json"},
+			BodyB64: base64.StdEncoding.EncodeToString(offersJSON),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer electron.Close()
+
+	fpClient := fetchproxy.New(electron.URL, wantToken)
+
+	// BaseURL doesn't need to be reachable — fetchproxy.Client always POSTs
+	// to its own baseURL (the fake Electron server above), carrying the
+	// "real" target URL inside the envelope rather than dialing it directly.
+	store := newTestStore(t, "https://www.olx.bg")
+	c, err := NewClient(store, fpClient, politehttp.NewHostGate())
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+
+	target, err := c.BuildURL([]byte(`{"keyword":"y"}`))
+	if err != nil {
+		t.Fatalf("BuildURL: %v", err)
+	}
+
+	listings, _, err := c.FetchListings(context.Background(), target)
+	if err != nil {
+		t.Fatalf("FetchListings: %v", err)
+	}
+	if len(listings) != 1 {
+		t.Fatalf("got %d listings, want 1", len(listings))
+	}
+	if listings[0].ExternalID != "222" {
+		t.Errorf("ExternalID = %q, want 222", listings[0].ExternalID)
+	}
+	if listings[0].LocationCity != "Пловдив" {
+		t.Errorf("LocationCity = %q, want Пловдив", listings[0].LocationCity)
+	}
+	if listings[0].PriceAmount == nil || *listings[0].PriceAmount != 150.0 {
+		t.Errorf("PriceAmount = %v, want 150.0", listings[0].PriceAmount)
 	}
 }
 

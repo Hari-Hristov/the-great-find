@@ -17,6 +17,7 @@ import (
 	"github.com/Hari-Hristov/the-great-find/backend/internal/db"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/db/store"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/events"
+	"github.com/Hari-Hristov/the-great-find/backend/internal/fetchproxy"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/hostguard"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/notify"
 	"github.com/Hari-Hristov/the-great-find/backend/internal/parser"
@@ -93,7 +94,20 @@ func run() error {
 	// giving each client its own gate would silently double effective load.
 	hostGate := politehttp.NewHostGate()
 
-	scraperClient, err := scraper.NewClient(parserStore, nil, hostGate)
+	// Requests get routed through Electron's Chromium network stack when the
+	// app is running under the Electron shell (TGF_FETCH_PROXY set), since
+	// olx.bg's CDN blocks Go's net/http on TLS/HTTP2 fingerprint alone. Nil
+	// when unset (go test, `make run` in dev, cmd/dnsprobe) — both clients
+	// fall back to their default *http.Client in that case. FromEnv() returns
+	// politehttp.Doer directly, so this is already a true nil interface.
+	transport := fetchproxy.FromEnv()
+	if transport != nil {
+		slog.Info("outbound transport", "mode", "electron")
+	} else {
+		slog.Info("outbound transport", "mode", "direct")
+	}
+
+	scraperClient, err := scraper.NewClient(parserStore, transport, hostGate)
 	if err != nil {
 		return fmt.Errorf("scraper: %w", err)
 	}
@@ -102,7 +116,7 @@ func run() error {
 	// swap fetchers mid-run — adding/removing the `api` block requires a restart.
 	var fetcher scheduler.Fetcher
 	if parserStore.Get().API != nil {
-		apiClient, err := apiclient.NewClient(parserStore, nil, hostGate)
+		apiClient, err := apiclient.NewClient(parserStore, transport, hostGate)
 		if err != nil {
 			return fmt.Errorf("apiclient: %w", err)
 		}
