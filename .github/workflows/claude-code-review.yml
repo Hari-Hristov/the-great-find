@@ -48,5 +48,13 @@ jobs:
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ inputs.pr_number || github.event.pull_request.number }}'
+          # The code-review plugin's own command frontmatter only pre-approves a
+          # handful of `gh` Bash subcommands, not the Task tool it needs to spawn
+          # its Haiku/Sonnet review subagents. Headless runs can't prompt for
+          # approval, so that call auto-denies and the review silently no-ops
+          # (job still reports success). bypassPermissions removes that internal
+          # gate; the job's `contents: read` scope above is the real backstop
+          # against this job ever writing to the repo, regardless of this flag.
+          claude_args: '--permission-mode bypassPermissions'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
