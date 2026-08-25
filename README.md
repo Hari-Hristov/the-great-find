@@ -16,131 +16,28 @@ No cloud. No account. No telemetry. The database is a SQLite file on your disk a
 
 ---
 
-## Install
+## Download
 
 The app is unsigned in v1 — see [`INSTALL-NOTES.md`](./INSTALL-NOTES.md) for the one-time bypass step per OS.
 
-Grab the latest release for your platform from the
+Grab the latest release (or pre-release, if you want an early build) for your platform from the
 [Releases page](https://github.com/Hari-Hristov/the-great-find/releases):
 
 | OS | Artifact | Notes |
 |---|---|---|
-| Windows | `The-Great-Find-Setup-X.Y.Z.exe` | NSIS installer. SmartScreen warning is normal — click **More info → Run anyway**. |
-| macOS | `The-Great-Find-X.Y.Z-universal.dmg` | Universal (Apple Silicon + Intel). First launch: right-click the app → **Open**. |
-| Linux | `The-Great-Find-X.Y.Z-x86_64.AppImage` | `chmod +x` and run. Tray support depends on your DE. |
+| Windows | `The-Great-Find-X.Y.Z-windows-x64.exe` | SmartScreen warning is normal — click **More info → Run anyway**. |
+| macOS | `The-Great-Find-X.Y.Z-macos-universal.dmg` | Universal (Apple Silicon + Intel). First launch: right-click the app → **Open**. |
+| Linux | `The-Great-Find-X.Y.Z-linux-x64.AppImage` | `chmod +x` and run. Tray support depends on your DE. |
 
-## First run
-
-On first launch you get a 4-step setup wizard:
-
-1. **Welcome** — a short intro to what the app does.
-2. **Data directory** — confirm or override where the SQLite database lives. Defaults to the OS-conventional path (see below).
-3. **Notifications** — choose whether OS notifications fire on alerts. SMTP setup for email alerts is deferred to the Settings panel; skipping it is fine.
-4. **First search** — name it, point it at an olx.bg category, set a target price if you want one. You can add more, edit, and tune later from the Searches window.
-
-After the wizard, the app drops into the tray. Single-click the tray icon (or double-click on Windows) to bring the dashboard up; right-click for **Open** / **Quit**. Closing the window only hides it — the polling keeps running.
-
-## How it works
-
-- Each saved search polls on its own schedule (default 30 minutes).
-- Every observation is stored in the local SQLite database: listings, the search-to-listing associations, and a price-history table. A price-history row is written when a listing is first seen and whenever its price changes, so gaps mean "unchanged" rather than "not polled".
-- Alerts fire on **new match**, **keyword**, **price drop**, or **price below target**. Each fires an OS notification + (optionally) an email + a live row in the dashboard feed.
-- Currency normalises to EUR (Bulgaria adopted the euro on 2026-01-01; BGN conversions use the official 1.95583 peg).
-- The dashboard surfaces analytics per search: min/max/average price, a daily trend chart, average and median days-on-market, and how many listings leave the market per week.
-
-> **Note:** the ingestion path stores each listing's core fields (title, price, location, primary image, posted date). Per-listing photo galleries and attribute tables are not currently populated — the `listing_photos` and `listing_params` tables exist in the schema but nothing writes to them, so those arrays come back empty from the API.
-
-## Configuration
-
-### Data directory
-
-The SQLite database lives in the OS-conventional app data folder by default:
-
-| OS | Path |
-|---|---|
-| Windows | `%APPDATA%\the-great-find\` |
-| macOS | `~/Library/Application Support/the-great-find/` |
-| Linux | `${XDG_DATA_HOME:-~/.local/share}/the-great-find/` |
-
-Override it from the first-run wizard, or edit `<userData>/config.json`. Changes apply on next launch — existing data stays in place at the old location.
-
-### Environment overrides
-
-| Var | Effect |
-|---|---|
-| `THE_GREAT_FIND_DATA_DIR` | Force a specific data directory regardless of OS conventions or wizard choice. |
-| `BACKEND_PORT` | Pin the backend HTTP port. Empty / `0` (the packaged default) lets the OS pick one. `8088` is the local dev convention. |
-| `TGF_FETCH_PROXY` | Base URL (`http://127.0.0.1:<port>`) of the Electron-mediated fetch proxy (see [Architecture](#architecture)). Set automatically by the Electron shell — don't set it by hand except when running the Go backend outside Electron in dev. |
-| `TGF_FETCH_PROXY_TOKEN` | Bearer token for `TGF_FETCH_PROXY`. Same rule — auto-set by Electron, freshly generated per launch. |
-
-### SMTP / email alerts
-
-Open Settings inside the dashboard → **Email** to wire up SMTP. The app mirrors every fired alert to the configured recipient. Plain SMTP, STARTTLS, and TLS are all supported; SMTP auth is optional. There is no connectivity test yet — the first fired alert is what confirms the settings work.
-
-### Tray behaviour
-
-- **Single click** (Windows / Linux) or click on the menu-bar icon (macOS): toggles the dashboard window.
-- **Double click** (Windows): same as single click. Some Windows setups only fire double-click.
-- **Right click**: context menu → **Open** / **Quit**.
-
-The app is configured as a menu-bar utility on macOS (`LSUIElement=true`) — there is no Dock icon by design.
-
-## Build from source
-
-### Prerequisites
-
-- **Go 1.26+** — backend compiler (see the `go` directive in `backend/go.mod`)
-- **Node.js 20+** and **npm** — frontend toolchain
-- **Git**
+## Run locally
 
 ```bash
 git clone https://github.com/Hari-Hristov/the-great-find.git
 cd the-great-find
-```
-
-> **Windows note:** Go commands must run inside WSL2 if your machine enforces WDAC policy (corporate lockdown). On macOS / Linux there is no equivalent restriction.
-
-### Quick build (host OS only)
-
-```bash
 bash scripts/build.sh
 ```
 
-Produces `dist/bin/<goos>-<goarch>/the-great-find[.exe]` and a packaged Electron app under `dist/electron/`.
-
-### Cross-build (all four targets)
-
-```bash
-bash scripts/cross-build.sh
-```
-
-Produces Go binaries for `windows/amd64`, `darwin/amd64`, `darwin/arm64`, and `linux/amd64`. Pure-Go SQLite (`modernc/sqlite`) means no CGO and no cross-toolchain setup needed.
-
-### Dev loop
-
-Three modes are available — see [`frontend/electron/README.md`](./frontend/electron/README.md) for full details.
-
-**1. Browser-only (fastest iteration)**
-
-```bash
-# Terminal 1 — start Go backend:
-cd backend && make run          # serves on :8088
-
-# Terminal 2 — start Vite dev server:
-cd frontend && npm install && npm run dev   # http://localhost:5173
-```
-
-**2. Electron dev** — full native shell (tray, IPC) pointed at the Vite dev server:
-
-```bash
-cd frontend && npm run dev:electron
-```
-
-**3. Packaged smoke test** — bundles everything into an unpacked Electron app:
-
-```bash
-cd frontend && npm run build:electron && npm run dist:dir
-```
+Requires **Go 1.26+** and **Node.js 20+**. Produces a Go binary under `dist/bin/` and a packaged Electron app under `dist/electron/`. See [`frontend/electron/README.md`](./frontend/electron/README.md) for the full dev loop (browser-only, Electron dev, packaged smoke test).
 
 ## Architecture
 
@@ -173,18 +70,6 @@ The dashboard is a TanStack Router + React app. The Electron renderer loads it d
 
 Both ingestion paths (the JSON API client and the HTML scraper fallback) send their `GET` requests through Electron's own Chromium network stack instead of Go's `net/http`, via a token-authenticated loopback proxy Electron serves and Go calls (`backend/internal/fetchproxy` ↔ `frontend/electron/fetchproxy.ts`). olx.bg's CDN blocks Go's `net/http` on TLS/HTTP2 fingerprint alone, independent of headers — Electron is already resident in the tray, so this uses a real browser engine the app already ships rather than spoofing one. The honest User-Agent (see below) is preserved end to end, the HostGate politeness budget is untouched, and there's no proxy rotation, header randomization, or TLS-library patching involved.
 
-## Known limitations
-
-- **Unsigned builds** — the app is unsigned in v1. Windows shows a SmartScreen warning; macOS shows a Gatekeeper block on first launch. See [`INSTALL-NOTES.md`](./INSTALL-NOTES.md) for the one-time bypass step per OS.
-- **Single parser target** — only [olx.bg](https://olx.bg) is supported. The parser configuration lives in `parser-config/olx-bg.json`.
-- **No auto-update on Windows / macOS** — unsigned installers can't be silently applied. The app notifies you when a new release is available; download manually from the [Releases page](https://github.com/Hari-Hristov/the-great-find/releases). Linux AppImage supports full auto-update.
-
-## Roadmap
-
-- [#52 — Code signing for Windows / macOS](https://github.com/Hari-Hristov/the-great-find/issues/52) (v2)
-- [#46 — Auto-discover OLX filter params](https://github.com/Hari-Hristov/the-great-find/issues/46) (parked)
-- Browse open issues: <https://github.com/Hari-Hristov/the-great-find/issues>
-
 ## ⚠️ Important — Personal Use Only
 
 **This tool is for personal, non-commercial use only.** Do NOT use it to:
@@ -208,6 +93,15 @@ disappear at any time. Calling it sits in a legal/ethical gray area:
 - **Officially**, OLX has not declared this endpoint open for third-party
   consumption, and their general Terms of Service likely prohibit programmatic
   access without a partner agreement.
+
+**Note (v1.0.0+):** olx.bg's CDN blocks this endpoint by TLS/HTTP2 fingerprint
+when called from Go's own HTTP client, independent of headers. As of this
+release, requests are routed through Electron's own Chromium network stack
+instead — the same browser engine the app already ships in its tray process —
+rather than spoofing a user agent or fingerprint from Go. This doesn't change
+the honest User-Agent, the request rate, or the politeness budget described
+below; it only changes which network stack initiates the request. See
+[Architecture](#architecture) for the technical details.
 
 By using this tool, you accept that:
 
