@@ -56,7 +56,7 @@
     "electron-vite": "^3.0.0",
     "eslint": "^10.5.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.3",
+    "eslint-plugin-react-refresh": "^0.5.4",
     "openapi-typescript": "^7.4.0",
     "tailwindcss": "^4.3.2",
     "typescript": "^5.7.2",
